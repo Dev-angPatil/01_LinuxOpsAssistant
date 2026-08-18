@@ -43,7 +43,7 @@ The **AI-Powered Linux Operations Assistant** (`ops-assistant`) is an autonomous
 
 ### Installation
 ```bash
-git clone https://github.com/ssm-hackathon-2026/01_LinuxOpsAssistant.git
+git clone https://github.com/Dev-angPatil/01_LinuxOpsAssistant.git
 cd 01_LinuxOpsAssistant
 pip install -r requirements.txt
 ```

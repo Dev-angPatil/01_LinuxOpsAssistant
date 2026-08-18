@@ -153,7 +153,7 @@ graph TD
 ---
 
 ### Field 8: GitHub Repository
-- **Repository URI**: `https://github.com/ssm-hackathon-2026/01_LinuxOpsAssistant.git`
+- **Repository URI**: `https://github.com/Dev-angPatil/01_LinuxOpsAssistant.git`
 - **Collaborator Access**: Added `ssm-hackathon` as Collaborator with write/read access.
 - **License**: Apache License 2.0 (`LICENSE` file included in repository root).
 - **Build & Execution**: Complete test suite runs with `PYTHONPATH=. python3 -m unittest discover tests`.
