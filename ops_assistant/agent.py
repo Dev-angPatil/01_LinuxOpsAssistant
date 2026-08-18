@@ -6,11 +6,13 @@ import json
 import time
 import urllib.request
 import urllib.error
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 from ops_assistant.models import (
     DiagnosticReport, XAIExplanation, SystemHealthSnapshot, SafetyLevel, LogRecord
 )
 from ops_assistant.collectors.hub import TelemetryHub
+from ops_assistant.collectors.distro_detector import DistroDetector, DistroInfo
+from ops_assistant.db.distro_db import DistroKnowledgeBase
 from ops_assistant.explainer.xai import XAIExplainer
 from ops_assistant.explainer.causality_dag import CausalityDAGEngine, CausalityGraphResult
 from ops_assistant.tools.safety import CommandSafetyValidator
@@ -39,6 +41,106 @@ class OllamaProvider(LLMProvider):
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 return json.loads(data.get("response", "{}"))
+        except Exception:
+            return None
+
+class LlamaCppProvider(LLMProvider):
+    """Direct in-process LLM inference using llama-cpp-python and local GGUF models."""
+
+    def __init__(
+        self,
+        model_path: Optional[str] = None,
+        n_ctx: int = 2048,
+        n_threads: Optional[int] = None,
+        verbose: bool = False
+    ):
+        self.model_path = model_path
+        if self.model_path is None:
+            try:
+                from ops_assistant.model_manager.downloader import ModelDownloader
+                downloader = ModelDownloader()
+                active_path = downloader.get_active_model_path()
+                if active_path:
+                    self.model_path = str(active_path)
+            except Exception:
+                pass
+
+        self.n_ctx = n_ctx
+        self.n_threads = n_threads or max(1, (os.cpu_count() or 4) // 2)
+        self.verbose = verbose
+        self._llm = None
+        self._load_error = None
+
+    def is_available(self) -> Tuple[bool, str]:
+        """Check if llama-cpp-python and model weights are ready."""
+        if not self.model_path or not os.path.exists(self.model_path):
+            return False, f"Model weights not found at '{self.model_path}'"
+        try:
+            import llama_cpp
+            return True, f"Ready ({os.path.basename(self.model_path)})"
+        except ImportError:
+            return False, "llama-cpp-python is not installed (run 'pip install llama-cpp-python')"
+
+    def _ensure_loaded(self):
+        if self._llm is not None:
+            return
+        if self._load_error:
+            raise RuntimeError(self._load_error)
+
+        if not self.model_path or not os.path.exists(self.model_path):
+            self._load_error = f"Model file not found: {self.model_path}"
+            raise FileNotFoundError(self._load_error)
+
+        try:
+            from llama_cpp import Llama
+            self._llm = Llama(
+                model_path=self.model_path,
+                n_ctx=self.n_ctx,
+                n_threads=self.n_threads,
+                verbose=self.verbose
+            )
+        except ImportError:
+            self._load_error = "llama-cpp-python is not installed. Install with 'pip install llama-cpp-python'."
+            raise ImportError(self._load_error)
+        except Exception as e:
+            self._load_error = f"Failed to initialize Llama context: {e}"
+            raise RuntimeError(self._load_error)
+
+    def generate_diagnosis(self, query: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        try:
+            self._ensure_loaded()
+        except Exception:
+            return None
+
+        prompt = (
+            f"<|im_start|>system\n"
+            f"You are an expert Linux System Administrator AI. Diagnose the sysadmin query given system telemetry and logs.\n"
+            f"Respond ONLY in valid JSON format with keys:\n"
+            f"- 'symptom': string\n"
+            f"- 'root_cause': string\n"
+            f"- 'rationale': string\n"
+            f"- 'proposed_commands': list of lists: [[command, safety_level, risk_score, rationale], ...]\n"
+            f"  where safety_level is one of: READ_ONLY, MODIFYING, HIGH_RISK, DESTRUCTIVE\n"
+            f"- 'confidence': float between 0.0 and 1.0\n"
+            f"<|im_end|>\n"
+            f"<|im_start|>user\n"
+            f"Query: {query}\n"
+            f"Context: {json.dumps(context)}\n"
+            f"<|im_end|>\n"
+            f"<|im_start|>assistant\n"
+        )
+        try:
+            response = self._llm(
+                prompt,
+                max_tokens=512,
+                temperature=0.2,
+                stop=["<|im_end|>", "```"]
+            )
+            text = response["choices"][0]["text"].strip()
+            json_match = re.search(r"\{.*\}", text, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group(0))
+            return json.loads(text)
         except Exception:
             return None
 
@@ -236,13 +338,35 @@ class OpsAssistantAgent:
         }
     ]
 
-    def __init__(self, llm_provider: Optional[LLMProvider] = None):
-        self.hub = TelemetryHub()
+    def __init__(
+        self,
+        llm_provider: Optional[Union[LLMProvider, str]] = None,
+        distro_db: Optional[DistroKnowledgeBase] = None,
+        distro_detector: Optional[DistroDetector] = None,
+        model_path: Optional[str] = None
+    ):
+        self.distro_db = distro_db or DistroKnowledgeBase()
+        self.distro_detector = distro_detector or DistroDetector(self.distro_db)
+        self.hub = TelemetryHub(distro_detector=self.distro_detector)
         self.explainer = XAIExplainer()
         self.causality_engine = CausalityDAGEngine()
         self.sandbox_probe = EphemeralSandboxProbe()
         self.safety_validator = CommandSafetyValidator()
-        self.llm_provider = llm_provider
+
+        if isinstance(llm_provider, str):
+            prov_str = llm_provider.lower().strip()
+            if prov_str in ["gguf", "llama_cpp", "local"]:
+                self.llm_provider = LlamaCppProvider(model_path=model_path)
+            elif prov_str in ["ollama", "remote"]:
+                self.llm_provider = OllamaProvider()
+            elif prov_str == "auto":
+                gguf_p = LlamaCppProvider(model_path=model_path)
+                avail, _ = gguf_p.is_available()
+                self.llm_provider = gguf_p if avail else None
+            else:
+                self.llm_provider = None
+        else:
+            self.llm_provider = llm_provider
 
     def extract_subsystem(self, query: str) -> Optional[str]:
         query_lower = query.lower()
@@ -251,16 +375,105 @@ class OpsAssistantAgent:
                 return svc
         return None
 
+    def _adapt_commands_for_distro(
+        self,
+        matched_id: Optional[str],
+        default_cmds: List[Tuple[str, SafetyLevel, float, str]],
+        distro_info: DistroInfo,
+        svc_name: str
+    ) -> List[Tuple[str, SafetyLevel, float, str]]:
+        fid = distro_info.family_id
+
+        # Package Lock adaptations
+        if matched_id == "DPKG_LOCK_BLOCKED":
+            if fid == "rhel":
+                return [
+                    ("sudo fuser /var/run/dnf.pid /var/lib/rpm/.rpm.lock 2>/dev/null", SafetyLevel.READ_ONLY, 0.05, "Inspect PID holding DNF/RPM package lock."),
+                    ("sudo dnf check", SafetyLevel.READ_ONLY, 0.05, "Check package database consistency and duplicates."),
+                    ("sudo rpm --rebuilddb", SafetyLevel.HIGH_RISK, 0.70, "Rebuild corrupted Berkeley DB RPM package database.")
+                ]
+            elif fid == "arch":
+                return [
+                    ("sudo fuser /var/lib/pacman/db.lck 2>/dev/null", SafetyLevel.READ_ONLY, 0.05, "Identify process locking pacman database."),
+                    ("sudo pacman -Sy --noconfirm archlinux-keyring && sudo pacman -Syu", SafetyLevel.HIGH_RISK, 0.70, "Refresh Arch keyring and sync pacman repositories.")
+                ]
+            elif fid == "alpine":
+                return [
+                    ("sudo pidof apk", SafetyLevel.READ_ONLY, 0.05, "Inspect active APK package processes."),
+                    ("sudo apk fix --purge", SafetyLevel.HIGH_RISK, 0.70, "Purge and repair broken packages and reinstall missing files.")
+                ]
+            elif fid == "suse":
+                return [
+                    ("sudo fuser /var/run/zypp.pid 2>/dev/null", SafetyLevel.READ_ONLY, 0.05, "Identify PID holding Zypper package lock."),
+                    ("sudo systemctl stop packagekit", SafetyLevel.MODIFYING, 0.35, "Stop competing PackageKit background daemon."),
+                    ("sudo zypper clean -a && sudo zypper ref -f", SafetyLevel.HIGH_RISK, 0.70, "Clean cache and force refresh Zypper repositories.")
+                ]
+
+        # Firewall adaptations
+        elif matched_id == "FIREWALL_PORT_BLOCKED":
+            if fid in ["rhel", "suse"]:
+                return [
+                    ("sudo firewall-cmd --state && sudo firewall-cmd --list-all", SafetyLevel.READ_ONLY, 0.05, "Check active Firewalld status and rules."),
+                    ("sudo iptables -L -n -v --line-numbers", SafetyLevel.READ_ONLY, 0.05, "Inspect low-level netfilter chains and dropped packet counters."),
+                    ("sudo firewall-cmd --permanent --add-port=80/tcp && sudo firewall-cmd --reload", SafetyLevel.HIGH_RISK, 0.70, "Allow HTTP traffic through firewalld.")
+                ]
+            elif fid == "arch":
+                return [
+                    ("sudo nft list ruleset", SafetyLevel.READ_ONLY, 0.05, "Inspect active nftables ruleset."),
+                    ("sudo nft add rule inet filter input tcp dport 80 accept", SafetyLevel.HIGH_RISK, 0.70, "Allow HTTP traffic via nftables.")
+                ]
+            elif fid == "alpine":
+                return [
+                    ("sudo awall list", SafetyLevel.READ_ONLY, 0.05, "Inspect Alpine Wall firewall status."),
+                    ("sudo awall activate -f", SafetyLevel.HIGH_RISK, 0.70, "Apply Alpine Wall configuration.")
+                ]
+
+        # Security Subsystem adaptations
+        elif matched_id == "SELINUX_APPARMOR_DENIAL":
+            if fid == "rhel":
+                return [
+                    ("sestatus", SafetyLevel.READ_ONLY, 0.05, "Check SELinux mode and policy status."),
+                    ("sudo ausearch -m avc -ts recent | audit2why", SafetyLevel.READ_ONLY, 0.05, "Explain exact SELinux denial reasons with audit2why."),
+                    (f"sudo restorecon -Rv /var/log/{svc_name}", SafetyLevel.MODIFYING, 0.40, "Restore standard SELinux security contexts.")
+                ]
+            elif fid == "alpine":
+                return [
+                    ("dmesg | grep -i pax", SafetyLevel.READ_ONLY, 0.05, "Check PaX / hardened kernel security logs.")
+                ]
+
+        # Alpine OpenRC Service Command Translations
+        if fid == "alpine":
+            adapted_cmds = []
+            for cmd_str, level, risk, rationale in default_cmds:
+                c = cmd_str
+                c = re.sub(r"sudo systemctl status (\S+)", r"sudo rc-service \1 status", c)
+                c = re.sub(r"systemctl status (\S+)", r"rc-service \1 status", c)
+                c = re.sub(r"sudo systemctl restart (\S+)", r"sudo rc-service \1 restart", c)
+                c = re.sub(r"systemctl restart (\S+)", r"rc-service \1 restart", c)
+                c = re.sub(r"sudo systemctl stop (\S+)", r"sudo rc-service \1 stop", c)
+                c = re.sub(r"systemctl stop (\S+)", r"rc-service \1 stop", c)
+                c = re.sub(r"sudo systemctl start (\S+)", r"sudo rc-service \1 start", c)
+                c = re.sub(r"systemctl start (\S+)", r"rc-service \1 start", c)
+                c = re.sub(r"sudo journalctl -u (\S+).*", r"logread | grep \1", c)
+                c = re.sub(r"journalctl -u (\S+).*", r"logread | grep \1", c)
+                c = re.sub(r"journalctl.*", r"logread", c)
+                adapted_cmds.append((c, level, risk, rationale))
+            return adapted_cmds
+
+        return default_cmds
+
     def diagnose(
         self,
         query: str,
-        custom_logs: Optional[List[LogRecord]] = None
+        custom_logs: Optional[List[LogRecord]] = None,
+        distro_override: Optional[str] = None
     ) -> DiagnosticReport:
         start_time = time.perf_counter()
         subsystem = self.extract_subsystem(query)
 
-        # 1. Telemetry Snapshot (Procfs + Systemd + Kernel PSI)
-        health = self.hub.get_health_snapshot()
+        # 1. Distro Detection & Telemetry Snapshot
+        distro_info = self.distro_detector.detect(override_family=distro_override)
+        health = self.hub.get_health_snapshot(distro_override=distro_override)
 
         # 2. Collect Logs across all sources
         if custom_logs is not None:
@@ -279,10 +492,11 @@ class OpsAssistantAgent:
         # 3. Build Dynamic Causality DAG from Ingested Logs
         dag_result = self.causality_engine.build_dag_from_events(log_messages)
 
-        # 4. Match Failure Taxonomy (Neuro-Symbolic Rules)
+        # 4. Match Failure Taxonomy (Neuro-Symbolic Rules & Distro Signatures)
         matched_item = None
         evidence: List[str] = []
 
+        # Check core taxonomy first
         for item in self.FAILURE_TAXONOMY:
             matches = re.findall(item["pattern"], combined_text, flags=re.IGNORECASE)
             if matches:
@@ -292,11 +506,32 @@ class OpsAssistantAgent:
                         evidence.append(f"[{l.source}] {l.message}")
                 break
 
-        svc_name = subsystem or "systemd"
+        # Check distro-specific error signatures from SQLite database
+        if not matched_item:
+            distro_sigs = self.distro_db.get_error_signatures(distro_info.family_id)
+            for sig in distro_sigs:
+                if re.search(sig["pattern"], combined_text, flags=re.IGNORECASE):
+                    matched_item = {
+                        "id": sig["id"],
+                        "pattern": sig["pattern"],
+                        "symptom": f"Distro-specific issue ({distro_info.distro_name}): {sig['id']}",
+                        "root_cause": sig["explanation"],
+                        "commands": [
+                            (sig["remediation"].replace("{service}", subsystem or "service").replace("{path}", f"/var/log/{subsystem or 'service'}"), SafetyLevel.HIGH_RISK, 0.70, sig["explanation"])
+                        ],
+                        "rationale": sig["explanation"]
+                    }
+                    for l in logs:
+                        if re.search(sig["pattern"], l.message, flags=re.IGNORECASE):
+                            evidence.append(f"[{l.source}] {l.message}")
+                    break
+
+        svc_name = subsystem or ("service" if distro_info.family_id == "alpine" else "systemd")
 
         # 5. Optional LLM inference if configured
         if self.llm_provider and not matched_item:
             context = {
+                "distro": distro_info.to_dict(),
                 "subsystem": svc_name,
                 "pressure_status": health.pressure_status,
                 "recent_logs": [l.message for l in logs[:10]],
@@ -304,17 +539,32 @@ class OpsAssistantAgent:
             }
             llm_res = self.llm_provider.generate_diagnosis(query, context)
             if llm_res and "symptom" in llm_res:
+                parsed_cmds = []
+                for cmd in llm_res.get("proposed_commands", []):
+                    if isinstance(cmd, (list, tuple)) and len(cmd) >= 4:
+                        sec_str = str(cmd[1]).upper()
+                        sec_lvl = SafetyLevel.READ_ONLY
+                        for s in SafetyLevel:
+                            if s.name == sec_str or s.value == sec_str:
+                                sec_lvl = s
+                                break
+                        parsed_cmds.append((str(cmd[0]), sec_lvl, float(cmd[2]), str(cmd[3])))
+                    elif isinstance(cmd, (list, tuple)) and len(cmd) >= 1:
+                        parsed_cmds.append((str(cmd[0]), SafetyLevel.READ_ONLY, 0.05, "Proposed remediation command."))
+
+                provider_label = type(self.llm_provider).__name__
                 xai = self.explainer.synthesize_xai(
                     symptom=llm_res.get("symptom", "LLM-detected system anomaly"),
                     root_cause=llm_res.get("root_cause", "Anomaly identified via LLM inference"),
                     evidence_logs=evidence if evidence else [f"[{l.source}] {l.message}" for l in logs[:2]],
-                    commands=[
-                        (cmd[0], SafetyLevel(cmd[1]) if cmd[1] in SafetyLevel.__members__ else SafetyLevel.READ_ONLY, float(cmd[2]), cmd[3])
-                        for cmd in llm_res.get("proposed_commands", [])
-                    ],
+                    commands=parsed_cmds,
                     rationale=llm_res.get("rationale", "LLM reasoning explanation."),
                     confidence=float(llm_res.get("confidence", 0.90))
                 )
+                for cmd_prop in xai.proposed_commands:
+                    probe_res = self.sandbox_probe.verify_command(cmd_prop.command)
+                    cmd_prop.sandbox_verified = probe_res.is_verified
+
                 elapsed_ms = (time.perf_counter() - start_time) * 1000.0
                 return DiagnosticReport(
                     query=query,
@@ -323,7 +573,7 @@ class OpsAssistantAgent:
                     explanation=xai,
                     causality_dag=dag_result.to_dict(),
                     latency_ms=round(elapsed_ms, 2),
-                    reasoning_engine="LLM-Augmented-Causality-XAI"
+                    reasoning_engine=f"{provider_label}-Augmented-Causality-XAI ({distro_info.distro_name})"
                 )
 
         if matched_item:
@@ -335,14 +585,23 @@ class OpsAssistantAgent:
                 (cmd[0].replace("{service}", svc_name), cmd[1], cmd[2], cmd[3])
                 for cmd in matched_item["commands"]
             ]
+            raw_cmds = self._adapt_commands_for_distro(
+                matched_item.get("id"), raw_cmds, distro_info, svc_name
+            )
         else:
             symptom = f"Unclassified anomaly detected on {svc_name}."
             root_cause = "General service startup or operational failure."
             rationale = "Inspect recent service logs and process state to identify failure root cause."
-            raw_cmds = [
-                (f"sudo journalctl -u {svc_name} -n 50 --no-pager", SafetyLevel.READ_ONLY, 0.05, "Retrieve recent systemd service logs."),
-                (f"systemctl status {svc_name}", SafetyLevel.READ_ONLY, 0.05, "Inspect unit status and active process ID.")
-            ]
+            if distro_info.family_id == "alpine":
+                raw_cmds = [
+                    (f"logread | grep {svc_name}", SafetyLevel.READ_ONLY, 0.05, "Retrieve recent service logs from syslogd buffer."),
+                    (f"sudo rc-service {svc_name} status", SafetyLevel.READ_ONLY, 0.05, "Inspect OpenRC service status and PID.")
+                ]
+            else:
+                raw_cmds = [
+                    (f"sudo journalctl -u {svc_name} -n 50 --no-pager", SafetyLevel.READ_ONLY, 0.05, "Retrieve recent systemd service logs."),
+                    (f"systemctl status {svc_name}", SafetyLevel.READ_ONLY, 0.05, "Inspect unit status and active process ID.")
+                ]
             if not evidence and logs:
                 evidence = [f"[{l.source}] {l.message}" for l in logs[:2]]
 

@@ -71,6 +71,7 @@ class SystemHealthSnapshot:
     failed_units: List[SystemdUnitState] = field(default_factory=list)
     pressure_status: str = "NORMAL"
     psi_metrics: Optional[Dict[str, Any]] = None
+    distro_info: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

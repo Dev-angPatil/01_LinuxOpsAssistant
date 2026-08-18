@@ -1,0 +1,140 @@
+# User & Operator Manual — `ops-assistant`
+
+> **CLI Assistant**: `ops-assistant` (AI-Powered Linux Operations Assistant)  
+> **Target Systems**: Linux (Debian, Ubuntu, Arch Linux, RHEL, Rocky Linux, Alpine Linux, Fedora, openSUSE, BOSS Linux)  
+
+---
+
+## 🚀 Quickstart
+
+### 1. Installation & Environment
+`ops-assistant` runs on standard Python 3.9+ with zero mandatory external binary dependencies.
+
+```bash
+# Clone the repository
+git clone https://github.com/Dev-angPatil/01_LinuxOpsAssistant.git
+cd 01_LinuxOpsAssistant
+
+# Install optional UI enhancements (rich terminal rendering)
+pip install -r requirements.txt
+```
+
+---
+
+## 💻 Primary Modes of Operation
+
+### 1. Real-Time System Health Inspection (`--inspect-health`)
+Inspect CPU ticks, physical memory, swap status, disk block and inode consumption, kernel PSI stalls, zombie process counts, detected distribution stack, and failed systemd units in a single sub-second glance:
+
+```bash
+python3 -m ops_assistant.cli --inspect-health
+```
+
+To inspect health with a simulated distro stack:
+```bash
+python3 -m ops_assistant.cli --inspect-health --distro alpine
+```
+
+---
+
+### 2. Natural Language Diagnostic Triaging
+Ask natural language questions about any Linux operational failure, crash, or log message:
+
+```bash
+python3 -m ops_assistant.cli "Why is NGINX failing to bind to port 80?"
+python3 -m ops_assistant.cli "Diagnose high I/O wait and memory pressure"
+python3 -m ops_assistant.cli "Why is my disk full even though df shows free blocks?"
+```
+
+---
+
+### 3. Scan & Diagnose Failed Services (`--diagnose-failed`)
+Automatically detect all failed `systemd` or `OpenRC` units, extracting recent journal crash traces and generating remediations:
+
+```bash
+python3 -m ops_assistant.cli --diagnose-failed
+```
+
+---
+
+### 4. Interactive Conversational REPL
+Launch an interactive troubleshooting session:
+
+```bash
+python3 -m ops_assistant.cli
+```
+
+Inside the interactive prompt (`ops-assistant> `):
+- **Natural language query**: Type any symptom or error message (e.g. `Why is PostgreSQL down?`).
+- **`health`** or **`status`**: Run live telemetry and PSI checks.
+- **`distro`**: Print the active distribution profile (Family, Init System, Package Manager, Firewall, Security Subsystem).
+- **`failed`** or **`units`**: Scan and diagnose all failed system units.
+- **`demo`**: Step through interactive mock failure vectors.
+- **`benchmark`**: Run empirical 16-scenario benchmark.
+- **`exit`**, **`quit`**, or **`q`**: Terminate session.
+
+---
+
+### 5. Interactive Remediation Execution & Dry-Run (`-i`)
+When running queries with the `--interactive` / `-i` flag, you are presented with an interactive execution menu:
+
+```text
+Interactive Command Remediation Menu:
+  [1..N] Execute specific command
+  [D]    Dry-run all commands
+  [R]    Rollback last executed action
+  [S]    Skip / Proceed without execution
+```
+
+- **`[1..N]`**: Executes the selected verified candidate command on the host with real-time return code and stdout/stderr capture.
+- **`[D]`**: Simulates command execution and predicts effects without modifying live state.
+- **`[R]`**: Invokes the state-reverting rollback/undo command for the last executed modification.
+- **`[S]`**: Discards candidate action and returns safely.
+
+---
+
+### 6. Automated Benchmark Suite (`--benchmark`)
+Runs the full 16-class failure taxonomy test suite, validating accuracy, root-cause isolation, and latency:
+
+```bash
+python3 -m ops_assistant.cli --benchmark
+```
+
+---
+
+### 7. Structured Diagnostic Report Exports (`--export-json`, `--export-md`)
+Export full diagnostic reports including causal DAGs, evidentiary logs, risk scores, and XAI flag breakdowns to JSON or Markdown:
+
+```bash
+python3 -m ops_assistant.cli "Why did PostgreSQL crash?" --export-json postgres_report.json
+python3 -m ops_assistant.cli "Diagnose OOM kill" --export-md oom_report.md
+```
+
+---
+
+## 🛠️ CLI Options & Flags Reference
+
+| Flag / Option | Shorthand | Type | Description |
+|---|---|---|---|
+| `query` | — | `positional` | Natural language diagnostic query string or error log trace |
+| `--inspect-health` | — | `flag` | Display full system health snapshot with CPU ticks, RAM/Swap, Inodes, PSI & failed units |
+| `--diagnose-failed` | — | `flag` | Automatically scan and diagnose failed systemd/OpenRC services |
+| `--distro <family>` | `-d` | `string` | Override/simulate Linux distribution family (`debian`, `rhel`, `arch`, `alpine`, `suse`) |
+| `--interactive` | `-i` | `flag` | Enable interactive command execution menu (`[1..N]`, `[D]`, `[R]`, `[S]`) |
+| `--demo` | — | `flag` | Run interactive demo across 4 representative failure scenarios |
+| `--benchmark` | — | `flag` | Run empirical performance and accuracy benchmark across 16 failure taxonomy scenarios |
+| `--export-json <path>` | — | `string` | Export structured diagnostic report to JSON file |
+| `--export-md <path>` | — | `string` | Export structured diagnostic report to Markdown file |
+
+---
+
+## 🛡️ Safety Tiers & Risk Scoring
+
+Every candidate command generated by `ops-assistant` is evaluated against an AST safety parser:
+
+| Safety Tier | Risk Score | Description | Action Taken |
+|---|---|---|---|
+| `READ_ONLY` | $0.00 - 0.10$ | Zero side-effects; purely inspects system telemetry | Permitted |
+| `MODIFYING` | $0.20 - 0.50$ | Reversible daemon restarts or cache purges | Permitted with Rollback |
+| `HIGH_RISK` | $0.60 - 0.85$ | Package DB repairs, firewall modifications, sysctl edits | Requires Operator Approval |
+| `DESTRUCTIVE` | $1.00$ | Catastrophic deletion (`rm -rf /`), fork bombs, raw block writes | **Permanently Blocked** |

@@ -1,6 +1,7 @@
 """Journal Collector for structured Linux systemd and kernel log retrieval."""
 
 import os
+import re
 import json
 import shutil
 import subprocess
@@ -8,6 +9,14 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Optional
 from ops_assistant.models import LogRecord
+
+RE_LOG_ERR = re.compile(r"err|fail|emerg|crit", re.IGNORECASE)
+STANDARD_LOG_FILES = (
+    "/var/log/syslog",
+    "/var/log/messages",
+    "/var/log/dpkg.log",
+    "/var/log/auth.log"
+)
 
 class JournalCollector:
     def __init__(self):
@@ -41,9 +50,10 @@ class JournalCollector:
         records: List[LogRecord] = []
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
-            if res.returncode == 0 and res.stdout.strip():
-                for line in res.stdout.strip().split("\n"):
-                    if not line.strip():
+            if res.returncode == 0 and res.stdout:
+                for line in res.stdout.splitlines():
+                    line = line.strip()
+                    if not line:
                         continue
                     try:
                         raw = json.loads(line)
@@ -77,15 +87,17 @@ class JournalCollector:
                 if unit:
                     plain_cmd.extend(["-u", unit])
                 res = subprocess.run(plain_cmd, capture_output=True, text=True, timeout=3)
-                if res.returncode == 0 and res.stdout.strip():
-                    for line in res.stdout.strip().split("\n"):
-                        if line.strip():
+                if res.returncode == 0 and res.stdout:
+                    now_ts = datetime.now(timezone.utc).isoformat()
+                    for line in res.stdout.splitlines():
+                        line_str = line.strip()
+                        if line_str:
                             records.append(LogRecord(
-                                timestamp=datetime.now(timezone.utc).isoformat(),
+                                timestamp=now_ts,
                                 source="journald_plain",
                                 priority=str(priority_max),
                                 unit=unit,
-                                message=line.strip()
+                                message=line_str
                             ))
             except Exception:
                 pass
@@ -101,15 +113,18 @@ class JournalCollector:
         try:
             cmd = ["dmesg", "-T", "--level=err,warn,crit,alert,emerg"]
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
-            if res.returncode == 0 and res.stdout.strip():
-                for line in res.stdout.strip().split("\n")[-lines:]:
-                    if line.strip():
+            if res.returncode == 0 and res.stdout:
+                now_ts = datetime.now(timezone.utc).isoformat()
+                raw_lines = res.stdout.splitlines()[-lines:]
+                for line in raw_lines:
+                    line_str = line.strip()
+                    if line_str:
                         records.append(LogRecord(
-                            timestamp=datetime.now(timezone.utc).isoformat(),
+                            timestamp=now_ts,
                             source="dmesg",
                             priority="3",
                             unit="kernel",
-                            message=line.strip()
+                            message=line_str
                         ))
         except Exception:
             pass
@@ -117,35 +132,39 @@ class JournalCollector:
         return records
 
     def query_var_log(self, subsystem: Optional[str] = None, lines: int = 30) -> List[LogRecord]:
-        """Scans standard /var/log files when journald is unavailable or restricted."""
+        """Scans standard /var/log files with fast tail buffer seeking when journald is unavailable."""
         records: List[LogRecord] = []
-        candidates = [
-            Path("/var/log/syslog"),
-            Path("/var/log/messages"),
-            Path("/var/log/dpkg.log"),
-            Path("/var/log/auth.log")
-        ]
+        candidates: List[str] = []
         if subsystem:
-            candidates.insert(0, Path(f"/var/log/{subsystem}/error.log"))
-            candidates.insert(1, Path(f"/var/log/{subsystem}.log"))
+            candidates.append(f"/var/log/{subsystem}/error.log")
+            candidates.append(f"/var/log/{subsystem}.log")
+        candidates.extend(STANDARD_LOG_FILES)
 
-        for log_file in candidates:
-            if log_file.exists() and os.access(log_file, os.R_OK):
-                try:
-                    with open(log_file, "r", encoding="utf-8", errors="replace") as f:
-                        file_lines = f.readlines()[-lines:]
-                        for line in file_lines:
-                            line_str = line.strip()
-                            if line_str:
-                                records.append(LogRecord(
-                                    timestamp=datetime.now(timezone.utc).isoformat(),
-                                    source=f"file:{log_file.name}",
-                                    priority="3" if any(w in line_str.lower() for w in ["err", "fail", "emerg", "crit"]) else "5",
-                                    unit=subsystem,
-                                    message=line_str
-                                ))
-                except Exception:
-                    continue
+        now_ts = datetime.now(timezone.utc).isoformat()
+        for log_path in candidates:
+            try:
+                with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                    # Fast tail read: Seek near end if file is large (> 32KB)
+                    f.seek(0, os.SEEK_END)
+                    size = f.tell()
+                    if size > 32768:
+                        f.seek(max(0, size - 16384))
+                    else:
+                        f.seek(0)
+                    file_lines = f.read().splitlines()[-lines:]
+                    log_name = os.path.basename(log_path)
+                    for line in file_lines:
+                        line_str = line.strip()
+                        if line_str:
+                            records.append(LogRecord(
+                                timestamp=now_ts,
+                                source=f"file:{log_name}",
+                                priority="3" if RE_LOG_ERR.search(line_str) else "5",
+                                unit=subsystem,
+                                message=line_str
+                            ))
+            except OSError:
+                continue
         return records
 
     def query_all_relevant_logs(self, unit: Optional[str] = None, subsystem: Optional[str] = None, lines: int = 50) -> List[LogRecord]:
@@ -168,16 +187,17 @@ class JournalCollector:
 
     def _mock_logs(self, unit: Optional[str]) -> List[LogRecord]:
         u = unit or "nginx.service"
+        now_ts = datetime.now(timezone.utc).isoformat()
         return [
             LogRecord(
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=now_ts,
                 source="journald_mock",
                 priority="3",
                 unit=u,
                 message=f"[emerg] bind() to 0.0.0.0:80 failed (98: Address already in use) for {u}"
             ),
             LogRecord(
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=now_ts,
                 source="journald_mock",
                 priority="3",
                 unit=u,

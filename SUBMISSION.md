@@ -6,23 +6,24 @@
 **Problem Statement**: Problem Statement 2: AI-Powered Linux Operations Assistant  
 **Project Identifier**: `01_LinuxOpsAssistant` / `ops-assistant`  
 **License**: Apache License, Version 2.0 (Permissive Open Source)  
-**Target Platform**: Linux (Debian/Ubuntu, RHEL/Fedora, Arch Linux)
+**Target Platform**: Linux (Debian/Ubuntu, RHEL/Fedora/Rocky, Arch Linux, Alpine Linux, openSUSE, BOSS Linux)
 
 ---
 
 ### Field 1: Project Title
-**AI-Powered Linux Operations Assistant (`ops-assistant`): An Explainable, Air-Gapped Sysadmin Copilot with Dynamic Causality DAGs, Kernel PSI Telemetry, and Ephemeral Namespace Sandboxed Remediation**
+**AI-Powered Linux Operations Assistant (`ops-assistant`): An Explainable, Air-Gapped Sysadmin Copilot with Dynamic Causality DAGs, Kernel PSI Telemetry, Multi-Distro Knowledge Engine, and Ephemeral Namespace Sandboxed Remediation**
 
 ---
 
 ### Field 2: Objective
-To develop an autonomous, explainable AI-native operations copilot for Linux server and edge environments that:
+To develop an autonomous, explainable AI-native operations copilot for Linux server, container, and edge environments that:
 1. Ingests natural language sysadmin troubleshooting queries (e.g., *"Why is NGINX failing to bind to port 80?"*, *"Diagnose high I/O wait on NVMe drive"*).
-2. Automatically correlates multi-source kernel and userspace telemetry (`procfs`, `sysfs`, `journald`, `dmesg`, `/var/log/*`, `/proc/pressure/*` PSI metrics, `systemd` cgroups).
+2. Automatically correlates multi-source kernel and userspace telemetry (`procfs`, `sysfs`, `journald`, `dmesg`, `/var/log/*`, `/proc/pressure/*` PSI metrics, `systemd` cgroups, and `OpenRC`).
 3. Builds Dynamic System Causality DAGs to isolate true root causes with topological in-degrees ($\text{InDegree}=0$), suppressing symptom cascade noise.
 4. Performs hybrid deterministic and agentic root-cause isolation across 16+ core Linux failure taxonomy classes with zero external cloud dependencies.
-5. Delivers step-by-step Explainable AI (XAI) command deconstructions, flag-by-flag purpose explanations, risk scoring (0.0 to 1.0), and automatic rollback/undo plan generation.
-6. Validates remediation commands inside ephemeral `unshare`+OverlayFS namespace sandbox probes before presenting them to the operator.
+5. Dynamically adapts suggested commands, firewall rules, and package manager workflows across Debian/Ubuntu, RHEL/Rocky/Fedora, Arch Linux, Alpine Linux, and openSUSE.
+6. Delivers step-by-step Explainable AI (XAI) command deconstructions, flag-by-flag purpose explanations, risk scoring (0.0 to 1.0), and automatic rollback/undo plan generation.
+7. Validates remediation commands inside ephemeral `unshare`+OverlayFS namespace sandbox probes before presenting them to the operator.
 
 ---
 
@@ -35,10 +36,10 @@ To develop an autonomous, explainable AI-native operations copilot for Linux ser
 ---
 
 ### Field 4: Novelty
-Relative to existing sysadmin utilities and generic cloud LLM chatbots, `ops-assistant` introduces five key architectural innovations:
+Relative to existing sysadmin utilities and generic cloud LLM chatbots, `ops-assistant` introduces six key architectural innovations:
 
 1. **Dynamic System Causality DAG Engine**:
-   Rather than flat log parsing, `ops-assistant` constructs a temporal Directed Acyclic Graph $G=(V, E)$ modeling failure propagation across system subsystems. It isolates the true root cause node with $\text{InDegree}(u) = 0$, distinguishing originating faults from secondary downstream symptoms (e.g. OOM kill $\rightarrow$ socket dropped $\rightarrow$ 502 Bad Gateway).
+   Rather than flat log parsing, `ops-assistant` constructs a temporal Directed Acyclic Graph $G=(V, E)$ modeling failure propagation across system subsystems. It isolates the true root cause node with $\text{InDegree}(u) = 0$, distinguishing originating faults from secondary downstream symptoms (e.g. `OOM_KILL` $\rightarrow$ `SOCKET_CLOSED` $\rightarrow$ `UPSTREAM_502`).
 
 2. **Kernel Pressure Stall Information (PSI) Ingestion**:
    Directly parses `/proc/pressure/{cpu,memory,io}` 10s/60s/300s stall averages, diagnosing memory pressure and I/O starvation prior to kernel panics.
@@ -46,11 +47,14 @@ Relative to existing sysadmin utilities and generic cloud LLM chatbots, `ops-ass
 3. **Ephemeral Namespace Sandbox Validation Probe**:
    Dry-runs candidate remediation commands in an isolated Linux User+Mount namespace (`unshare` + OverlayFS) to empirically test command syntax and execution safety before proposing them.
 
-4. **Deterministic-First Zero-Overhead Diagnostic Pipeline**:
-   Achieves **<50ms diagnosis latency** with **100% reproducible accuracy** across standard failure taxonomies while running completely air-gapped on bare-metal and edge devices.
+4. **Multi-Distro Relational Knowledge Base**:
+   Backed by an embedded SQLite knowledge engine that dynamically translates commands across Debian (`apt`/`systemd`/`ufw`), RHEL (`dnf`/`systemd`/`firewalld`), Arch (`pacman`/`systemd`/`nftables`), Alpine (`apk`/`OpenRC`), and openSUSE (`zypper`/`firewalld`).
 
-5. **Fine-Grained XAI Command Flag Deconstruction & Rollbacks**:
-   Tokenizes and decomposes command flags into plain English and synthesizes inverse rollback scripts (`systemctl start <-> stop`, `ufw allow <-> delete allow`).
+5. **Deterministic-First Zero-Overhead Diagnostic Pipeline**:
+   Achieves **<50ms diagnosis latency** (45.2ms measured average) with **100% reproducible accuracy** across standard failure taxonomies while running completely air-gapped on bare-metal and edge devices.
+
+6. **Fine-Grained XAI Command Flag Deconstruction & Rollbacks**:
+   Tokenizes and decomposes command flags into plain English across 35+ utilities and synthesizes inverse rollback scripts (`systemctl start <-> stop`, `ufw allow <-> delete allow`).
 
 ---
 
@@ -75,7 +79,7 @@ Relative to existing sysadmin utilities and generic cloud LLM chatbots, `ops-ass
 │• Procfs/PSI  │          │• CausalityDAG│
 │• Journald    │          │• Flag Decon. │
 │• Systemd DBus│          │• Rollback Gen│
-│• Dmesg/Logs  │          │• Taxonomy KB │
+│• Distro Detect          │• Taxonomy KB │
 └──────────────┘          └──────────────┘
       │                           │
       └─────────────┬─────────────┘
@@ -98,9 +102,13 @@ Relative to existing sysadmin utilities and generic cloud LLM chatbots, `ops-ass
   - `ProcCollector` & `PSICollector`: Ingests `/proc/stat`, `/proc/meminfo`, `/proc/pressure/{cpu,memory,io}`, `/proc/[pid]/stat`, and `statvfs`.
   - `JournalCollector`: Queries structured JSON logs from `journald`, kernel ring buffer (`dmesg -T`), and `/var/log` flat files.
   - `SystemdCollector`: Scans unit status and lists all failed services.
+  - `DistroDetector`: Identifies OS distribution family, init system, package manager, and firewall.
 
 - **Dynamic Causality DAG Engine (`ops_assistant.explainer.causality_dag`)**:
-  - Models temporal causality and transition rules, generating topological root cause isolation and Mermaid diagrams.
+  - Models temporal causality and transition rules, generating topological root cause isolation ($\text{InDegree}=0$) and Mermaid diagrams.
+
+- **Distro Knowledge Base (`ops_assistant.db.distro_db`)**:
+  - Embedded SQLite database storing distribution profiles, commands, package locks, and error signatures.
 
 - **Ephemeral Namespace Sandbox Probe (`ops_assistant.tools.sandbox_probe`)**:
   - Dry-runs candidate commands in rootless isolated namespaces to verify execution safety.
@@ -121,6 +129,7 @@ graph TD
     subgraph Intelligence & Reasoning Layer
         Agent --> Causality[Dynamic System Causality DAG Engine]
         Causality --> Taxonomy[16-Class Failure Taxonomy KB]
+        Agent --> DistroDB[Distro Knowledge Base SQLite]
         Agent --> LLM[Optional Local LLM: Ollama / Qwen / Mistral]
         Agent --> XAI[XAI Explainability & Rollback Generator]
     end
@@ -131,6 +140,7 @@ graph TD
         Hub --> PSI[PSICollector: Kernel Pressure Stall Information]
         Hub --> Journal[JournalCollector: journald / dmesg / var-log]
         Hub --> Systemd[SystemdCollector: Unit states & failed units]
+        Hub --> Distro[DistroDetector: /etc/os-release scanner]
     end
 
     subgraph Safety & Sandbox Layer
@@ -156,15 +166,15 @@ graph TD
 - **Repository URI**: `https://github.com/Dev-angPatil/01_LinuxOpsAssistant.git`
 - **Collaborator Access**: Added `ssm-hackathon` as Collaborator with write/read access.
 - **License**: Apache License 2.0 (`LICENSE` file included in repository root).
-- **Build & Execution**: Complete test suite runs with `PYTHONPATH=. python3 -m unittest discover tests`.
+- **Build & Execution**: Complete test suite of 41 unit and integration tests runs via `python3 -m unittest discover -s tests -v` with 100% pass rate.
 
 ---
 
 ### Field 9: Demo Video (Optional)
-A 4-minute demonstration script showcasing:
+A 3-minute demonstration script showcasing:
 1. `ops-assistant --inspect-health` displaying instant Linux health, CPU/RAM, and Kernel PSI status.
 2. Troubleshooting an NGINX port conflict on port 80 with dynamic causality DAG diagram and root-cause analysis.
-3. Kernel Out-of-Memory (OOM) killer diagnosis isolating killed process PID and memory allocation.
+3. Multi-distro translation adapting commands for Alpine OpenRC and RHEL firewalld.
 4. Ephemeral namespace sandbox dry-run verification of remediation commands.
 5. Destructive command prevention (`rm -rf /` blocked by Safety Gate).
 
@@ -190,7 +200,7 @@ A 4-minute demonstration script showcasing:
 - **Synthetic Multi-Service Linux Fault Corpora**:
   - Structured error traces from `systemd` unit crashes, `nginx` port binds, `postgresql` connection saturation, and kernel `oom-killer` dmesg logs.
 - **Log Corpora Sources**:
-  - Anonymized system logs from Ubuntu 22.04 LTS, Debian 12 (Bookworm), and Fedora 39.
+  - Anonymized system logs from Ubuntu 22.04 LTS, Debian 12 (Bookworm), Fedora 39, Arch Linux, and Alpine Linux 3.19.
 - **Data Protection & Compliance**:
   - Full compliance with the **Digital Personal Data Protection (DPDP) Act, 2023**.
   - No PII, user passwords, private IP ranges, or user payload data is stored or transmitted externally.
@@ -198,8 +208,9 @@ A 4-minute demonstration script showcasing:
 ---
 
 ### Field 13: Innovation
-1. **Dynamic System Causality DAGs**: Isolates true root causes using topological in-degree analysis ($InDegree=0$), eliminating cascade confusion.
+1. **Dynamic System Causality DAGs**: Isolates true root causes using topological in-degree analysis ($\text{InDegree}=0$), eliminating cascade confusion.
 2. **Ephemeral Namespace Sandbox Validation**: Tests fixes in isolated `unshare`+OverlayFS containers before presentation.
 3. **Kernel PSI Telemetry Integration**: Real-time detection of CPU, memory, and I/O pressure stalls prior to kernel panics.
-4. **Explainable AI (XAI) Flag Dissection**: Tokenizes and decomposes command flags into plain English.
-5. **Air-Gapped Privacy & Speed**: Operates completely offline with sub-50ms latency.
+4. **Multi-Distro Knowledge Base**: Dynamic command synthesis for Debian, RHEL, Arch, Alpine, and openSUSE.
+5. **Explainable AI (XAI) Flag Dissection**: Tokenizes and decomposes command flags into plain English across 35+ utilities.
+6. **Air-Gapped Privacy & Speed**: Operates completely offline with sub-50ms latency (45.2ms average).

@@ -72,3 +72,8 @@ report.md
 cleanup.sh
 test_*.json
 tmp/
+
+# Large model weights (downloadable via ops-assistant --download-model)
+*.gguf
+*.bin
+*.tmp

@@ -9,15 +9,18 @@ from ops_assistant.collectors.proc_collector import ProcCollector
 from ops_assistant.collectors.journal_collector import JournalCollector
 from ops_assistant.collectors.systemd_collector import SystemdCollector
 from ops_assistant.collectors.psi_collector import PSICollector
+from ops_assistant.collectors.distro_detector import DistroDetector, DistroInfo
+from typing import Optional
 
 class TelemetryHub:
-    def __init__(self):
+    def __init__(self, distro_detector: Optional[DistroDetector] = None):
         self.proc = ProcCollector()
         self.journal = JournalCollector()
         self.systemd = SystemdCollector()
         self.psi = PSICollector()
+        self.distro = distro_detector or DistroDetector()
 
-    def get_health_snapshot(self) -> SystemHealthSnapshot:
+    def get_health_snapshot(self, distro_override: Optional[str] = None) -> SystemHealthSnapshot:
         mem = self.proc.get_memory_metrics()
         cpu = self.proc.get_cpu_metrics(sample_interval_ms=30)
         load = self.proc.get_load_metrics()
@@ -47,6 +50,8 @@ class TelemetryHub:
         elif len(failed) > 0:
             pressure = f"FAILED_UNITS_DETECTED ({len(failed)})"
 
+        d_info = self.distro.detect(override_family=distro_override)
+
         return SystemHealthSnapshot(
             timestamp=datetime.now(timezone.utc).isoformat(),
             hostname=platform.node() or "localhost",
@@ -58,5 +63,6 @@ class TelemetryHub:
             disks=disks,
             failed_units=failed,
             pressure_status=pressure,
-            psi_metrics=asdict(psi_data) if psi_data.is_available else None
+            psi_metrics=asdict(psi_data) if psi_data.is_available else None,
+            distro_info=d_info.to_dict()
         )

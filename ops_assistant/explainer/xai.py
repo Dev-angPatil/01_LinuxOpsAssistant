@@ -7,6 +7,12 @@ from ops_assistant.models import (
     XAIExplanation, CommandProposal, CommandFlagExplanation, SafetyLevel
 )
 
+RE_SYS_START = re.compile(r"\bsystemctl\s+start\s+([a-zA-Z0-9_-]+)")
+RE_SYS_STOP = re.compile(r"\bsystemctl\s+stop\s+([a-zA-Z0-9_-]+)")
+RE_SYS_ENABLE = re.compile(r"\bsystemctl\s+enable\s+([a-zA-Z0-9_-]+)")
+RE_UFW_ALLOW = re.compile(r"\bufw\s+allow\s+([a-zA-Z0-9_/]+)")
+RE_UFW_DENY = re.compile(r"\bufw\s+deny\s+([a-zA-Z0-9_/]+)")
+
 class XAIExplainer:
     FLAG_DICTIONARY: Dict[str, Dict[str, str]] = {
         "journalctl": {
@@ -142,43 +148,51 @@ class XAIExplainer:
     }
 
     def generate_rollback_command(self, command_str: str) -> Tuple[Optional[str], Optional[str]]:
-        """Synthesizes safe undo/rollback commands for state-modifying actions."""
+        """Synthesizes safe undo/rollback commands for state-modifying actions with precompiled regex patterns."""
         stripped = command_str.strip()
         
         # Systemctl start -> stop
-        if re.search(r"\bsystemctl\s+start\s+([a-zA-Z0-9_-]+)", stripped):
-            svc = re.search(r"\bsystemctl\s+start\s+([a-zA-Z0-9_-]+)", stripped).group(1)
+        m = RE_SYS_START.search(stripped)
+        if m:
+            svc = m.group(1)
             return f"sudo systemctl stop {svc}", f"Stops {svc} if newly started service proves unstable."
 
         # Systemctl stop -> start
-        if re.search(r"\bsystemctl\s+stop\s+([a-zA-Z0-9_-]+)", stripped):
-            svc = re.search(r"\bsystemctl\s+stop\s+([a-zA-Z0-9_-]+)", stripped).group(1)
+        m = RE_SYS_STOP.search(stripped)
+        if m:
+            svc = m.group(1)
             return f"sudo systemctl start {svc}", f"Restarts {svc} to return to previous running state."
 
         # Systemctl enable -> disable
-        if re.search(r"\bsystemctl\s+enable\s+([a-zA-Z0-9_-]+)", stripped):
-            svc = re.search(r"\bsystemctl\s+enable\s+([a-zA-Z0-9_-]+)", stripped).group(1)
+        m = RE_SYS_ENABLE.search(stripped)
+        if m:
+            svc = m.group(1)
             return f"sudo systemctl disable {svc}", f"Disables {svc} boot startup symlink."
 
         # UFW allow -> delete allow
-        if re.search(r"\bufw\s+allow\s+([a-zA-Z0-9_/]+)", stripped):
-            rule = re.search(r"\bufw\s+allow\s+([a-zA-Z0-9_/]+)", stripped).group(1)
+        m = RE_UFW_ALLOW.search(stripped)
+        if m:
+            rule = m.group(1)
             return f"sudo ufw delete allow {rule}", f"Deletes firewall allow rule for {rule}."
 
         # UFW deny -> delete deny
-        if re.search(r"\bufw\s+deny\s+([a-zA-Z0-9_/]+)", stripped):
-            rule = re.search(r"\bufw\s+deny\s+([a-zA-Z0-9_/]+)", stripped).group(1)
+        m = RE_UFW_DENY.search(stripped)
+        if m:
+            rule = m.group(1)
             return f"sudo ufw delete deny {rule}", f"Deletes firewall deny rule for {rule}."
 
         return None, None
 
     def deconstruct_command(self, command_str: str) -> List[CommandFlagExplanation]:
-        """Breaks down command flags and verbs into transparent human explanations."""
+        """Breaks down command flags and verbs into transparent human explanations with fast tokenizer."""
         explanations: List[CommandFlagExplanation] = []
-        try:
-            tokens = shlex.split(command_str)
-        except Exception:
+        if '"' not in command_str and "'" not in command_str and "\\" not in command_str:
             tokens = command_str.split()
+        else:
+            try:
+                tokens = shlex.split(command_str)
+            except Exception:
+                tokens = command_str.split()
 
         if not tokens:
             return []
@@ -187,15 +201,19 @@ class XAIExplainer:
         exec_tokens = tokens[1:] if has_sudo and len(tokens) > 1 else tokens
         base_cmd = exec_tokens[0] if exec_tokens else ""
 
-        dict_entries = self.FLAG_DICTIONARY.get(base_cmd, {})
+        dict_entries = self.FLAG_DICTIONARY.get(base_cmd)
 
-        for token in exec_tokens[1:]:
-            if token in dict_entries:
-                explanations.append(CommandFlagExplanation(flag=token, purpose=dict_entries[token]))
-            elif token.startswith("-"):
-                # Check for combined flags like -h, -n 50, etc.
-                purpose = dict_entries.get(token, f"Option flag passed to {base_cmd}.")
-                explanations.append(CommandFlagExplanation(flag=token, purpose=purpose))
+        if dict_entries is not None:
+            for token in exec_tokens[1:]:
+                purpose = dict_entries.get(token)
+                if purpose is not None:
+                    explanations.append(CommandFlagExplanation(flag=token, purpose=purpose))
+                elif token.startswith("-"):
+                    explanations.append(CommandFlagExplanation(flag=token, purpose=f"Option flag passed to {base_cmd}."))
+        else:
+            for token in exec_tokens[1:]:
+                if token.startswith("-"):
+                    explanations.append(CommandFlagExplanation(flag=token, purpose=f"Option flag passed to {base_cmd}."))
 
         return explanations
 

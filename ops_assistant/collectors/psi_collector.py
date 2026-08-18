@@ -26,40 +26,40 @@ class PSICollector:
 
     def __init__(self, pressure_dir: str = "/proc/pressure"):
         self.pressure_dir = pressure_dir
+        self.cpu_path = os.path.join(pressure_dir, "cpu")
+        self.mem_path = os.path.join(pressure_dir, "memory")
+        self.io_path = os.path.join(pressure_dir, "io")
 
     def _parse_psi_file(self, file_path: str) -> Dict[str, PSIStallValues]:
         res: Dict[str, PSIStallValues] = {}
-        if not os.path.exists(file_path):
-            return res
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
                     parts = line.split()
+                    if not parts:
+                        continue
                     stall_type = parts[0]  # 'some' or 'full'
                     avg10, avg60, avg300, total = 0.0, 0.0, 0.0, 0
                     for p in parts[1:]:
                         if p.startswith("avg10="):
-                            avg10 = float(p.split("=")[1])
+                            avg10 = float(p[6:])
                         elif p.startswith("avg60="):
-                            avg60 = float(p.split("=")[1])
+                            avg60 = float(p[6:])
                         elif p.startswith("avg300="):
-                            avg300 = float(p.split("=")[1])
+                            avg300 = float(p[7:])
                         elif p.startswith("total="):
-                            total = int(p.split("=")[1])
+                            total = int(p[6:])
                     res[stall_type] = PSIStallValues(avg10=avg10, avg60=avg60, avg300=avg300, total_us=total)
-        except Exception:
+        except OSError:
             pass
         return res
 
     def collect(self) -> PSIMetrics:
-        cpu_path = os.path.join(self.pressure_dir, "cpu")
-        mem_path = os.path.join(self.pressure_dir, "memory")
-        io_path = os.path.join(self.pressure_dir, "io")
+        cpu_data = self._parse_psi_file(self.cpu_path)
+        mem_data = self._parse_psi_file(self.mem_path)
+        io_data = self._parse_psi_file(self.io_path)
 
-        if not os.path.exists(cpu_path) and not os.path.exists(mem_path):
+        if not cpu_data and not mem_data and not io_data:
             return PSIMetrics(
                 cpu_some=PSIStallValues(),
                 memory_some=PSIStallValues(),
@@ -69,10 +69,6 @@ class PSICollector:
                 is_available=False,
                 pressure_level="UNKNOWN"
             )
-
-        cpu_data = self._parse_psi_file(cpu_path)
-        mem_data = self._parse_psi_file(mem_path)
-        io_data = self._parse_psi_file(io_path)
 
         cpu_some = cpu_data.get("some", PSIStallValues())
         mem_some = mem_data.get("some", PSIStallValues())

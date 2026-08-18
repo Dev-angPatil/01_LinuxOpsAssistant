@@ -1,0 +1,2 @@
+# Directory for local GGUF models downloaded via:
+# python3 -m ops_assistant.cli --download-model qwen2.5-coder-0.5b

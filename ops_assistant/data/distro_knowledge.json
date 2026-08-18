@@ -1,0 +1,520 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-08-18",
+  "families": {
+    "debian": {
+      "family_id": "debian",
+      "display_name": "Debian / Ubuntu Family",
+      "identification": {
+        "os_release_ids": ["debian", "ubuntu", "linuxmint", "pop", "kali", "raspbian", "elementary", "zorin"],
+        "os_release_id_like": ["debian", "ubuntu"],
+        "detection_file": "/etc/debian_version"
+      },
+      "init_system": "systemd",
+      "service_manager": {
+        "type": "systemd",
+        "commands": {
+          "start": "sudo systemctl start {service}",
+          "stop": "sudo systemctl stop {service}",
+          "restart": "sudo systemctl restart {service}",
+          "reload": "sudo systemctl reload {service}",
+          "status": "sudo systemctl status {service}",
+          "enable": "sudo systemctl enable {service}",
+          "disable": "sudo systemctl disable {service}",
+          "mask": "sudo systemctl mask {service}",
+          "unmask": "sudo systemctl unmask {service}",
+          "is_active": "systemctl is-active {service}",
+          "is_enabled": "systemctl is-enabled {service}",
+          "list_failed": "systemctl list-units --state=failed",
+          "daemon_reload": "sudo systemctl daemon-reload",
+          "view_logs": "journalctl -u {service} -n 100 --no-pager"
+        }
+      },
+      "package_manager": {
+        "primary": "apt",
+        "low_level": "dpkg",
+        "commands": {
+          "install": "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y {package}",
+          "update_index": "sudo apt-get update",
+          "upgrade_system": "sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
+          "remove": "sudo apt-get remove -y {package}",
+          "purge": "sudo apt-get purge -y {package}",
+          "search": "apt-cache search {query}",
+          "info": "apt-cache show {package}",
+          "check_broken": "dpkg --audit",
+          "fix_broken": "sudo dpkg --configure -a && sudo apt-get install -f -y",
+          "clean_cache": "sudo apt-get clean && sudo apt-get autoremove -y"
+        },
+        "lock_files": [
+          "/var/lib/dpkg/lock",
+          "/var/lib/dpkg/lock-frontend",
+          "/var/lib/apt/lists/lock",
+          "/var/cache/apt/archives/lock"
+        ],
+        "lock_processes": ["apt", "apt-get", "dpkg", "unattended-upgr", "software-properties-gtk"],
+        "config_paths": [
+          "/etc/apt/sources.list",
+          "/etc/apt/sources.list.d/",
+          "/etc/apt/apt.conf.d/"
+        ]
+      },
+      "firewall": {
+        "default_tool": "ufw",
+        "alternative_tools": ["nftables", "iptables"],
+        "commands": {
+          "status": "sudo ufw status verbose",
+          "enable": "sudo ufw --force enable",
+          "disable": "sudo ufw disable",
+          "open_port": "sudo ufw allow {port}/{proto}",
+          "close_port": "sudo ufw delete allow {port}/{proto}",
+          "allow_source_port": "sudo ufw allow from {source_ip} to any port {port} proto {proto}",
+          "reload": "sudo ufw reload"
+        }
+      },
+      "security_subsystem": {
+        "type": "apparmor",
+        "commands": {
+          "status": "sudo aa-status",
+          "enforce": "sudo aa-enforce {profile_path}",
+          "complain": "sudo aa-complain {profile_path}",
+          "disable": "sudo aa-disable {profile_path}",
+          "inspect_denials": "grep \"apparmor=\\\"DENIED\\\"\" /var/log/audit/audit.log /var/log/syslog 2>/dev/null || journalctl -k | grep -i apparmor"
+        },
+        "profile_dir": "/etc/apparmor.d/"
+      },
+      "log_paths": {
+        "system": "/var/log/syslog",
+        "auth": "/var/log/auth.log",
+        "package_manager": "/var/log/dpkg.log",
+        "kernel": "/var/log/kern.log",
+        "audit": "/var/log/audit/audit.log"
+      },
+      "network_config_paths": [
+        "/etc/netplan/",
+        "/etc/network/interfaces",
+        "/etc/network/interfaces.d/"
+      ],
+      "common_error_signatures": [
+        {
+          "id": "DPKG_LOCK_BLOCKED",
+          "pattern": "Could not get lock /var/lib/dpkg/lock-frontend",
+          "remediation": "sudo fuser -vk /var/lib/dpkg/lock-frontend 2>/dev/null; sudo dpkg --configure -a",
+          "explanation": "Another package management process (like unattended-upgrades) is locking dpkg."
+        },
+        {
+          "id": "DPKG_INTERRUPTED",
+          "pattern": "dpkg was interrupted, you must manually run 'dpkg --configure -a'",
+          "remediation": "sudo dpkg --configure -a && sudo apt-get install -f -y",
+          "explanation": "A prior package installation was aborted mid-transaction."
+        }
+      ]
+    },
+    "rhel": {
+      "family_id": "rhel",
+      "display_name": "RHEL / CentOS / Rocky / Fedora Family",
+      "identification": {
+        "os_release_ids": ["rhel", "centos", "rocky", "almalinux", "fedora", "ol", "amzn"],
+        "os_release_id_like": ["rhel", "centos", "fedora"],
+        "detection_file": "/etc/redhat-release"
+      },
+      "init_system": "systemd",
+      "service_manager": {
+        "type": "systemd",
+        "commands": {
+          "start": "sudo systemctl start {service}",
+          "stop": "sudo systemctl stop {service}",
+          "restart": "sudo systemctl restart {service}",
+          "reload": "sudo systemctl reload {service}",
+          "status": "sudo systemctl status {service}",
+          "enable": "sudo systemctl enable {service}",
+          "disable": "sudo systemctl disable {service}",
+          "mask": "sudo systemctl mask {service}",
+          "unmask": "sudo systemctl unmask {service}",
+          "is_active": "systemctl is-active {service}",
+          "is_enabled": "systemctl is-enabled {service}",
+          "list_failed": "systemctl list-units --state=failed",
+          "daemon_reload": "sudo systemctl daemon-reload",
+          "view_logs": "journalctl -u {service} -n 100 --no-pager"
+        }
+      },
+      "package_manager": {
+        "primary": "dnf",
+        "low_level": "rpm",
+        "commands": {
+          "install": "sudo dnf install -y {package}",
+          "update_index": "sudo dnf makecache",
+          "upgrade_system": "sudo dnf upgrade -y",
+          "remove": "sudo dnf remove -y {package}",
+          "purge": "sudo dnf remove -y {package}",
+          "search": "dnf search {query}",
+          "info": "dnf info {package}",
+          "check_broken": "dnf check",
+          "fix_broken": "sudo dnf distro-sync -y && sudo rpm --rebuilddb",
+          "clean_cache": "sudo dnf clean all"
+        },
+        "lock_files": [
+          "/var/run/dnf.pid",
+          "/var/run/yum.pid",
+          "/var/lib/rpm/.rpm.lock"
+        ],
+        "lock_processes": ["dnf", "yum", "rpm", "PackageKit"],
+        "config_paths": [
+          "/etc/yum.repos.d/",
+          "/etc/dnf/dnf.conf"
+        ]
+      },
+      "firewall": {
+        "default_tool": "firewalld",
+        "alternative_tools": ["nftables", "iptables"],
+        "commands": {
+          "status": "sudo firewall-cmd --state && sudo firewall-cmd --list-all",
+          "enable": "sudo systemctl enable --now firewalld",
+          "disable": "sudo systemctl disable --now firewalld",
+          "open_port": "sudo firewall-cmd --permanent --add-port={port}/{proto} && sudo firewall-cmd --reload",
+          "close_port": "sudo firewall-cmd --permanent --remove-port={port}/{proto} && sudo firewall-cmd --reload",
+          "allow_source_port": "sudo firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"{source_ip}\" port port=\"{port}\" protocol=\"{proto}\" accept' && sudo firewall-cmd --reload",
+          "reload": "sudo firewall-cmd --reload"
+        }
+      },
+      "security_subsystem": {
+        "type": "selinux",
+        "commands": {
+          "status": "sestatus",
+          "get_mode": "getenforce",
+          "set_permissive": "sudo setenforce 0",
+          "set_enforcing": "sudo setenforce 1",
+          "inspect_denials": "sudo ausearch -m avc -ts recent | audit2why",
+          "generate_allow_module": "sudo ausearch -m avc -ts recent | audit2allow -M {module_name} && sudo semodule -i {module_name}.pp",
+          "restore_contexts": "sudo restorecon -Rv {path}"
+        },
+        "config_path": "/etc/selinux/config"
+      },
+      "log_paths": {
+        "system": "/var/log/messages",
+        "auth": "/var/log/secure",
+        "package_manager": "/var/log/dnf.log",
+        "kernel": "/var/log/boot.log",
+        "audit": "/var/log/audit/audit.log"
+      },
+      "network_config_paths": [
+        "/etc/NetworkManager/system-connections/",
+        "/etc/sysconfig/network-scripts/"
+      ],
+      "common_error_signatures": [
+        {
+          "id": "RPM_DB_CORRUPTED",
+          "pattern": "cannot open Packages database in /var/lib/rpm",
+          "remediation": "sudo rm -f /var/lib/rpm/__db* && sudo rpm --rebuilddb",
+          "explanation": "The Berkeley DB RPM database is stale or corrupted."
+        },
+        {
+          "id": "SELINUX_DENIAL",
+          "pattern": "SELinux is preventing .* from (read|write|open|execute|connect)",
+          "remediation": "sudo ausearch -m avc -ts recent | audit2why; sudo restorecon -Rv {path}",
+          "explanation": "SELinux MAC security context denied access to the file or socket."
+        }
+      ]
+    },
+    "arch": {
+      "family_id": "arch",
+      "display_name": "Arch Linux Family",
+      "identification": {
+        "os_release_ids": ["arch", "manjaro", "endeavouros", "garuda", "artix"],
+        "os_release_id_like": ["arch"],
+        "detection_file": "/etc/arch-release"
+      },
+      "init_system": "systemd",
+      "service_manager": {
+        "type": "systemd",
+        "commands": {
+          "start": "sudo systemctl start {service}",
+          "stop": "sudo systemctl stop {service}",
+          "restart": "sudo systemctl restart {service}",
+          "reload": "sudo systemctl reload {service}",
+          "status": "sudo systemctl status {service}",
+          "enable": "sudo systemctl enable {service}",
+          "disable": "sudo systemctl disable {service}",
+          "mask": "sudo systemctl mask {service}",
+          "unmask": "sudo systemctl unmask {service}",
+          "is_active": "systemctl is-active {service}",
+          "is_enabled": "systemctl is-enabled {service}",
+          "list_failed": "systemctl list-units --state=failed",
+          "daemon_reload": "sudo systemctl daemon-reload",
+          "view_logs": "journalctl -u {service} -n 100 --no-pager"
+        }
+      },
+      "package_manager": {
+        "primary": "pacman",
+        "low_level": "pacman",
+        "commands": {
+          "install": "sudo pacman -S --noconfirm {package}",
+          "update_index": "sudo pacman -Sy",
+          "upgrade_system": "sudo pacman -Syu --noconfirm",
+          "remove": "sudo pacman -Rns --noconfirm {package}",
+          "purge": "sudo pacman -Rns --noconfirm {package}",
+          "search": "pacman -Ss {query}",
+          "info": "pacman -Si {package}",
+          "check_broken": "pacman -Qk",
+          "fix_broken": "sudo pacman -Sy --noconfirm archlinux-keyring && sudo pacman -Syu --noconfirm",
+          "clean_cache": "sudo pacman -Sc --noconfirm"
+        },
+        "lock_files": [
+          "/var/lib/pacman/db.lck"
+        ],
+        "lock_processes": ["pacman"],
+        "config_paths": [
+          "/etc/pacman.conf",
+          "/etc/pacman.d/mirrorlist"
+        ]
+      },
+      "firewall": {
+        "default_tool": "nftables",
+        "alternative_tools": ["iptables", "ufw"],
+        "commands": {
+          "status": "sudo nft list ruleset",
+          "enable": "sudo systemctl enable --now nftables",
+          "disable": "sudo systemctl disable --now nftables",
+          "open_port": "sudo nft add rule inet filter input tcp dport {port} accept",
+          "close_port": "sudo nft delete rule ...",
+          "allow_source_port": "sudo nft add rule inet filter input ip saddr {source_ip} tcp dport {port} accept",
+          "reload": "sudo nft -f /etc/nftables.conf"
+        }
+      },
+      "security_subsystem": {
+        "type": "none_or_apparmor",
+        "commands": {
+          "status": "aa-status 2>/dev/null || echo 'AppArmor not active'",
+          "inspect_denials": "journalctl -k | grep -i apparmor"
+        },
+        "profile_dir": "/etc/apparmor.d/"
+      },
+      "log_paths": {
+        "system": "journald",
+        "auth": "journald",
+        "package_manager": "/var/log/pacman.log",
+        "kernel": "journald",
+        "audit": "journald"
+      },
+      "network_config_paths": [
+        "/etc/systemd/network/",
+        "/etc/NetworkManager/system-connections/",
+        "/var/lib/iwd/"
+      ],
+      "common_error_signatures": [
+        {
+          "id": "PACMAN_LOCK_BLOCKED",
+          "pattern": "unable to lock database",
+          "remediation": "sudo fuser /var/lib/pacman/db.lck || sudo rm -f /var/lib/pacman/db.lck",
+          "explanation": "Pacman lock file exists from a background or interrupted pacman command."
+        },
+        {
+          "id": "PACMAN_PGP_ERROR",
+          "pattern": "invalid or corrupted package \\(PGP signature\\)",
+          "remediation": "sudo pacman -Sy --noconfirm archlinux-keyring && sudo pacman-key --refresh-keys",
+          "explanation": "The local Arch Linux keyring is out of date and cannot verify package signatures."
+        }
+      ]
+    },
+    "alpine": {
+      "family_id": "alpine",
+      "display_name": "Alpine Linux Family",
+      "identification": {
+        "os_release_ids": ["alpine"],
+        "os_release_id_like": [],
+        "detection_file": "/etc/alpine-release"
+      },
+      "init_system": "openrc",
+      "service_manager": {
+        "type": "openrc",
+        "commands": {
+          "start": "sudo rc-service {service} start",
+          "stop": "sudo rc-service {service} stop",
+          "restart": "sudo rc-service {service} restart",
+          "reload": "sudo rc-service {service} reload",
+          "status": "sudo rc-service {service} status",
+          "enable": "sudo rc-update add {service} default",
+          "disable": "sudo rc-update del {service} default",
+          "mask": "sudo rc-update del {service} default",
+          "unmask": "sudo rc-update add {service} default",
+          "is_active": "rc-service {service} status",
+          "is_enabled": "rc-update show | grep {service}",
+          "list_failed": "rc-status --crashed",
+          "daemon_reload": "sudo rc-update -u",
+          "view_logs": "logread | grep {service}"
+        }
+      },
+      "package_manager": {
+        "primary": "apk",
+        "low_level": "apk",
+        "commands": {
+          "install": "sudo apk add --no-cache {package}",
+          "update_index": "sudo apk update",
+          "upgrade_system": "sudo apk upgrade",
+          "remove": "sudo apk del {package}",
+          "purge": "sudo apk del --purge {package}",
+          "search": "apk search {query}",
+          "info": "apk info {package}",
+          "check_broken": "apk fix --dry-run",
+          "fix_broken": "sudo apk fix --purge",
+          "clean_cache": "sudo apk cache clean && sudo rm -rf /var/cache/apk/*"
+        },
+        "lock_files": [
+          "/lib/apk/db/lock"
+        ],
+        "lock_processes": ["apk"],
+        "config_paths": [
+          "/etc/apk/repositories",
+          "/etc/apk/keys/"
+        ]
+      },
+      "firewall": {
+        "default_tool": "awall",
+        "alternative_tools": ["nftables", "iptables"],
+        "commands": {
+          "status": "sudo awall list",
+          "enable": "sudo awall activate -f",
+          "disable": "sudo rc-service iptables stop",
+          "open_port": "sudo awall enable custom-rule && sudo awall activate",
+          "close_port": "sudo awall disable custom-rule && sudo awall activate",
+          "allow_source_port": "sudo awall enable custom-rule && sudo awall activate",
+          "reload": "sudo awall activate"
+        }
+      },
+      "security_subsystem": {
+        "type": "pax_musl_hardened",
+        "commands": {
+          "status": "dmesg | grep -i pax 2>/dev/null || echo 'musl hardened'",
+          "inspect_denials": "dmesg | grep -i 'pax\\|denied'"
+        },
+        "profile_dir": ""
+      },
+      "log_paths": {
+        "system": "/var/log/messages",
+        "auth": "/var/log/messages",
+        "package_manager": "/var/log/apk.log",
+        "kernel": "dmesg",
+        "audit": "/var/log/messages"
+      },
+      "network_config_paths": [
+        "/etc/network/interfaces"
+      ],
+      "common_error_signatures": [
+        {
+          "id": "APK_LOCK_BLOCKED",
+          "pattern": "/lib/apk/db/lock: Resource temporarily unavailable",
+          "remediation": "sudo killall apk 2>/dev/null; sudo rm -f /lib/apk/db/lock",
+          "explanation": "APK lock is held by another running package process."
+        },
+        {
+          "id": "MUSL_GLIBC_MISSING",
+          "pattern": "(not found.*glibc|cannot open shared object file: ld-linux)",
+          "remediation": "sudo apk add --no-cache gcompat libc6-compat",
+          "explanation": "Binary compiled against GNU libc cannot run on musl libc without compatibility packages."
+        }
+      ]
+    },
+    "suse": {
+      "family_id": "suse",
+      "display_name": "openSUSE / SLES Family",
+      "identification": {
+        "os_release_ids": ["opensuse-leap", "opensuse-tumbleweed", "sles", "sled", "opensuse-microos"],
+        "os_release_id_like": ["suse", "opensuse"],
+        "detection_file": "/etc/SuSE-release"
+      },
+      "init_system": "systemd",
+      "service_manager": {
+        "type": "systemd",
+        "commands": {
+          "start": "sudo systemctl start {service}",
+          "stop": "sudo systemctl stop {service}",
+          "restart": "sudo systemctl restart {service}",
+          "reload": "sudo systemctl reload {service}",
+          "status": "sudo systemctl status {service}",
+          "enable": "sudo systemctl enable {service}",
+          "disable": "sudo systemctl disable {service}",
+          "mask": "sudo systemctl mask {service}",
+          "unmask": "sudo systemctl unmask {service}",
+          "is_active": "systemctl is-active {service}",
+          "is_enabled": "systemctl is-enabled {service}",
+          "list_failed": "systemctl list-units --state=failed",
+          "daemon_reload": "sudo systemctl daemon-reload",
+          "view_logs": "journalctl -u {service} -n 100 --no-pager"
+        }
+      },
+      "package_manager": {
+        "primary": "zypper",
+        "low_level": "rpm",
+        "commands": {
+          "install": "sudo zypper --non-interactive install {package}",
+          "update_index": "sudo zypper refresh",
+          "upgrade_system": "sudo zypper --non-interactive update",
+          "remove": "sudo zypper --non-interactive remove {package}",
+          "purge": "sudo zypper --non-interactive remove --clean-deps {package}",
+          "search": "zypper search {query}",
+          "info": "zypper info {package}",
+          "check_broken": "zypper verify",
+          "fix_broken": "sudo zypper clean -a && sudo zypper ref -f && sudo rpm --rebuilddb",
+          "clean_cache": "sudo zypper clean -a"
+        },
+        "lock_files": [
+          "/var/run/zypp.pid"
+        ],
+        "lock_processes": ["zypper", "packagekitd", "yast2"],
+        "config_paths": [
+          "/etc/zypp/repos.d/",
+          "/etc/zypp/zypp.conf"
+        ]
+      },
+      "firewall": {
+        "default_tool": "firewalld",
+        "alternative_tools": ["SuSEfirewall2", "nftables"],
+        "commands": {
+          "status": "sudo firewall-cmd --state && sudo firewall-cmd --list-all",
+          "enable": "sudo systemctl enable --now firewalld",
+          "disable": "sudo systemctl disable --now firewalld",
+          "open_port": "sudo firewall-cmd --permanent --add-port={port}/{proto} && sudo firewall-cmd --reload",
+          "close_port": "sudo firewall-cmd --permanent --remove-port={port}/{proto} && sudo firewall-cmd --reload",
+          "allow_source_port": "sudo firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"{source_ip}\" port port=\"{port}\" protocol=\"{proto}\" accept' && sudo firewall-cmd --reload",
+          "reload": "sudo firewall-cmd --reload"
+        }
+      },
+      "security_subsystem": {
+        "type": "apparmor",
+        "commands": {
+          "status": "sudo aa-status",
+          "enforce": "sudo aa-enforce {profile_path}",
+          "complain": "sudo aa-complain {profile_path}",
+          "disable": "sudo aa-disable {profile_path}",
+          "inspect_denials": "grep \"apparmor=\\\"DENIED\\\"\" /var/log/audit/audit.log /var/log/messages 2>/dev/null"
+        },
+        "profile_dir": "/etc/apparmor.d/"
+      },
+      "log_paths": {
+        "system": "/var/log/messages",
+        "auth": "/var/log/messages",
+        "package_manager": "/var/log/zypper.log",
+        "kernel": "/var/log/warn",
+        "audit": "/var/log/audit/audit.log"
+      },
+      "network_config_paths": [
+        "/etc/sysconfig/network/",
+        "/etc/wicked/config.xml",
+        "/etc/NetworkManager/system-connections/"
+      ],
+      "common_error_signatures": [
+        {
+          "id": "ZYPPER_LOCK_BLOCKED",
+          "pattern": "System management is locked by the application with pid ([0-9]+)",
+          "remediation": "sudo systemctl stop packagekit; sudo kill -9 {match_1} 2>/dev/null; sudo rm -f /var/run/zypp.pid",
+          "explanation": "PackageKit or another Zypper process is holding the system lock."
+        },
+        {
+          "id": "ZYPPER_REPO_INVALID",
+          "pattern": "Valid metadata not found at specified URL",
+          "remediation": "sudo zypper clean -a && sudo zypper ref -f",
+          "explanation": "Zypper repository metadata cache is corrupted or stale."
+        }
+      ]
+    }
+  }
+}

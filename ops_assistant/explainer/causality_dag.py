@@ -79,12 +79,19 @@ class CausalityDAGEngine:
         ("TIMEOUT_CONNECT", "UPSTREAM_502", "LATENCY_SPIKE", 0.91),
     ]
 
+    # Precompiled regex patterns for zero-recompilation log classification
+    RE_OOM = re.compile(r"out of memory|oom-killer|killed process \d+|invoked oom-killer", re.IGNORECASE)
+    RE_BIND = re.compile(r"address already in use|eaddrinuse|bind\(\) to .* failed", re.IGNORECASE)
+    RE_DISK = re.compile(r"no space left on device|enospc|disk full", re.IGNORECASE)
+    RE_PERM = re.compile(r"permission denied|eacces", re.IGNORECASE)
+    RE_CONN = re.compile(r"connection refused|econnrefused|502 bad gateway|failed to connect", re.IGNORECASE)
+    RE_SVC = re.compile(r"failed to start|process exited|unit failed", re.IGNORECASE)
+
     def __init__(self):
         pass
 
     def _classify_log_event(self, log_msg: str, source: str, ts: float) -> Optional[CausalEventNode]:
-        msg = log_msg.lower()
-        if re.search(r"(out of memory|oom-killer|killed process \d+|invoked oom-killer)", msg):
+        if self.RE_OOM.search(log_msg):
             return CausalEventNode(
                 id=f"oom_{int(ts*1000)%10000}",
                 timestamp=ts,
@@ -93,7 +100,7 @@ class CausalityDAGEngine:
                 description="Kernel OOM killer invoked on memory exhaustion",
                 raw_evidence=log_msg
             )
-        elif re.search(r"(address already in use|eaddrinuse|bind\(\) to .* failed)", msg):
+        elif self.RE_BIND.search(log_msg):
             return CausalEventNode(
                 id=f"bind_{int(ts*1000)%10000}",
                 timestamp=ts,
@@ -102,7 +109,7 @@ class CausalityDAGEngine:
                 description="Failed to bind listening port (Address already in use)",
                 raw_evidence=log_msg
             )
-        elif re.search(r"(no space left on device|enospc|disk full)", msg):
+        elif self.RE_DISK.search(log_msg):
             return CausalEventNode(
                 id=f"disk_{int(ts*1000)%10000}",
                 timestamp=ts,
@@ -111,7 +118,7 @@ class CausalityDAGEngine:
                 description="Filesystem exhausted available physical disk blocks",
                 raw_evidence=log_msg
             )
-        elif re.search(r"(permission denied|eacces)", msg):
+        elif self.RE_PERM.search(log_msg):
             return CausalEventNode(
                 id=f"perm_{int(ts*1000)%10000}",
                 timestamp=ts,
@@ -120,7 +127,7 @@ class CausalityDAGEngine:
                 description="POSIX permissions blocked access to required path/socket",
                 raw_evidence=log_msg
             )
-        elif re.search(r"(connection refused|econnrefused|502 bad gateway|failed to connect)", msg):
+        elif self.RE_CONN.search(log_msg):
             return CausalEventNode(
                 id=f"conn_{int(ts*1000)%10000}",
                 timestamp=ts,
@@ -129,7 +136,7 @@ class CausalityDAGEngine:
                 description="Upstream connection refused / 502 Bad Gateway downstream symptom",
                 raw_evidence=log_msg
             )
-        elif re.search(r"(failed to start|process exited|unit failed)", msg):
+        elif self.RE_SVC.search(log_msg):
             return CausalEventNode(
                 id=f"svc_{int(ts*1000)%10000}",
                 timestamp=ts,

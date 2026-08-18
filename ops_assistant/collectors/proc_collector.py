@@ -8,11 +8,23 @@ from ops_assistant.models import CPUMetrics, MemoryMetrics, LoadMetrics, DiskPar
 
 class ProcCollector:
     def __init__(self, proc_root: Path = Path("/proc")):
-        self.proc_root = proc_root
+        self.proc_root = Path(proc_root) if isinstance(proc_root, (str, Path)) else Path("/proc")
+        self._proc_root_str = str(self.proc_root)
+        self._meminfo_str = os.path.join(self._proc_root_str, "meminfo")
+        self._loadavg_str = os.path.join(self._proc_root_str, "loadavg")
+        self._stat_str = os.path.join(self._proc_root_str, "stat")
+        self._uptime_str = os.path.join(self._proc_root_str, "uptime")
+        self._mounts_str = os.path.join(self._proc_root_str, "mounts")
+        self._core_count = max(1, os.cpu_count() or 1)
+
+        # Performance caching layers
+        self._last_cpu_ticks: Optional[List[int]] = None
+        self._last_cpu_time: float = 0.0
+        self._cached_zombie_count: int = 0
+        self._cached_zombie_time: float = 0.0
 
     def get_memory_metrics(self) -> MemoryMetrics:
-        meminfo_path = self.proc_root / "meminfo"
-        if not meminfo_path.exists():
+        if not os.path.exists(self._meminfo_str):
             # Mock / fallback for testing
             return MemoryMetrics(
                 total_mb=16384.0,
@@ -25,18 +37,26 @@ class ProcCollector:
             )
 
         data: Dict[str, float] = {}
-        with open(meminfo_path, "r", encoding="utf-8") as f:
-            for line in f:
-                parts = line.strip().split(":")
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    val_parts = parts[1].strip().split()
-                    if val_parts:
-                        try:
-                            # Values in /proc/meminfo are in kB
-                            data[key] = float(val_parts[0]) / 1024.0  # MB
-                        except ValueError:
-                            pass
+        needed = {"MemTotal", "MemAvailable", "MemFree", "SwapTotal", "SwapFree"}
+        try:
+            with open(self._meminfo_str, "r", encoding="utf-8") as f:
+                for line in f:
+                    colon = line.find(":")
+                    if colon != -1:
+                        key = line[:colon]
+                        if key in needed:
+                            val_str = line[colon + 1:].lstrip()
+                            space = val_str.find(" ")
+                            if space != -1:
+                                try:
+                                    # Values in /proc/meminfo are in kB -> convert to MB
+                                    data[key] = float(val_str[:space]) / 1024.0
+                                except ValueError:
+                                    pass
+                            if len(data) == 5:
+                                break
+        except OSError:
+            pass
 
         total = data.get("MemTotal", 1.0)
         available = data.get("MemAvailable", data.get("MemFree", 0.0))
@@ -60,38 +80,48 @@ class ProcCollector:
             swap_used_percent=swap_pct
         )
 
-    def get_zombie_count(self) -> int:
-        """Scans /proc for processes in 'Z' (Zombie) state."""
-        zombies = 0
-        if not self.proc_root.exists():
+    def get_zombie_count(self, max_cache_age_s: float = 1.0) -> int:
+        """Scans /proc for processes in 'Z' (Zombie) state with microsecond binary parsing and short-TTL caching."""
+        now = time.time()
+        if self._cached_zombie_time > 0 and (now - self._cached_zombie_time) < max_cache_age_s:
+            return self._cached_zombie_count
+
+        if not os.path.exists(self._proc_root_str):
             return 0
+
+        zombies = 0
         try:
-            for entry in os.scandir(self.proc_root):
-                if entry.is_dir() and entry.name.isdigit():
-                    stat_file = Path(entry.path) / "stat"
+            for entry in os.scandir(self._proc_root_str):
+                if entry.name.isdigit() and entry.is_dir():
                     try:
-                        with open(stat_file, "r", encoding="utf-8") as f:
-                            content = f.read()
-                            # Format: pid (comm) state ...
-                            # state is after the last closing parenthesis
-                            idx = content.rfind(")")
-                            if idx != -1 and len(content) > idx + 2:
-                                state = content[idx + 2]
-                                if state == "Z":
-                                    zombies += 1
-                    except Exception:
+                        stat_path = f"{entry.path}/stat"
+                        fd = os.open(stat_path, os.O_RDONLY)
+                        try:
+                            raw = os.read(fd, 128)
+                        finally:
+                            os.close(fd)
+                        idx = raw.rfind(b")")
+                        if idx != -1 and len(raw) > idx + 2:
+                            if raw[idx + 2:idx + 3] == b"Z":
+                                zombies += 1
+                    except OSError:
                         continue
         except Exception:
             pass
+
+        self._cached_zombie_count = zombies
+        self._cached_zombie_time = now
         return zombies
 
     def get_load_metrics(self) -> LoadMetrics:
-        loadavg_path = self.proc_root / "loadavg"
-        if not loadavg_path.exists():
+        if not os.path.exists(self._loadavg_str):
             return LoadMetrics(load_1m=0.5, load_5m=0.3, load_15m=0.2, running_processes=2, total_processes=150)
 
-        with open(loadavg_path, "r", encoding="utf-8") as f:
-            content = f.read().strip().split()
+        try:
+            with open(self._loadavg_str, "r", encoding="utf-8") as f:
+                content = f.read().split()
+        except OSError:
+            content = []
 
         l1 = float(content[0]) if len(content) > 0 else 0.0
         l5 = float(content[1]) if len(content) > 1 else 0.0
@@ -115,32 +145,41 @@ class ProcCollector:
             total_processes=total_proc
         )
 
+    def _read_cpu_ticks(self) -> Tuple[List[int], int]:
+        try:
+            with open(self._stat_str, "r", encoding="utf-8") as f:
+                first_line = f.readline()
+                if first_line.startswith("cpu "):
+                    ticks = [int(x) for x in first_line.split()[1:]]
+                    return ticks, self._core_count
+        except OSError:
+            pass
+        return [], self._core_count
+
     def get_cpu_metrics(self, sample_interval_ms: int = 50) -> CPUMetrics:
-        stat_path = self.proc_root / "stat"
         zombies = self.get_zombie_count()
-        if not stat_path.exists():
+        if not os.path.exists(self._stat_str):
             return CPUMetrics(user_pct=5.0, system_pct=2.0, idle_pct=92.0, iowait_pct=1.0, steal_pct=0.0, core_count=4, zombie_count=zombies)
 
-        def read_cpu_ticks() -> Tuple[List[int], int]:
-            with open(stat_path, "r", encoding="utf-8") as f:
-                core_count = 0
-                cpu_line = ""
-                for line in f:
-                    if line.startswith("cpu "):
-                        cpu_line = line
-                    elif line.startswith("cpu") and line[3].isdigit():
-                        core_count += 1
-                if not cpu_line:
-                    return [], max(1, core_count)
-                ticks = [int(x) for x in cpu_line.strip().split()[1:]]
-                return ticks, max(1, core_count)
+        now = time.time()
+        # Fast path: If previously sampled within a reasonable window, compute deltas without sleeping
+        if self._last_cpu_ticks and (now - self._last_cpu_time) >= 0.02 and sample_interval_ms == 0:
+            t1 = self._last_cpu_ticks
+            cores = self._core_count
+            t2, _ = self._read_cpu_ticks()
+            self._last_cpu_ticks = t2
+            self._last_cpu_time = now
+        else:
+            t1, cores = self._read_cpu_ticks()
+            if not t1:
+                return CPUMetrics(core_count=cores, zombie_count=zombies)
 
-        t1, cores = read_cpu_ticks()
-        if not t1:
-            return CPUMetrics(core_count=cores, zombie_count=zombies)
+            if sample_interval_ms > 0:
+                time.sleep(sample_interval_ms / 1000.0)
+            t2, _ = self._read_cpu_ticks()
+            self._last_cpu_ticks = t2
+            self._last_cpu_time = time.time()
 
-        time.sleep(sample_interval_ms / 1000.0)
-        t2, _ = read_cpu_ticks()
         if not t2 or len(t1) < 4 or len(t2) < 4:
             return CPUMetrics(core_count=cores, zombie_count=zombies)
 
@@ -165,25 +204,27 @@ class ProcCollector:
         )
 
     def get_uptime(self) -> float:
-        uptime_path = self.proc_root / "uptime"
-        if not uptime_path.exists():
+        if not os.path.exists(self._uptime_str):
             return 3600.0
         try:
-            with open(uptime_path, "r", encoding="utf-8") as f:
-                return float(f.read().strip().split()[0])
+            with open(self._uptime_str, "r", encoding="utf-8") as f:
+                line = f.readline()
+                space = line.find(" ")
+                if space != -1:
+                    return float(line[:space])
+                return float(line.strip())
         except Exception:
             return 3600.0
 
     def get_disk_partitions(self) -> List[DiskPartition]:
         partitions: List[DiskPartition] = []
-        mounts_path = self.proc_root / "mounts"
         target_mounts = ["/"]
 
-        if mounts_path.exists():
+        if os.path.exists(self._mounts_str):
             try:
-                with open(mounts_path, "r", encoding="utf-8") as f:
+                with open(self._mounts_str, "r", encoding="utf-8") as f:
                     for line in f:
-                        parts = line.strip().split()
+                        parts = line.split()
                         if len(parts) >= 2:
                             dev, mount = parts[0], parts[1]
                             if dev.startswith("/dev/") and mount not in target_mounts:
