@@ -40,7 +40,7 @@ function playScifiSound(type) {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(820, now);
       osc.frequency.exponentialRampToValueAtTime(1450, now + 0.04);
-      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.setValueAtTime(0.04, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
       osc.start(now);
       osc.stop(now + 0.04);
@@ -48,7 +48,7 @@ function playScifiSound(type) {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(420, now);
       osc.frequency.exponentialRampToValueAtTime(1100, now + 0.09);
-      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.setValueAtTime(0.06, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
       osc.start(now);
       osc.stop(now + 0.12);
@@ -57,7 +57,7 @@ function playScifiSound(type) {
       osc.frequency.setValueAtTime(523.25, now);
       osc.frequency.setValueAtTime(659.25, now + 0.05);
       osc.frequency.setValueAtTime(783.99, now + 0.10);
-      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.setValueAtTime(0.05, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
       osc.start(now);
       osc.stop(now + 0.20);
@@ -65,7 +65,7 @@ function playScifiSound(type) {
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(360, now);
       osc.frequency.exponentialRampToValueAtTime(150, now + 0.14);
-      gain.gain.setValueAtTime(0.07, now);
+      gain.gain.setValueAtTime(0.06, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
       osc.start(now);
       osc.stop(now + 0.14);
@@ -95,7 +95,7 @@ function toggleScanlines() {
     const isHidden = overlay.classList.contains('hidden');
     if (btn) {
       btn.innerHTML = !isHidden
-        ? '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#FF0055]"></i><span class="text-[#FF0055] text-[10px]">SCANLINES</span>'
+        ? '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#00D2FF]"></i><span class="text-[#00D2FF] text-[10px]">SCANLINES</span>'
         : '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#62759B]"></i><span class="text-[#62759B] text-[10px]">CLEAN HUD</span>';
       if (window.lucide) lucide.createIcons();
     }
@@ -406,11 +406,11 @@ function updateTelemetryUI(snap) {
   const pressureBadge = document.getElementById('header-pressure');
   pressureBadge.textContent = 'PSI: ' + (snap.pressure_status || 'NORMAL');
   if (snap.pressure_status === 'ELEVATED') {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FFB800] drop-shadow-[0_0_6px_rgba(255,184,0,0.5)]';
+    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FFB800]';
   } else if (snap.pressure_status === 'CRITICAL') {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FF0055] drop-shadow-[0_0_8px_rgba(255,0,85,0.7)]';
+    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FF0055]';
   } else {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#00D2FF] drop-shadow-[0_0_6px_rgba(0,210,255,0.5)]';
+    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#00D2FF]';
   }
 
   // Health Cards
@@ -472,8 +472,8 @@ function initCharts() {
     maintainAspectRatio: false,
     animation: false,
     scales: {
-      y: { min: 0, max: 100, grid: { color: 'rgba(0,210,255,0.08)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 } } },
-      x: { grid: { color: 'rgba(0,210,255,0.08)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
+      y: { min: 0, max: 100, grid: { color: 'rgba(0,210,255,0.06)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 } } },
+      x: { grid: { color: 'rgba(0,210,255,0.06)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
     },
     plugins: { legend: { labels: { color: '#F0F6FF', font: { family: 'Space Grotesk', size: 12, weight: 600 }, boxWidth: 12 } } }
   };
@@ -485,7 +485,7 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'CPU Total %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.16)', fill: true, tension: 0.25, borderWidth: 2 },
+          { label: 'CPU Total %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.12)', fill: true, tension: 0.25, borderWidth: 2 },
           { label: 'I/O Wait %', data: [], borderColor: '#FF0055', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
         ]
       },
@@ -500,8 +500,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'RAM Used %', data: [], borderColor: '#FF0055', backgroundColor: 'rgba(255, 0, 85, 0.16)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'Swap Used %', data: [], borderColor: '#0066FF', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'RAM Used %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.10)', fill: true, tension: 0.25, borderWidth: 2 },
+          { label: 'Swap Used %', data: [], borderColor: '#FF0055', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
         ]
       },
       options: chartOptions
@@ -517,13 +517,13 @@ function renderPSITable(psi) {
     return;
   }
 
-  let html = '<div class="grid grid-cols-3 gap-2.5">';
+  let html = '<div class="grid grid-cols-3 gap-3">';
   for (const [subsys, metrics] of Object.entries(psi)) {
     const avg10 = metrics.some_avg10 || 0;
     const colorClass = avg10 > 20 ? 'text-[#FF0055]' : (avg10 > 5 ? 'text-[#FFB800]' : 'text-[#00D2FF]');
-    html += `<div class="p-3 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-1">
+    html += `<div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-1.5">
       <span class="font-display font-bold uppercase text-[#62759B] text-[10px]">${subsys}</span>
-      <div class="text-xl font-bold font-mono ${colorClass} drop-shadow-[0_0_6px_currentColor]">${avg10.toFixed(2)}%</div>
+      <div class="text-xl font-bold font-mono ${colorClass}">${avg10.toFixed(2)}%</div>
       <p class="text-[10px] text-[#62759B] font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
     </div>`;
   }
@@ -539,16 +539,16 @@ function renderDisksTable(disks) {
     return;
   }
 
-  let html = '<div class="space-y-2">';
+  let html = '<div class="space-y-2.5">';
   disks.slice(0, 4).forEach(d => {
     const color = d.used_percent > 85 ? 'bg-[#FF0055]' : (d.used_percent > 70 ? 'bg-[#FFB800]' : 'bg-[#00D2FF]');
-    html += `<div class="p-2.5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-1.5 font-mono text-xs">
+    html += `<div class="p-3 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-2 font-mono text-xs">
       <div class="flex justify-between">
         <span class="text-white font-bold">${d.mountpoint}</span>
         <span class="text-[#00D2FF]">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
       </div>
       <div class="w-full bg-black/80 h-1.5 rounded-full overflow-hidden border border-[#00D2FF]/20">
-        <div class="${color} h-full transition-all duration-500 shadow-[0_0_8px_currentColor]" style="width: ${Math.min(100, d.used_percent)}%"></div>
+        <div class="${color} h-full transition-all duration-500" style="width: ${Math.min(100, d.used_percent)}%"></div>
       </div>
     </div>`;
   });
@@ -576,26 +576,26 @@ async function submitAgentPrompt(promptText) {
 
   if (!feed) return;
 
-  // Append user prompt item
+  // Append user prompt item with generous interior margins & padding
   const userCard = document.createElement('div');
-  userCard.className = 'p-3.5 rounded-lg bg-[#080C1E] border border-[#00D2FF]/30 font-mono text-xs text-white space-y-1 shadow-[0_0_12px_rgba(0,210,255,0.15)]';
+  userCard.className = 'p-5 sm:p-6 rounded-lg bg-[#080C1E] border border-[#00D2FF]/25 font-mono text-xs text-white space-y-2.5 shadow-[0_2px_12px_rgba(0,0,0,0.5)]';
   userCard.innerHTML = `
-    <div class="flex items-center justify-between text-[10px] text-[#00D2FF] font-display font-bold">
-      <span class="flex items-center space-x-1">
-        <i data-lucide="user" class="w-3 h-3 text-[#00D2FF]"></i>
+    <div class="flex items-center justify-between text-[10px] text-[#00D2FF] font-display font-bold uppercase tracking-wider">
+      <span class="flex items-center space-x-1.5">
+        <i data-lucide="user" class="w-3.5 h-3.5 text-[#00D2FF]"></i>
         <span>SYSADMIN COMMAND VECTOR</span>
       </span>
-      <span>${new Date().toLocaleTimeString()}</span>
+      <span class="text-[#62759B]">${new Date().toLocaleTimeString()}</span>
     </div>
-    <div class="text-xs text-[#F0F6FF] font-semibold pl-4 border-l-2 border-[#00D2FF]">${escapeHtml(promptText)}</div>
+    <div class="text-xs sm:text-[13px] text-[#F0F6FF] font-semibold pl-4 border-l-2 border-[#00D2FF] leading-relaxed">${escapeHtml(promptText)}</div>
   `;
   feed.appendChild(userCard);
 
   // Append thinking placeholder
   const agentCard = document.createElement('div');
-  agentCard.className = 'p-4 rounded-lg bg-[#0C1229] border border-[#00D2FF]/20 space-y-2';
+  agentCard.className = 'p-6 sm:p-7 rounded-lg bg-[#0C1229] border border-[#00D2FF]/20 space-y-3';
   agentCard.innerHTML = `
-    <div class="flex items-center space-x-2 text-xs font-display font-bold text-[#00D2FF]">
+    <div class="flex items-center space-x-2.5 text-xs font-display font-bold text-[#00D2FF]">
       <span class="inline-block w-2 h-2 rounded-full bg-[#00D2FF] animate-ping"></span>
       <span>AI-OS REASONING &amp; AST VALIDATION IN PROGRESS...</span>
     </div>
@@ -637,12 +637,12 @@ function renderAgentResponseCard(card, data) {
   const isModifying = data.safety_level && data.safety_level !== 'READ_ONLY';
   const cardBorderClass = isModifying ? 'command-approval-card modifying' : 'scifi-card';
 
-  card.className = `p-5 space-y-3.5 ${cardBorderClass}`;
+  card.className = `p-6 sm:p-7 space-y-4 ${cardBorderClass}`;
 
   let stepsHtml = '';
   if (data.steps && data.steps.length > 0) {
     stepsHtml = `
-      <div class="space-y-1 text-[11px] text-[#A0B3D6] font-mono border-l-2 border-[#00D2FF]/40 pl-3 py-0.5">
+      <div class="space-y-1.5 text-[11px] text-[#ADC1E2] font-mono border-l-2 border-[#00D2FF]/40 pl-3.5 py-1 leading-relaxed">
         ${data.steps.map(s => `<div>&bull; ${escapeHtml(s)}</div>`).join('')}
       </div>
     `;
@@ -660,17 +660,17 @@ function renderAgentResponseCard(card, data) {
 
   if (plannedCmds.length > 0) {
     commandSectionHtml = `
-      <div class="space-y-2 pt-1">
+      <div class="space-y-3 pt-1">
         <div class="text-[10px] font-display font-bold uppercase tracking-wider text-[#00D2FF]">PLANNED COMMAND EXECUTION &amp; GUARDRAILS:</div>
         ${plannedCmds.map((c) => `
-          <div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 space-y-2.5 shadow-[inset_0_0_12px_rgba(0,0,0,0.8)]">
+          <div class="p-4 sm:p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-3 shadow-[inset_0_0_12px_rgba(0,0,0,0.85)]">
             <div class="flex items-center justify-between">
-              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2.5 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
               <span class="text-[10px] font-mono text-[#00D2FF]">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
             </div>
 
             <!-- Exact Command -->
-            <div class="p-2.5 rounded bg-black/80 border border-[#00D2FF]/20 font-mono text-xs text-white flex items-start justify-between space-x-2">
+            <div class="p-3 rounded-lg bg-black/80 border border-[#00D2FF]/20 font-mono text-xs text-white flex items-start justify-between space-x-2.5">
               <div class="break-all select-all flex-1">
                 <span class="text-[#00D2FF] select-none font-bold">$ </span>
                 <span class="font-semibold">${escapeHtml(c.command)}</span>
@@ -681,24 +681,24 @@ function renderAgentResponseCard(card, data) {
             </div>
 
             <!-- Short Description of What It Will Do -->
-            <div class="text-xs text-[#F0F6FF] font-sans leading-relaxed">
-              <span class="text-[#62759B] text-[10px] font-display font-bold uppercase block">RATIONALE:</span>
+            <div class="text-xs sm:text-[13px] text-[#F0F6FF] font-sans leading-relaxed">
+              <span class="text-[#62759B] text-[10px] font-display font-bold uppercase block mb-0.5">RATIONALE:</span>
               ${escapeHtml(c.description || 'Executes operation on the system.')}
             </div>
 
             ${c.rollback_command ? `
-              <div class="text-[11px] font-mono text-[#A0B3D6]">
+              <div class="text-[11px] font-mono text-[#ADC1E2]">
                 <span class="text-[#FFB800] font-bold">Rollback:</span> ${escapeHtml(c.rollback_command)}
               </div>
             ` : ''}
 
             <!-- Permission Confirmation Buttons -->
-            <div class="flex items-center space-x-2 pt-1 border-t border-[#00D2FF]/15">
-              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.command-approval-card'))" class="btn btn-primary px-3.5 py-1.5 text-xs">
+            <div class="flex items-center space-x-2.5 pt-2 border-t border-[#00D2FF]/15">
+              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.command-approval-card'))" class="btn btn-primary px-4 py-2 text-xs">
                 <i data-lucide="play" class="w-3 h-3"></i>
                 <span>AUTHORIZE &amp; EXECUTE</span>
               </button>
-              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn btn-secondary px-3.5 py-1.5 text-xs">
+              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn btn-secondary px-4 py-2 text-xs">
                 <i data-lucide="flask-conical" class="w-3 h-3"></i>
                 <span>DRY-RUN SANDBOX</span>
               </button>
@@ -713,14 +713,14 @@ function renderAgentResponseCard(card, data) {
   let outputDetailsHtml = '';
   if (data.output && !plannedCmds.length) {
     outputDetailsHtml = `
-      <pre class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 text-[11px] font-mono text-[#00D2FF] overflow-x-auto max-h-48 whitespace-pre-wrap shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
+      <pre class="p-4 sm:p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 text-[11px] font-mono text-[#00D2FF] overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
     `;
   }
 
   let rollbackBtnHtml = '';
   if (data.rollback_command && data.executed) {
     rollbackBtnHtml = `
-      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn btn-secondary px-3 py-1 text-xs">
+      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn btn-secondary px-3.5 py-1.5 text-xs">
         <i data-lucide="undo-2" class="w-3 h-3"></i>
         <span>Rollback State</span>
       </button>
@@ -728,18 +728,18 @@ function renderAgentResponseCard(card, data) {
   }
 
   card.innerHTML = `
-    <div class="flex items-center justify-between text-xs border-b border-[#00D2FF]/20 pb-2 font-mono">
-      <div class="flex items-center space-x-2">
+    <div class="flex items-center justify-between text-xs border-b border-[#00D2FF]/20 pb-3 font-mono">
+      <div class="flex items-center space-x-2.5">
         <span class="font-bold text-white flex items-center space-x-1.5">
           <i data-lucide="bot" class="w-4 h-4 text-[#00D2FF]"></i>
           <span class="font-display">INTENT: ${escapeHtml(data.intent || 'ACTION')}</span>
         </span>
-        <span class="${safetyClass} text-[10px] px-2 py-0.5 rounded font-bold uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
+        <span class="${safetyClass} text-[10px] px-2.5 py-0.5 rounded font-bold uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
       </div>
       <span class="text-[#62759B] text-[10px]">${new Date().toLocaleTimeString()}</span>
     </div>
 
-    <div class="text-xs text-[#F0F6FF] font-sans font-semibold">${escapeHtml(data.summary || 'Analysis complete.')}</div>
+    <div class="text-xs sm:text-[13px] text-[#F0F6FF] font-sans font-semibold leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
     
     ${stepsHtml}
     ${commandSectionHtml}
@@ -790,7 +790,7 @@ async function executeCommandDirect(cmd, rollbackCmd, cardEl) {
     // Append execution result box to card
     if (cardEl) {
       const resultBox = document.createElement('div');
-      resultBox.className = 'p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/30 space-y-1.5 font-mono text-xs shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]';
+      resultBox.className = 'p-4 sm:p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 space-y-2 font-mono text-xs shadow-[inset_0_0_10px_rgba(0,0,0,0.85)] leading-relaxed';
       resultBox.innerHTML = `
         <div class="flex items-center justify-between text-[10px] text-[#62759B]">
           <span class="font-bold text-[#00D2FF]">&check; EXECUTION COMPLETE</span>
@@ -798,8 +798,8 @@ async function executeCommandDirect(cmd, rollbackCmd, cardEl) {
         </div>
         <pre class="text-[11px] text-[#00D2FF] overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
         ${(rollbackCmd || data.rollback_command) ? `
-          <div class="pt-1 flex justify-end">
-            <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn btn-secondary px-2.5 py-1 text-[10px]">
+          <div class="pt-2 flex justify-end">
+            <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn btn-secondary px-3 py-1 text-[10px]">
               <i data-lucide="undo-2" class="w-3 h-3"></i>
               <span>Rollback</span>
             </button>
@@ -1041,9 +1041,9 @@ async function previewOrganize() {
     const data = await res.json();
     if (data.success) {
       container.innerHTML = `
-        <div class="space-y-1 text-xs">
+        <div class="space-y-1.5 text-xs">
           <div class="text-[#00D2FF] font-bold">Preview: Discovered ${data.total_files || 0} candidate files to organize:</div>
-          <div class="space-y-0.5 text-[#F0F6FF]">
+          <div class="space-y-1 text-[#F0F6FF]">
             ${(data.moves || []).slice(0, 10).map(m => `<div>&bull; ${escapeHtml(m.source)} &rarr; <span class="text-[#00D2FF]">${escapeHtml(m.destination)}</span></div>`).join('')}
             ${(data.moves || []).length > 10 ? `<div class="text-[#62759B]">...and ${data.moves.length - 10} more items</div>` : ''}
           </div>
@@ -1114,7 +1114,7 @@ async function cleanStorage(dryRun) {
     const data = await res.json();
     if (container) {
       container.innerHTML = `
-        <div class="space-y-1 text-xs">
+        <div class="space-y-1.5 text-xs">
           <div class="text-[#00D2FF] font-bold">${dryRun ? 'Purge Preview' : 'Purge Executed'}:</div>
           <div>Reclaimable Space: <span class="text-white font-bold">${data.reclaimable_mb || 0} MB</span></div>
           <div class="text-[#62759B]">${escapeHtml(data.details || 'Cache analysis complete.')}</div>
@@ -1142,7 +1142,7 @@ async function loadLargeFiles() {
         return;
       }
       container.innerHTML = files.map(f => `
-        <div class="p-2 rounded-lg bg-[#050711] border border-[#00D2FF]/15 flex items-center justify-between text-xs font-mono">
+        <div class="p-2.5 rounded-lg bg-[#050711] border border-[#00D2FF]/15 flex items-center justify-between text-xs font-mono">
           <span class="truncate max-w-[220px] text-white" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
           <span class="text-[#FF0055] font-bold">${(f.size_mb||0).toFixed(1)} MB</span>
         </div>
@@ -1248,9 +1248,9 @@ async function loadTaxonomyScenarios() {
       if (!grid) return;
 
       grid.innerHTML = (scenarios || []).map(sc => `
-        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-3.5 rounded-lg bg-[#080C1E] hover:bg-gradient-to-r hover:from-[#00D2FF]/20 hover:to-[#FF0055]/20 border border-[#00D2FF]/20 text-left transition space-y-1 group shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-4 rounded-lg bg-[#080C1E] hover:bg-gradient-to-r hover:from-[#00D2FF]/15 hover:to-[#FF0055]/15 border border-[#00D2FF]/20 text-left transition space-y-1.5 group shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
           <div class="text-xs font-display font-bold text-white group-hover:text-[#00D2FF] flex items-center space-x-1.5">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-[#FF0055]"></i>
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-[#00D2FF]"></i>
             <span class="truncate">${escapeHtml(sc.name)}</span>
           </div>
           <div class="text-[10px] text-[#62759B] font-mono truncate">${escapeHtml(sc.category || 'System')}</div>
@@ -1307,18 +1307,18 @@ async function runTaxonomyScenario(scenarioId) {
         cmdsContainer.innerHTML = '<p class="text-xs text-[#00D2FF] font-mono">No mutating commands required. State is clean.</p>';
       } else {
         cmdsContainer.innerHTML = cmds.map(c => `
-          <div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 space-y-2">
+          <div class="p-4 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-2.5">
             <div class="flex items-center justify-between">
-              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2.5 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
               <span class="text-[10px] font-mono text-[#00D2FF]">Risk: ${(c.risk_score||0.05).toFixed(2)}</span>
             </div>
-            <div class="p-2 rounded bg-black/80 font-mono text-xs text-white border border-[#00D2FF]/20 flex items-center justify-between">
+            <div class="p-2.5 rounded bg-black/80 font-mono text-xs text-white border border-[#00D2FF]/20 flex items-center justify-between">
               <span class="font-semibold text-[#00D2FF]">$ ${escapeHtml(c.command)}</span>
-              <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale || '')}', '${escapeHtml(c.safety_level || 'READ_ONLY')}', ${c.risk_score || 0.05}, '${escapeHtml(c.rollback || '')}')" class="btn btn-primary px-3 py-1 text-xs">
+              <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale || '')}', '${escapeHtml(c.safety_level || 'READ_ONLY')}', ${c.risk_score || 0.05}, '${escapeHtml(c.rollback || '')}')" class="btn btn-primary px-3.5 py-1 text-xs">
                 Execute
               </button>
             </div>
-            <p class="text-xs text-[#A0B3D6] font-sans">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
+            <p class="text-xs text-[#ADC1E2] font-sans leading-relaxed">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
           </div>
         `).join('');
       }
@@ -1355,19 +1355,19 @@ async function searchPackage() {
     if (res.ok) {
       const data = await res.json();
       container.innerHTML = `
-        <div class="space-y-2">
+        <div class="space-y-2.5">
           <div class="flex items-center justify-between text-white font-bold">
             <span class="font-display">${escapeHtml(data.package || pkg)}</span>
             <span class="text-xs text-[#00D2FF]">${data.installed ? 'INSTALLED' : 'AVAILABLE IN REPO'}</span>
           </div>
-          <p class="text-xs text-[#A0B3D6] font-sans">${escapeHtml(data.description || 'Package metadata located.')}</p>
-          <div class="pt-2 flex space-x-2">
+          <p class="text-xs text-[#ADC1E2] font-sans leading-relaxed">${escapeHtml(data.description || 'Package metadata located.')}</p>
+          <div class="pt-2 flex space-x-2.5">
             ${!data.installed ? `
-              <button onclick="requestCommandPermission({command: 'pacman -S --noconfirm ${pkg}', description: 'Installs package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.35, onApprove: () => executeCommandDirect('pacman -S --noconfirm ${pkg}', 'pacman -R --noconfirm ${pkg}')})" class="btn btn-primary px-3 py-1 text-xs">
+              <button onclick="requestCommandPermission({command: 'pacman -S --noconfirm ${pkg}', description: 'Installs package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.35, onApprove: () => executeCommandDirect('pacman -S --noconfirm ${pkg}', 'pacman -R --noconfirm ${pkg}')})" class="btn btn-primary px-3.5 py-1.5 text-xs">
                 Install Package
               </button>
             ` : `
-              <button onclick="requestCommandPermission({command: 'pacman -R --noconfirm ${pkg}', description: 'Removes package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.40, onApprove: () => executeCommandDirect('pacman -R --noconfirm ${pkg}', 'pacman -S --noconfirm ${pkg}')})" class="btn btn-danger px-3 py-1 text-xs">
+              <button onclick="requestCommandPermission({command: 'pacman -R --noconfirm ${pkg}', description: 'Removes package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.40, onApprove: () => executeCommandDirect('pacman -R --noconfirm ${pkg}', 'pacman -S --noconfirm ${pkg}')})" class="btn btn-danger px-3.5 py-1.5 text-xs">
                 Remove Package
               </button>
             `}
