@@ -1,5 +1,5 @@
 // ==========================================================================
-// LinuxOps Assistant — Sci-Fi Cybernetic HUD Client Application Logic
+// LinuxOps Assistant — Cyber Red & Blue Dual-Tone Client Application Logic
 // ==========================================================================
 
 // Global state
@@ -38,16 +38,16 @@ function playScifiSound(type) {
 
     if (type === 'click' || type === 'tab') {
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(750, now);
-      osc.frequency.exponentialRampToValueAtTime(1300, now + 0.04);
+      osc.frequency.setValueAtTime(820, now);
+      osc.frequency.exponentialRampToValueAtTime(1450, now + 0.04);
       gain.gain.setValueAtTime(0.05, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
       osc.start(now);
       osc.stop(now + 0.04);
     } else if (type === 'scan' || type === 'execute') {
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(400, now);
-      osc.frequency.exponentialRampToValueAtTime(950, now + 0.09);
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(1100, now + 0.09);
       gain.gain.setValueAtTime(0.08, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
       osc.start(now);
@@ -63,15 +63,15 @@ function playScifiSound(type) {
       osc.stop(now + 0.20);
     } else if (type === 'alert' || type === 'error') {
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(350, now);
-      osc.frequency.exponentialRampToValueAtTime(140, now + 0.14);
+      osc.frequency.setValueAtTime(360, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.14);
       gain.gain.setValueAtTime(0.07, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
       osc.start(now);
       osc.stop(now + 0.14);
     }
   } catch (e) {
-    // Audio errors fail silently
+    // Fail silently
   }
 }
 
@@ -80,8 +80,8 @@ function toggleSFX() {
   const btn = document.getElementById('btn-toggle-sfx');
   if (btn) {
     btn.innerHTML = sfxEnabled 
-      ? '<i data-lucide="volume-2" class="w-3.5 h-3.5 text-[#00F0FF]"></i><span class="text-[#00F0FF] text-[10px]">SFX ON</span>'
-      : '<i data-lucide="volume-x" class="w-3.5 h-3.5 text-[#5C7094]"></i><span class="text-[#5C7094] text-[10px]">SFX OFF</span>';
+      ? '<i data-lucide="volume-2" class="w-3.5 h-3.5 text-[#00D2FF]"></i><span class="text-[#00D2FF] text-[10px]">SFX ON</span>'
+      : '<i data-lucide="volume-x" class="w-3.5 h-3.5 text-[#62759B]"></i><span class="text-[#62759B] text-[10px]">SFX OFF</span>';
     if (window.lucide) lucide.createIcons();
   }
   if (sfxEnabled) playScifiSound('click');
@@ -95,8 +95,8 @@ function toggleScanlines() {
     const isHidden = overlay.classList.contains('hidden');
     if (btn) {
       btn.innerHTML = !isHidden
-        ? '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#00F0FF]"></i><span class="text-[#00F0FF] text-[10px]">SCANLINES</span>'
-        : '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#5C7094]"></i><span class="text-[#5C7094] text-[10px]">CLEAN HUD</span>';
+        ? '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#FF0055]"></i><span class="text-[#FF0055] text-[10px]">SCANLINES</span>'
+        : '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#62759B]"></i><span class="text-[#62759B] text-[10px]">CLEAN HUD</span>';
       if (window.lucide) lucide.createIcons();
     }
   }
@@ -177,14 +177,14 @@ function showToast(message, type = 'info', duration = 3500) {
   toast.className = 'toast-item';
 
   let iconName = 'info';
-  let iconColor = 'text-[#00F0FF]';
+  let iconColor = 'text-[#00D2FF]';
   if (type === 'success') {
     iconName = 'check-circle';
-    iconColor = 'text-[#00FF9D]';
+    iconColor = 'text-[#00D2FF]';
     playScifiSound('success');
   } else if (type === 'error') {
     iconName = 'alert-circle';
-    iconColor = 'text-[#FF2A54]';
+    iconColor = 'text-[#FF0055]';
     playScifiSound('alert');
   } else if (type === 'warning') {
     iconName = 'alert-triangle';
@@ -198,8 +198,8 @@ function showToast(message, type = 'info', duration = 3500) {
     <div class="mt-0.5 ${iconColor} shrink-0 drop-shadow-[0_0_6px_currentColor]">
       <i data-lucide="${iconName}" class="w-4 h-4"></i>
     </div>
-    <div class="flex-1 text-xs text-[#E6F7FF] leading-relaxed break-words font-tech font-semibold">${escapeHtml(message)}</div>
-    <button onclick="this.parentElement.remove()" class="text-[#5C7094] hover:text-[#00F0FF] font-mono text-sm leading-none">&times;</button>
+    <div class="flex-1 text-xs text-[#F0F6FF] leading-relaxed break-words font-tech font-semibold">${escapeHtml(message)}</div>
+    <button onclick="this.parentElement.remove()" class="text-[#62759B] hover:text-[#00D2FF] font-mono text-sm leading-none">&times;</button>
   `;
 
   container.appendChild(toast);
@@ -408,9 +408,9 @@ function updateTelemetryUI(snap) {
   if (snap.pressure_status === 'ELEVATED') {
     pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FFB800] drop-shadow-[0_0_6px_rgba(255,184,0,0.5)]';
   } else if (snap.pressure_status === 'CRITICAL') {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FF2A54] drop-shadow-[0_0_6px_rgba(255,42,84,0.6)]';
+    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FF0055] drop-shadow-[0_0_8px_rgba(255,0,85,0.7)]';
   } else {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#00FF9D] drop-shadow-[0_0_6px_rgba(0,255,157,0.5)]';
+    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#00D2FF] drop-shadow-[0_0_6px_rgba(0,210,255,0.5)]';
   }
 
   // Health Cards
@@ -472,10 +472,10 @@ function initCharts() {
     maintainAspectRatio: false,
     animation: false,
     scales: {
-      y: { min: 0, max: 100, grid: { color: 'rgba(0,240,255,0.08)' }, ticks: { color: '#5C7094', font: { family: 'JetBrains Mono', size: 10 } } },
-      x: { grid: { color: 'rgba(0,240,255,0.08)' }, ticks: { color: '#5C7094', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
+      y: { min: 0, max: 100, grid: { color: 'rgba(0,210,255,0.08)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 } } },
+      x: { grid: { color: 'rgba(0,210,255,0.08)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
     },
-    plugins: { legend: { labels: { color: '#E6F7FF', font: { family: 'Rajdhani', size: 12, weight: 600 }, boxWidth: 12 } } }
+    plugins: { legend: { labels: { color: '#F0F6FF', font: { family: 'Space Grotesk', size: 12, weight: 600 }, boxWidth: 12 } } }
   };
 
   const ctxCpu = document.getElementById('chart-cpu');
@@ -485,8 +485,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'CPU Total %', data: [], borderColor: '#00F0FF', backgroundColor: 'rgba(0, 240, 255, 0.12)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'I/O Wait %', data: [], borderColor: '#FFB800', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'CPU Total %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.16)', fill: true, tension: 0.25, borderWidth: 2 },
+          { label: 'I/O Wait %', data: [], borderColor: '#FF0055', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
         ]
       },
       options: chartOptions
@@ -500,8 +500,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'RAM Used %', data: [], borderColor: '#00FF9D', backgroundColor: 'rgba(0, 255, 157, 0.12)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'Swap Used %', data: [], borderColor: '#BD00FF', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'RAM Used %', data: [], borderColor: '#FF0055', backgroundColor: 'rgba(255, 0, 85, 0.16)', fill: true, tension: 0.25, borderWidth: 2 },
+          { label: 'Swap Used %', data: [], borderColor: '#0066FF', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
         ]
       },
       options: chartOptions
@@ -513,18 +513,18 @@ function renderPSITable(psi) {
   const container = document.getElementById('psi-table-container');
   if (!container) return;
   if (!psi) {
-    container.innerHTML = '<p class="text-[#5C7094] font-mono">Kernel PSI metrics not available (/proc/pressure unmounted).</p>';
+    container.innerHTML = '<p class="text-[#62759B] font-mono">Kernel PSI metrics not available (/proc/pressure unmounted).</p>';
     return;
   }
 
   let html = '<div class="grid grid-cols-3 gap-2.5">';
   for (const [subsys, metrics] of Object.entries(psi)) {
     const avg10 = metrics.some_avg10 || 0;
-    const colorClass = avg10 > 20 ? 'text-[#FF2A54]' : (avg10 > 5 ? 'text-[#FFB800]' : 'text-[#00FF9D]');
-    html += `<div class="p-3 rounded-md bg-[#040711] border border-[#00F0FF]/20 space-y-1">
-      <span class="font-display font-bold uppercase text-[#5C7094] text-[10px]">${subsys}</span>
+    const colorClass = avg10 > 20 ? 'text-[#FF0055]' : (avg10 > 5 ? 'text-[#FFB800]' : 'text-[#00D2FF]');
+    html += `<div class="p-3 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-1">
+      <span class="font-display font-bold uppercase text-[#62759B] text-[10px]">${subsys}</span>
       <div class="text-xl font-bold font-mono ${colorClass} drop-shadow-[0_0_6px_currentColor]">${avg10.toFixed(2)}%</div>
-      <p class="text-[10px] text-[#5C7094] font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
+      <p class="text-[10px] text-[#62759B] font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
     </div>`;
   }
   html += '</div>';
@@ -535,19 +535,19 @@ function renderDisksTable(disks) {
   const container = document.getElementById('disks-table-container');
   if (!container) return;
   if (!disks || disks.length === 0) {
-    container.innerHTML = '<p class="text-[#5C7094] font-mono">No filesystem mounts discovered.</p>';
+    container.innerHTML = '<p class="text-[#62759B] font-mono">No filesystem mounts discovered.</p>';
     return;
   }
 
   let html = '<div class="space-y-2">';
   disks.slice(0, 4).forEach(d => {
-    const color = d.used_percent > 85 ? 'bg-[#FF2A54]' : (d.used_percent > 70 ? 'bg-[#FFB800]' : 'bg-[#00F0FF]');
-    html += `<div class="p-2.5 rounded-md bg-[#040711] border border-[#00F0FF]/20 space-y-1.5 font-mono text-xs">
+    const color = d.used_percent > 85 ? 'bg-[#FF0055]' : (d.used_percent > 70 ? 'bg-[#FFB800]' : 'bg-[#00D2FF]');
+    html += `<div class="p-2.5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-1.5 font-mono text-xs">
       <div class="flex justify-between">
         <span class="text-white font-bold">${d.mountpoint}</span>
-        <span class="text-[#00F0FF]">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
+        <span class="text-[#00D2FF]">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
       </div>
-      <div class="w-full bg-black/80 h-1.5 rounded-full overflow-hidden border border-[#00F0FF]/20">
+      <div class="w-full bg-black/80 h-1.5 rounded-full overflow-hidden border border-[#00D2FF]/20">
         <div class="${color} h-full transition-all duration-500 shadow-[0_0_8px_currentColor]" style="width: ${Math.min(100, d.used_percent)}%"></div>
       </div>
     </div>`;
@@ -578,25 +578,25 @@ async function submitAgentPrompt(promptText) {
 
   // Append user prompt item
   const userCard = document.createElement('div');
-  userCard.className = 'p-3.5 rounded-md bg-[#070D1D] border border-[#00F0FF]/30 font-mono text-xs text-white space-y-1 shadow-[0_0_12px_rgba(0,240,255,0.15)]';
+  userCard.className = 'p-3.5 rounded-lg bg-[#080C1E] border border-[#00D2FF]/30 font-mono text-xs text-white space-y-1 shadow-[0_0_12px_rgba(0,210,255,0.15)]';
   userCard.innerHTML = `
-    <div class="flex items-center justify-between text-[10px] text-[#00F0FF] font-display font-bold">
+    <div class="flex items-center justify-between text-[10px] text-[#00D2FF] font-display font-bold">
       <span class="flex items-center space-x-1">
-        <i data-lucide="user" class="w-3 h-3 text-[#00F0FF]"></i>
+        <i data-lucide="user" class="w-3 h-3 text-[#00D2FF]"></i>
         <span>SYSADMIN COMMAND VECTOR</span>
       </span>
       <span>${new Date().toLocaleTimeString()}</span>
     </div>
-    <div class="text-xs text-[#E6F7FF] font-semibold pl-4 border-l-2 border-[#00F0FF]">${escapeHtml(promptText)}</div>
+    <div class="text-xs text-[#F0F6FF] font-semibold pl-4 border-l-2 border-[#00D2FF]">${escapeHtml(promptText)}</div>
   `;
   feed.appendChild(userCard);
 
   // Append thinking placeholder
   const agentCard = document.createElement('div');
-  agentCard.className = 'p-4 rounded-md bg-[#0B1328] border border-[#00F0FF]/20 space-y-2';
+  agentCard.className = 'p-4 rounded-lg bg-[#0C1229] border border-[#00D2FF]/20 space-y-2';
   agentCard.innerHTML = `
-    <div class="flex items-center space-x-2 text-xs font-display font-bold text-[#00F0FF]">
-      <span class="inline-block w-2 h-2 rounded-full bg-[#00F0FF] animate-ping"></span>
+    <div class="flex items-center space-x-2 text-xs font-display font-bold text-[#00D2FF]">
+      <span class="inline-block w-2 h-2 rounded-full bg-[#00D2FF] animate-ping"></span>
       <span>AI-OS REASONING &amp; AST VALIDATION IN PROGRESS...</span>
     </div>
   `;
@@ -619,7 +619,7 @@ async function submitAgentPrompt(promptText) {
     renderAgentResponseCard(agentCard, data);
   } catch (e) {
     agentCard.innerHTML = `
-      <div class="text-xs text-[#FF2A54] font-mono font-bold flex items-center space-x-2">
+      <div class="text-xs text-[#FF0055] font-mono font-bold flex items-center space-x-2">
         <i data-lucide="alert-circle" class="w-4 h-4"></i>
         <span>Agent Dispatch Error: ${escapeHtml(e.message)}</span>
       </div>
@@ -642,7 +642,7 @@ function renderAgentResponseCard(card, data) {
   let stepsHtml = '';
   if (data.steps && data.steps.length > 0) {
     stepsHtml = `
-      <div class="space-y-1 text-[11px] text-[#94A9C9] font-mono border-l-2 border-[#00F0FF]/40 pl-3 py-0.5">
+      <div class="space-y-1 text-[11px] text-[#A0B3D6] font-mono border-l-2 border-[#00D2FF]/40 pl-3 py-0.5">
         ${data.steps.map(s => `<div>&bull; ${escapeHtml(s)}</div>`).join('')}
       </div>
     `;
@@ -661,39 +661,39 @@ function renderAgentResponseCard(card, data) {
   if (plannedCmds.length > 0) {
     commandSectionHtml = `
       <div class="space-y-2 pt-1">
-        <div class="text-[10px] font-display font-bold uppercase tracking-wider text-[#00F0FF]">PLANNED COMMAND EXECUTION &amp; GUARDRAILS:</div>
+        <div class="text-[10px] font-display font-bold uppercase tracking-wider text-[#00D2FF]">PLANNED COMMAND EXECUTION &amp; GUARDRAILS:</div>
         ${plannedCmds.map((c) => `
-          <div class="p-3.5 rounded-md bg-[#040711] border border-[#00F0FF]/25 space-y-2.5 shadow-[inset_0_0_12px_rgba(0,0,0,0.8)]">
+          <div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 space-y-2.5 shadow-[inset_0_0_12px_rgba(0,0,0,0.8)]">
             <div class="flex items-center justify-between">
               <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
-              <span class="text-[10px] font-mono text-[#00F0FF]">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
+              <span class="text-[10px] font-mono text-[#00D2FF]">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
             </div>
 
             <!-- Exact Command -->
-            <div class="p-2.5 rounded bg-black/80 border border-[#00F0FF]/20 font-mono text-xs text-white flex items-start justify-between space-x-2">
+            <div class="p-2.5 rounded bg-black/80 border border-[#00D2FF]/20 font-mono text-xs text-white flex items-start justify-between space-x-2">
               <div class="break-all select-all flex-1">
-                <span class="text-[#00F0FF] select-none font-bold">$ </span>
+                <span class="text-[#00D2FF] select-none font-bold">$ </span>
                 <span class="font-semibold">${escapeHtml(c.command)}</span>
               </div>
-              <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-[#00F0FF] hover:text-white px-1" title="Copy Command">
+              <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-[#00D2FF] hover:text-white px-1" title="Copy Command">
                 <i data-lucide="copy" class="w-3.5 h-3.5"></i>
               </button>
             </div>
 
             <!-- Short Description of What It Will Do -->
-            <div class="text-xs text-[#E6F7FF] font-sans leading-relaxed">
-              <span class="text-[#5C7094] text-[10px] font-display font-bold uppercase block">RATIONALE:</span>
+            <div class="text-xs text-[#F0F6FF] font-sans leading-relaxed">
+              <span class="text-[#62759B] text-[10px] font-display font-bold uppercase block">RATIONALE:</span>
               ${escapeHtml(c.description || 'Executes operation on the system.')}
             </div>
 
             ${c.rollback_command ? `
-              <div class="text-[11px] font-mono text-[#94A9C9]">
+              <div class="text-[11px] font-mono text-[#A0B3D6]">
                 <span class="text-[#FFB800] font-bold">Rollback:</span> ${escapeHtml(c.rollback_command)}
               </div>
             ` : ''}
 
             <!-- Permission Confirmation Buttons -->
-            <div class="flex items-center space-x-2 pt-1 border-t border-[#00F0FF]/15">
+            <div class="flex items-center space-x-2 pt-1 border-t border-[#00D2FF]/15">
               <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.command-approval-card'))" class="btn btn-primary px-3.5 py-1.5 text-xs">
                 <i data-lucide="play" class="w-3 h-3"></i>
                 <span>AUTHORIZE &amp; EXECUTE</span>
@@ -713,7 +713,7 @@ function renderAgentResponseCard(card, data) {
   let outputDetailsHtml = '';
   if (data.output && !plannedCmds.length) {
     outputDetailsHtml = `
-      <pre class="p-3.5 rounded-md bg-[#040711] border border-[#00F0FF]/25 text-[11px] font-mono text-[#00F0FF] overflow-x-auto max-h-48 whitespace-pre-wrap shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
+      <pre class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 text-[11px] font-mono text-[#00D2FF] overflow-x-auto max-h-48 whitespace-pre-wrap shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
     `;
   }
 
@@ -728,24 +728,24 @@ function renderAgentResponseCard(card, data) {
   }
 
   card.innerHTML = `
-    <div class="flex items-center justify-between text-xs border-b border-[#00F0FF]/20 pb-2 font-mono">
+    <div class="flex items-center justify-between text-xs border-b border-[#00D2FF]/20 pb-2 font-mono">
       <div class="flex items-center space-x-2">
         <span class="font-bold text-white flex items-center space-x-1.5">
-          <i data-lucide="bot" class="w-4 h-4 text-[#00F0FF]"></i>
+          <i data-lucide="bot" class="w-4 h-4 text-[#00D2FF]"></i>
           <span class="font-display">INTENT: ${escapeHtml(data.intent || 'ACTION')}</span>
         </span>
         <span class="${safetyClass} text-[10px] px-2 py-0.5 rounded font-bold uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
       </div>
-      <span class="text-[#5C7094] text-[10px]">${new Date().toLocaleTimeString()}</span>
+      <span class="text-[#62759B] text-[10px]">${new Date().toLocaleTimeString()}</span>
     </div>
 
-    <div class="text-xs text-[#E6F7FF] font-sans font-semibold">${escapeHtml(data.summary || 'Analysis complete.')}</div>
+    <div class="text-xs text-[#F0F6FF] font-sans font-semibold">${escapeHtml(data.summary || 'Analysis complete.')}</div>
     
     ${stepsHtml}
     ${commandSectionHtml}
     ${outputDetailsHtml}
 
-    <div class="flex items-center justify-between pt-1 font-mono text-[10px] text-[#5C7094]">
+    <div class="flex items-center justify-between pt-1 font-mono text-[10px] text-[#62759B]">
       <span>Risk Score: ${(data.risk_score || 0.05).toFixed(2)}</span>
       ${rollbackBtnHtml}
     </div>
@@ -758,7 +758,7 @@ function clearAgentFeed() {
   playScifiSound('click');
   const feed = document.getElementById('agent-feed-container');
   if (feed) {
-    feed.innerHTML = '<p class="text-xs font-mono text-[#5C7094] p-2">Tactical reasoning feed purged.</p>';
+    feed.innerHTML = '<p class="text-xs font-mono text-[#62759B] p-2">Tactical reasoning feed purged.</p>';
   }
 }
 
@@ -790,13 +790,13 @@ async function executeCommandDirect(cmd, rollbackCmd, cardEl) {
     // Append execution result box to card
     if (cardEl) {
       const resultBox = document.createElement('div');
-      resultBox.className = 'p-3.5 rounded-md bg-[#040711] border border-[#00F0FF]/30 space-y-1.5 font-mono text-xs shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]';
+      resultBox.className = 'p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/30 space-y-1.5 font-mono text-xs shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]';
       resultBox.innerHTML = `
-        <div class="flex items-center justify-between text-[10px] text-[#5C7094]">
-          <span class="font-bold text-[#00FF9D]">&check; EXECUTION COMPLETE</span>
+        <div class="flex items-center justify-between text-[10px] text-[#62759B]">
+          <span class="font-bold text-[#00D2FF]">&check; EXECUTION COMPLETE</span>
           <span>Exit: ${data.returncode} | Latency: ${data.latency_ms || 0}ms</span>
         </div>
-        <pre class="text-[11px] text-[#00F0FF] overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
+        <pre class="text-[11px] text-[#00D2FF] overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
         ${(rollbackCmd || data.rollback_command) ? `
           <div class="pt-1 flex justify-end">
             <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn btn-secondary px-2.5 py-1 text-[10px]">
@@ -869,15 +869,15 @@ function renderServicesTable(services) {
   if (!tbody) return;
 
   if (!services || services.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-[#5C7094] py-6 font-mono">No matching services found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-[#62759B] py-6 font-mono">No matching services found.</td></tr>';
     return;
   }
 
   tbody.innerHTML = services.map(s => {
     const isRunning = s.active_state === 'active' || s.sub_state === 'running';
     const isFailed = s.active_state === 'failed';
-    const statusColor = isFailed ? 'text-[#FF2A54]' : (isRunning ? 'text-[#00FF9D]' : 'text-[#5C7094]');
-    const dotColor = isFailed ? 'bg-[#FF2A54]' : (isRunning ? 'bg-[#00FF9D]' : 'bg-[#5C7094]');
+    const statusColor = isFailed ? 'text-[#FF0055]' : (isRunning ? 'text-[#00D2FF]' : 'text-[#62759B]');
+    const dotColor = isFailed ? 'bg-[#FF0055]' : (isRunning ? 'bg-[#00D2FF]' : 'bg-[#62759B]');
 
     return `
       <tr>
@@ -897,7 +897,7 @@ function renderServicesTable(services) {
               Stop
             </button>
           ` : ''}
-          <button onclick="viewServiceLogs('${escapeHtml(s.unit)}')" class="btn btn-ghost px-2 py-1 text-[11px] text-[#00F0FF]">
+          <button onclick="viewServiceLogs('${escapeHtml(s.unit)}')" class="btn btn-ghost px-2 py-1 text-[11px] text-[#00D2FF]">
             Logs
           </button>
         </td>
@@ -972,10 +972,10 @@ async function loadProcesses() {
 
       tbody.innerHTML = (procs || []).slice(0, 30).map(p => `
         <tr>
-          <td class="font-mono text-[#00F0FF]">${p.pid}</td>
-          <td class="text-[#5C7094]">${escapeHtml(p.user || 'root')}</td>
+          <td class="font-mono text-[#00D2FF]">${p.pid}</td>
+          <td class="text-[#62759B]">${escapeHtml(p.user || 'root')}</td>
           <td class="font-bold text-white">${(p.cpu_pct||0).toFixed(1)}%</td>
-          <td class="text-[#00FF9D]">${(p.mem_pct||0).toFixed(1)}%</td>
+          <td class="text-[#FF0055] font-bold">${(p.mem_pct||0).toFixed(1)}%</td>
           <td class="truncate max-w-[140px] text-white" title="${escapeHtml(p.command)}">${escapeHtml(p.command)}</td>
           <td class="text-right">
             <button onclick="promptKillProcess(${p.pid}, '${escapeHtml(p.command)}')" class="btn btn-danger px-2 py-0.5 text-[10px]">
@@ -1030,7 +1030,7 @@ async function previewOrganize() {
   if (!container) return;
 
   container.classList.remove('hidden');
-  container.innerHTML = '<span class="text-[#00F0FF] font-mono">Analyzing target directory topology...</span>';
+  container.innerHTML = '<span class="text-[#00D2FF] font-mono">Analyzing target directory topology...</span>';
 
   try {
     const res = await fetch('/api/storage/organize/preview', {
@@ -1042,18 +1042,18 @@ async function previewOrganize() {
     if (data.success) {
       container.innerHTML = `
         <div class="space-y-1 text-xs">
-          <div class="text-[#00FF9D] font-bold">Preview: Discovered ${data.total_files || 0} candidate files to organize:</div>
-          <div class="space-y-0.5 text-[#E6F7FF]">
-            ${(data.moves || []).slice(0, 10).map(m => `<div>&bull; ${escapeHtml(m.source)} &rarr; <span class="text-[#00F0FF]">${escapeHtml(m.destination)}</span></div>`).join('')}
-            ${(data.moves || []).length > 10 ? `<div class="text-[#5C7094]">...and ${data.moves.length - 10} more items</div>` : ''}
+          <div class="text-[#00D2FF] font-bold">Preview: Discovered ${data.total_files || 0} candidate files to organize:</div>
+          <div class="space-y-0.5 text-[#F0F6FF]">
+            ${(data.moves || []).slice(0, 10).map(m => `<div>&bull; ${escapeHtml(m.source)} &rarr; <span class="text-[#00D2FF]">${escapeHtml(m.destination)}</span></div>`).join('')}
+            ${(data.moves || []).length > 10 ? `<div class="text-[#62759B]">...and ${data.moves.length - 10} more items</div>` : ''}
           </div>
         </div>
       `;
     } else {
-      container.innerHTML = `<span class="text-[#FF2A54]">Error: ${escapeHtml(data.error)}</span>`;
+      container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(data.error)}</span>`;
     }
   } catch (e) {
-    container.innerHTML = `<span class="text-[#FF2A54]">Error: ${escapeHtml(e.message)}</span>`;
+    container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(e.message)}</span>`;
   }
 }
 
@@ -1102,7 +1102,7 @@ async function cleanStorage(dryRun) {
   const container = document.getElementById('clean-result-container');
   if (container) {
     container.classList.remove('hidden');
-    container.innerHTML = '<span class="text-[#00F0FF]">Scanning purge candidates...</span>';
+    container.innerHTML = '<span class="text-[#00D2FF]">Scanning purge candidates...</span>';
   }
 
   try {
@@ -1115,14 +1115,14 @@ async function cleanStorage(dryRun) {
     if (container) {
       container.innerHTML = `
         <div class="space-y-1 text-xs">
-          <div class="text-[#00FF9D] font-bold">${dryRun ? 'Purge Preview' : 'Purge Executed'}:</div>
+          <div class="text-[#00D2FF] font-bold">${dryRun ? 'Purge Preview' : 'Purge Executed'}:</div>
           <div>Reclaimable Space: <span class="text-white font-bold">${data.reclaimable_mb || 0} MB</span></div>
-          <div class="text-[#5C7094]">${escapeHtml(data.details || 'Cache analysis complete.')}</div>
+          <div class="text-[#62759B]">${escapeHtml(data.details || 'Cache analysis complete.')}</div>
         </div>
       `;
     }
   } catch (e) {
-    if (container) container.innerHTML = `<span class="text-[#FF2A54]">Error: ${escapeHtml(e.message)}</span>`;
+    if (container) container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(e.message)}</span>`;
   }
 }
 
@@ -1131,25 +1131,25 @@ async function loadLargeFiles() {
   const container = document.getElementById('large-files-container');
   if (!container) return;
 
-  container.innerHTML = '<p class="text-[#00F0FF] font-mono">Scanning filesystem tree for files &gt;100MB...</p>';
+  container.innerHTML = '<p class="text-[#00D2FF] font-mono">Scanning filesystem tree for files &gt;100MB...</p>';
 
   try {
     const res = await fetch('/api/storage/large-files?min_mb=100');
     if (res.ok) {
       const files = await res.json();
       if (!files || files.length === 0) {
-        container.innerHTML = '<p class="text-[#00FF9D] font-mono">No files larger than 100MB found.</p>';
+        container.innerHTML = '<p class="text-[#00D2FF] font-mono">No files larger than 100MB found.</p>';
         return;
       }
       container.innerHTML = files.map(f => `
-        <div class="p-2 rounded bg-[#040711] border border-[#00F0FF]/15 flex items-center justify-between text-xs font-mono">
+        <div class="p-2 rounded-lg bg-[#050711] border border-[#00D2FF]/15 flex items-center justify-between text-xs font-mono">
           <span class="truncate max-w-[220px] text-white" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
-          <span class="text-[#FFB800] font-bold">${(f.size_mb||0).toFixed(1)} MB</span>
+          <span class="text-[#FF0055] font-bold">${(f.size_mb||0).toFixed(1)} MB</span>
         </div>
       `).join('');
     }
   } catch (e) {
-    container.innerHTML = `<p class="text-[#FF2A54] font-mono">Error: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="text-[#FF0055] font-mono">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -1166,10 +1166,10 @@ async function loadNetwork() {
       if (tbody) {
         tbody.innerHTML = (ports || []).map(p => `
           <tr>
-            <td class="font-bold text-[#00F0FF] font-mono">${p.port}</td>
-            <td class="text-[#5C7094] uppercase font-mono">${p.proto}</td>
+            <td class="font-bold text-[#00D2FF] font-mono">${p.port}</td>
+            <td class="text-[#62759B] uppercase font-mono">${p.proto}</td>
             <td class="text-white font-mono">${p.address}</td>
-            <td class="text-[#00FF9D] font-mono truncate max-w-[120px]">${escapeHtml(p.process || '-')}</td>
+            <td class="text-[#FF0055] font-mono truncate max-w-[120px]">${escapeHtml(p.process || '-')}</td>
           </tr>
         `).join('');
       }
@@ -1183,10 +1183,10 @@ async function loadNetwork() {
         card.innerHTML = `
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full ${fw.active ? 'bg-[#00FF9D]' : 'bg-[#FF2A54]'} drop-shadow-[0_0_4px_currentColor]"></span>
+              <span class="w-2 h-2 rounded-full ${fw.active ? 'bg-[#00D2FF]' : 'bg-[#FF0055]'} drop-shadow-[0_0_4px_currentColor]"></span>
               <span class="font-bold text-white">${escapeHtml(fw.firewall_backend || 'UFW/NFT')}: ${fw.active ? 'ACTIVE & FILTERING' : 'INACTIVE'}</span>
             </div>
-            <p class="text-[11px] text-[#5C7094]">${escapeHtml(fw.summary || 'Firewall packet filtering active.')}</p>
+            <p class="text-[11px] text-[#62759B]">${escapeHtml(fw.summary || 'Firewall packet filtering active.')}</p>
           </div>
         `;
       }
@@ -1248,12 +1248,12 @@ async function loadTaxonomyScenarios() {
       if (!grid) return;
 
       grid.innerHTML = (scenarios || []).map(sc => `
-        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-3 rounded-md bg-[#070D1D] hover:bg-[#00F0FF]/15 border border-[#00F0FF]/20 text-left transition space-y-1 group">
-          <div class="text-xs font-display font-bold text-white group-hover:text-[#00F0FF] flex items-center space-x-1.5">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-[#00F0FF]"></i>
+        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-3.5 rounded-lg bg-[#080C1E] hover:bg-gradient-to-r hover:from-[#00D2FF]/20 hover:to-[#FF0055]/20 border border-[#00D2FF]/20 text-left transition space-y-1 group shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+          <div class="text-xs font-display font-bold text-white group-hover:text-[#00D2FF] flex items-center space-x-1.5">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-[#FF0055]"></i>
             <span class="truncate">${escapeHtml(sc.name)}</span>
           </div>
-          <div class="text-[10px] text-[#5C7094] font-mono truncate">${escapeHtml(sc.category || 'System')}</div>
+          <div class="text-[10px] text-[#62759B] font-mono truncate">${escapeHtml(sc.category || 'System')}</div>
         </button>
       `).join('');
       if (window.lucide) lucide.createIcons();
@@ -1296,7 +1296,7 @@ async function runTaxonomyScenario(scenarioId) {
         mermaid.init(undefined, mermaidContainer.querySelectorAll('.mermaid'));
       }
     } else if (mermaidContainer) {
-      mermaidContainer.innerHTML = '<span class="text-xs font-mono text-[#5C7094]">Topological Graph: InDegree=0 Root Isolated</span>';
+      mermaidContainer.innerHTML = '<span class="text-xs font-mono text-[#62759B]">Topological Graph: InDegree=0 Root Isolated</span>';
     }
 
     // Render Remediation Commands
@@ -1304,21 +1304,21 @@ async function runTaxonomyScenario(scenarioId) {
     if (cmdsContainer) {
       const cmds = report.remediation_commands || [];
       if (cmds.length === 0) {
-        cmdsContainer.innerHTML = '<p class="text-xs text-[#00FF9D] font-mono">No mutating commands required. State is clean.</p>';
+        cmdsContainer.innerHTML = '<p class="text-xs text-[#00D2FF] font-mono">No mutating commands required. State is clean.</p>';
       } else {
         cmdsContainer.innerHTML = cmds.map(c => `
-          <div class="p-3 rounded-md bg-[#040711] border border-[#00F0FF]/25 space-y-2">
+          <div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 space-y-2">
             <div class="flex items-center justify-between">
               <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
-              <span class="text-[10px] font-mono text-[#00F0FF]">Risk: ${(c.risk_score||0.05).toFixed(2)}</span>
+              <span class="text-[10px] font-mono text-[#00D2FF]">Risk: ${(c.risk_score||0.05).toFixed(2)}</span>
             </div>
-            <div class="p-2 rounded bg-black/80 font-mono text-xs text-white border border-[#00F0FF]/20 flex items-center justify-between">
-              <span class="font-semibold text-[#00F0FF]">$ ${escapeHtml(c.command)}</span>
+            <div class="p-2 rounded bg-black/80 font-mono text-xs text-white border border-[#00D2FF]/20 flex items-center justify-between">
+              <span class="font-semibold text-[#00D2FF]">$ ${escapeHtml(c.command)}</span>
               <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale || '')}', '${escapeHtml(c.safety_level || 'READ_ONLY')}', ${c.risk_score || 0.05}, '${escapeHtml(c.rollback || '')}')" class="btn btn-primary px-3 py-1 text-xs">
                 Execute
               </button>
             </div>
-            <p class="text-xs text-[#94A9C9] font-sans">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
+            <p class="text-xs text-[#A0B3D6] font-sans">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
           </div>
         `).join('');
       }
@@ -1348,7 +1348,7 @@ async function searchPackage() {
   const container = document.getElementById('pkg-result-container');
 
   if (!pkg || !container) return;
-  container.innerHTML = '<p class="text-[#00F0FF] font-mono">Querying multi-distro package repository...</p>';
+  container.innerHTML = '<p class="text-[#00D2FF] font-mono">Querying multi-distro package repository...</p>';
 
   try {
     const res = await fetch(`/api/packages/search?query=${encodeURIComponent(pkg)}`);
@@ -1358,9 +1358,9 @@ async function searchPackage() {
         <div class="space-y-2">
           <div class="flex items-center justify-between text-white font-bold">
             <span class="font-display">${escapeHtml(data.package || pkg)}</span>
-            <span class="text-xs text-[#00FF9D]">${data.installed ? 'INSTALLED' : 'AVAILABLE IN REPO'}</span>
+            <span class="text-xs text-[#00D2FF]">${data.installed ? 'INSTALLED' : 'AVAILABLE IN REPO'}</span>
           </div>
-          <p class="text-xs text-[#94A9C9] font-sans">${escapeHtml(data.description || 'Package metadata located.')}</p>
+          <p class="text-xs text-[#A0B3D6] font-sans">${escapeHtml(data.description || 'Package metadata located.')}</p>
           <div class="pt-2 flex space-x-2">
             ${!data.installed ? `
               <button onclick="requestCommandPermission({command: 'pacman -S --noconfirm ${pkg}', description: 'Installs package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.35, onApprove: () => executeCommandDirect('pacman -S --noconfirm ${pkg}', 'pacman -R --noconfirm ${pkg}')})" class="btn btn-primary px-3 py-1 text-xs">
@@ -1376,7 +1376,7 @@ async function searchPackage() {
       `;
     }
   } catch (e) {
-    container.innerHTML = `<p class="text-[#FF2A54] font-mono">Error: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="text-[#FF0055] font-mono">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -1419,7 +1419,7 @@ function promptDownload() {
       const container = document.getElementById('download-result-container');
       if (container) {
         container.classList.remove('hidden');
-        container.innerHTML = '<span class="text-[#00F0FF]">Streaming bytes from remote host...</span>';
+        container.innerHTML = '<span class="text-[#00D2FF]">Streaming bytes from remote host...</span>';
       }
       try {
         const res = await fetch('/api/download', {
@@ -1431,14 +1431,14 @@ function promptDownload() {
         if (container) {
           if (data.success) {
             container.innerHTML = `
-              <div class="text-[#00FF9D] font-bold">&check; Download completed: ${escapeHtml(data.filename || 'file')} (${(data.size_mb || 0).toFixed(2)} MB) in ${dest}</div>
+              <div class="text-[#00D2FF] font-bold">&check; Download completed: ${escapeHtml(data.filename || 'file')} (${(data.size_mb || 0).toFixed(2)} MB) in ${dest}</div>
             `;
           } else {
-            container.innerHTML = `<span class="text-[#FF2A54]">Download failed: ${escapeHtml(data.error)}</span>`;
+            container.innerHTML = `<span class="text-[#FF0055]">Download failed: ${escapeHtml(data.error)}</span>`;
           }
         }
       } catch (e) {
-        if (container) container.innerHTML = `<span class="text-[#FF2A54]">Error: ${escapeHtml(e.message)}</span>`;
+        if (container) container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(e.message)}</span>`;
       }
     }
   });
@@ -1486,11 +1486,11 @@ function getSafetyBadgeClass(lvl) {
 }
 
 function getSafetyTextColor(lvl) {
-  if (lvl === 'READ_ONLY') return 'text-[#00FF9D]';
+  if (lvl === 'READ_ONLY') return 'text-[#00D2FF]';
   if (lvl === 'MODIFYING') return 'text-[#FFB800]';
-  if (lvl === 'HIGH_RISK') return 'text-[#BD00FF]';
-  if (lvl === 'DESTRUCTIVE') return 'text-[#FF2A54]';
-  return 'text-[#00FF9D]';
+  if (lvl === 'HIGH_RISK') return 'text-[#FF0055]';
+  if (lvl === 'DESTRUCTIVE') return 'text-[#FF0055]';
+  return 'text-[#00D2FF]';
 }
 
 function escapeHtml(str) {

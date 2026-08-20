@@ -1,72 +1,70 @@
 /* ==========================================================================
-   LinuxOps Assistant — Sci-Fi Cybernetic HUD & Autonomous Operations Center
+   LinuxOps Assistant — Cyberpunk Red & Blue Dual-Tone Command Center
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@600;700;800&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Sci-Fi Palette Tokens */
-  --neon-cyan: #00F0FF;
-  --neon-cyan-dim: rgba(0, 240, 255, 0.15);
-  --neon-cyan-glow: 0 0 14px rgba(0, 240, 255, 0.45);
+  /* Red & Blue High-Voltage Cyber Tokens */
+  --cyber-blue: #00D2FF;
+  --cyber-blue-deep: #0066FF;
+  --cyber-blue-dim: rgba(0, 210, 255, 0.12);
+  --cyber-blue-glow: 0 0 16px rgba(0, 210, 255, 0.55);
 
-  --neon-emerald: #00FF9D;
-  --neon-emerald-dim: rgba(0, 255, 157, 0.15);
-  --neon-emerald-glow: 0 0 14px rgba(0, 255, 157, 0.45);
+  --cyber-red: #FF0055;
+  --cyber-red-bright: #FF2A54;
+  --cyber-red-dim: rgba(255, 0, 85, 0.14);
+  --cyber-red-glow: 0 0 16px rgba(255, 0, 85, 0.55);
 
-  --neon-magenta: #BD00FF;
-  --neon-magenta-dim: rgba(189, 0, 255, 0.15);
-  --neon-magenta-glow: 0 0 14px rgba(189, 0, 255, 0.45);
+  --cyber-purple: #8B00FF;
+  --cyber-amber: #FFB800;
 
-  --neon-amber: #FFB800;
-  --neon-amber-dim: rgba(255, 184, 0, 0.15);
-  --neon-amber-glow: 0 0 14px rgba(255, 184, 0, 0.45);
+  --gradient-red-blue: linear-gradient(135deg, #00D2FF 0%, #7B2CBF 50%, #FF0055 100%);
+  --gradient-blue-red: linear-gradient(90deg, #00D2FF 0%, #FF0055 100%);
+  --gradient-card-border: linear-gradient(135deg, rgba(0, 210, 255, 0.35), rgba(255, 0, 85, 0.35));
 
-  --neon-crimson: #FF2A54;
-  --neon-crimson-dim: rgba(255, 42, 84, 0.20);
-  --neon-crimson-glow: 0 0 14px rgba(255, 42, 84, 0.50);
+  /* Ultra-Deep Obsidian & Cosmic Void Surfaces */
+  --bg-canvas: #050711;
+  --bg-subtle: #080C1E;
+  --bg-surface: #0C1229;
+  --bg-surface-elevated: #111A38;
+  --bg-surface-hover: #17244D;
+  --bg-input: #060917;
+  --bg-overlay: rgba(4, 6, 17, 0.90);
 
-  /* Deep Space Surfaces */
-  --bg-canvas: #040711;
-  --bg-subtle: #070D1D;
-  --bg-surface: #0B1328;
-  --bg-surface-elevated: #0F1A36;
-  --bg-surface-hover: #15244A;
-  --bg-input: #060B16;
-  --bg-overlay: rgba(3, 6, 15, 0.88);
+  /* Dual-Tone Borders */
+  --border-subtle: rgba(0, 210, 255, 0.14);
+  --border-default: rgba(0, 210, 255, 0.28);
+  --border-strong: rgba(255, 0, 85, 0.45);
+  --border-focus: #00D2FF;
 
-  /* Cyber Borders */
-  --border-subtle: rgba(0, 240, 255, 0.12);
-  --border-default: rgba(0, 240, 255, 0.25);
-  --border-strong: rgba(0, 240, 255, 0.55);
-  --border-focus: #00F0FF;
-
-  /* Futuristic Typography */
-  --text-primary: #E6F7FF;
-  --text-secondary: #94A9C9;
-  --text-muted: #5C7094;
-  --text-dim: #374663;
-  --text-cyan: #00F0FF;
+  /* Typography Colors */
+  --text-primary: #F0F6FF;
+  --text-secondary: #A0B3D6;
+  --text-muted: #62759B;
+  --text-dim: #384666;
+  --text-blue: #00D2FF;
+  --text-red: #FF0055;
 
   /* Semantic Status Mappings */
-  --status-safe: #00FF9D;
-  --status-safe-bg: rgba(0, 255, 157, 0.10);
-  --status-safe-border: rgba(0, 255, 157, 0.35);
+  --status-safe: #00D2FF;
+  --status-safe-bg: rgba(0, 210, 255, 0.12);
+  --status-safe-border: rgba(0, 210, 255, 0.40);
 
   --status-modifying: #FFB800;
   --status-modifying-bg: rgba(255, 184, 0, 0.12);
   --status-modifying-border: rgba(255, 184, 0, 0.40);
 
-  --status-danger: #FF2A54;
-  --status-danger-bg: rgba(255, 42, 84, 0.15);
-  --status-danger-border: rgba(255, 42, 84, 0.45);
+  --status-danger: #FF0055;
+  --status-danger-bg: rgba(255, 0, 85, 0.15);
+  --status-danger-border: rgba(255, 0, 85, 0.45);
 
-  --status-info: #00F0FF;
-  --status-info-bg: rgba(0, 240, 255, 0.10);
-  --status-info-border: rgba(0, 240, 255, 0.35);
+  --status-info: #00D2FF;
+  --status-info-bg: rgba(0, 210, 255, 0.12);
+  --status-info-border: rgba(0, 210, 255, 0.40);
 }
 
-/* Base Reset & Sci-Fi Background Grid */
+/* Base Reset & Atmospheric Red/Blue Grid */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -74,37 +72,48 @@
 }
 
 body {
-  font-family: 'Rajdhani', 'Inter', -apple-system, sans-serif;
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, sans-serif;
   background-color: var(--bg-canvas);
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(189, 0, 255, 0.05) 0%, transparent 50%),
-    linear-gradient(to right, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+    radial-gradient(circle at 10% 15%, rgba(255, 0, 85, 0.10) 0%, transparent 40%),
+    radial-gradient(circle at 90% 85%, rgba(0, 210, 255, 0.10) 0%, transparent 40%),
+    radial-gradient(circle at 50% 0%, rgba(0, 102, 255, 0.08) 0%, transparent 60%),
+    linear-gradient(to right, rgba(0, 210, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 0, 85, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Sci-Fi Fonts */
+/* Typography Hierarchy */
 .font-display {
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Orbitron', 'Syne', sans-serif;
   letter-spacing: 0.06em;
 }
 
+.font-hero {
+  font-family: 'Syne', 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
 .font-tech {
-  font-family: 'Rajdhani', sans-serif;
-  letter-spacing: 0.04em;
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.font-sans, .font-body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .font-mono, pre, code, kbd, .font-code {
-  font-family: 'JetBrains Mono', 'Share Tech Mono', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* Futuristic Scanline Overlay (Toggleable / Ambient) */
+/* Ambient Scanline Overlay */
 .scanline-overlay {
   position: fixed;
   top: 0;
@@ -113,39 +122,39 @@ body {
   height: 100vh;
   pointer-events: none;
   z-index: 9999;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 240, 255, 0.015) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.01), rgba(0, 255, 0, 0.005), rgba(0, 0, 255, 0.01));
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 210, 255, 0.018) 50%), linear-gradient(90deg, rgba(255, 0, 85, 0.015), rgba(0, 210, 255, 0.015));
   background-size: 100% 3px, 4px 100%;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
-/* Sci-Fi Holographic HUD Panels */
+/* Dual-Tone Red & Blue Glassmorphic Cards */
 .linear-card, .scifi-card {
   position: relative;
-  background: rgba(11, 19, 40, 0.72);
+  background: rgba(12, 18, 41, 0.75);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 16px rgba(0, 240, 255, 0.02);
+  border-radius: 10px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 210, 255, 0.03);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .linear-card:hover, .scifi-card:hover {
   border-color: var(--border-default);
-  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.65), 0 0 15px rgba(0, 240, 255, 0.12), inset 0 0 20px rgba(0, 240, 255, 0.04);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.75), 0 0 20px rgba(0, 210, 255, 0.18), inset 0 0 24px rgba(255, 0, 85, 0.04);
 }
 
 .linear-card-elevated, .scifi-card-elevated {
   position: relative;
-  background: rgba(15, 26, 54, 0.85);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.10);
+  background: rgba(17, 26, 56, 0.88);
+  border: 1px solid rgba(0, 210, 255, 0.35);
+  border-radius: 10px;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 18px 48px -4px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 210, 255, 0.15);
 }
 
-/* Corner HUD Bracket Highlights */
+/* Dual-Tone Red & Blue HUD Bracket Accents */
 .hud-corner {
   position: relative;
 }
@@ -153,46 +162,54 @@ body {
 .hud-corner::before, .hud-corner::after {
   content: '';
   position: absolute;
-  width: 8px;
-  height: 8px;
-  border-color: var(--neon-cyan);
+  width: 10px;
+  height: 10px;
   pointer-events: none;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
+/* Top-Left: Neon Crimson Red Bracket */
 .hud-corner::before {
   top: -1px;
   left: -1px;
-  border-top: 2px solid var(--neon-cyan);
-  border-left: 2px solid var(--neon-cyan);
+  border-top: 2.5px solid var(--cyber-red);
+  border-left: 2.5px solid var(--cyber-red);
+  border-top-left-radius: 4px;
 }
 
+/* Bottom-Right: Electric Blue Bracket */
 .hud-corner::after {
   bottom: -1px;
   right: -1px;
-  border-bottom: 2px solid var(--neon-cyan);
-  border-right: 2px solid var(--neon-cyan);
+  border-bottom: 2.5px solid var(--cyber-blue);
+  border-right: 2.5px solid var(--cyber-blue);
+  border-bottom-right-radius: 4px;
 }
 
-.hud-corner:hover::before, .hud-corner:hover::after {
-  width: 12px;
-  height: 12px;
-  filter: drop-shadow(0 0 4px var(--neon-cyan));
+.hud-corner:hover::before {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 0 6px var(--cyber-red));
 }
 
-/* Sci-Fi Navigation Tabs */
+.hud-corner:hover::after {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 0 6px var(--cyber-blue));
+}
+
+/* Navigation Tabs */
 .nav-tab {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 0.85rem;
-  font-family: 'Rajdhani', sans-serif;
+  padding: 0.7rem 0.9rem;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.9375rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   border: 1px solid transparent;
   cursor: pointer;
@@ -204,22 +221,22 @@ body {
 }
 
 .nav-tab:hover {
-  color: var(--neon-cyan);
-  background: rgba(0, 240, 255, 0.06);
-  border-color: rgba(0, 240, 255, 0.2);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+  color: var(--cyber-blue);
+  background: rgba(0, 210, 255, 0.08);
+  border-color: rgba(0, 210, 255, 0.25);
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.15);
 }
 
 .nav-tab.active {
-  color: #020617;
-  background: linear-gradient(90deg, #00F0FF 0%, #00C8FF 100%);
-  border-color: #00F0FF;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.9) 0%, rgba(255, 0, 85, 0.85) 100%);
+  border-color: rgba(255, 255, 255, 0.4);
   font-weight: 700;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 24px rgba(0, 210, 255, 0.5), 0 0 12px rgba(255, 0, 85, 0.4);
 }
 
 .nav-tab.active i, .nav-tab.active svg {
-  color: #020617 !important;
+  color: #FFFFFF !important;
   stroke-width: 2.5;
 }
 
@@ -229,21 +246,20 @@ body {
 }
 
 .nav-tab:hover i, .nav-tab:hover svg {
-  color: var(--neon-cyan);
-  filter: drop-shadow(0 0 6px var(--neon-cyan));
+  color: var(--cyber-blue);
+  filter: drop-shadow(0 0 6px var(--cyber-blue));
 }
 
-/* Sci-Fi Buttons */
+/* Red-Blue High-Voltage Cyber Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-radius: 6px;
+  letter-spacing: 0.04em;
+  border-radius: 8px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   user-select: none;
@@ -261,7 +277,7 @@ body {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.18), transparent);
   transform: rotate(45deg);
   transition: all 0.3s ease;
   pointer-events: none;
@@ -274,15 +290,16 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #00F0FF 0%, #00B4D8 100%);
-  color: #020617;
-  border-color: #00F0FF;
-  box-shadow: 0 0 16px rgba(0, 240, 255, 0.45);
+  background: linear-gradient(135deg, #00D2FF 0%, #0066FF 45%, #FF0055 100%);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.5), 0 0 10px rgba(255, 0, 85, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #33F4FF 0%, #00C8FF 100%);
-  box-shadow: 0 0 24px rgba(0, 240, 255, 0.7);
+  background: linear-gradient(135deg, #33DCFF 0%, #1A75FF 45%, #FF2A6D 100%);
+  box-shadow: 0 0 28px rgba(0, 210, 255, 0.7), 0 0 16px rgba(255, 0, 85, 0.5);
   transform: translateY(-1px);
 }
 
@@ -291,16 +308,16 @@ body {
 }
 
 .btn-secondary {
-  background: rgba(0, 240, 255, 0.08);
+  background: rgba(0, 210, 255, 0.08);
   color: var(--text-primary);
-  border-color: var(--border-default);
+  border-color: rgba(0, 210, 255, 0.3);
 }
 
 .btn-secondary:hover {
-  background: rgba(0, 240, 255, 0.16);
-  border-color: var(--neon-cyan);
-  color: var(--neon-cyan);
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+  background: rgba(0, 210, 255, 0.18);
+  border-color: var(--cyber-blue);
+  color: var(--cyber-blue);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.3);
   transform: translateY(-1px);
 }
 
@@ -309,16 +326,16 @@ body {
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, rgba(255, 42, 84, 0.25) 0%, rgba(255, 42, 84, 0.1) 100%);
-  color: #FF6B8B;
-  border-color: var(--status-danger-border);
+  background: linear-gradient(135deg, rgba(255, 0, 85, 0.3) 0%, rgba(255, 0, 85, 0.1) 100%);
+  color: #FF6688;
+  border-color: rgba(255, 0, 85, 0.4);
 }
 
 .btn-danger:hover {
-  background: linear-gradient(135deg, #FF2A54 0%, #E60039 100%);
+  background: linear-gradient(135deg, #FF0055 0%, #D60047 100%);
   color: #FFFFFF;
-  border-color: #FF2A54;
-  box-shadow: 0 0 20px rgba(255, 42, 84, 0.6);
+  border-color: #FF0055;
+  box-shadow: 0 0 24px rgba(255, 0, 85, 0.7);
   transform: translateY(-1px);
 }
 
@@ -328,25 +345,25 @@ body {
 }
 
 .btn-ghost:hover {
-  background: rgba(0, 240, 255, 0.08);
-  color: var(--neon-cyan);
+  background: rgba(0, 210, 255, 0.08);
+  color: var(--cyber-blue);
 }
 
-/* Sci-Fi Holographic Inputs */
+/* Inputs */
 .linear-input, .scifi-input {
   background: var(--bg-input);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Share Tech Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   transition: all 0.2s ease;
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .linear-input:focus, .scifi-input:focus {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35), inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  border-color: var(--cyber-blue);
+  box-shadow: 0 0 18px rgba(0, 210, 255, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .linear-input::placeholder {
@@ -355,88 +372,71 @@ body {
 
 /* Terminal Boxes */
 .terminal-box {
-  background: #03060E;
+  background: #040713;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  color: #A5C0E6;
+  border-radius: 8px;
+  color: #B4CCF0;
   position: relative;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.85);
 }
 
-/* Keyboard Shortcut Badges */
+/* Badges */
 kbd, .kbd-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 240, 255, 0.08);
-  border: 1px solid rgba(0, 240, 255, 0.25);
-  border-radius: 4px;
+  background: rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+  border-radius: 5px;
   padding: 1px 6px;
   font-size: 11px;
-  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
-  color: var(--neon-cyan);
-  box-shadow: 0 0 6px rgba(0, 240, 255, 0.15);
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--cyber-blue);
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.2);
 }
 
-/* Glowing Status Badges */
 .badge-readonly {
   background: var(--status-safe-bg);
-  color: #00FF9D;
+  color: #00D2FF;
   border: 1px solid var(--status-safe-border);
-  box-shadow: 0 0 8px rgba(0, 255, 157, 0.2);
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
 }
 
 .badge-modifying {
   background: var(--status-modifying-bg);
   color: #FFB800;
   border: 1px solid var(--status-modifying-border);
-  box-shadow: 0 0 8px rgba(255, 184, 0, 0.2);
+  box-shadow: 0 0 10px rgba(255, 184, 0, 0.25);
 }
 
 .badge-highrisk {
-  background: var(--neon-magenta-dim);
-  color: #E066FF;
-  border: 1px solid rgba(189, 0, 255, 0.4);
-  box-shadow: 0 0 8px rgba(189, 0, 255, 0.25);
+  background: rgba(255, 0, 85, 0.15);
+  color: #FF4D80;
+  border: 1px solid rgba(255, 0, 85, 0.45);
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.3);
 }
 
 .badge-destructive {
   background: var(--status-danger-bg);
-  color: #FF2A54;
-  border: 1px solid #FF2A54;
-  box-shadow: 0 0 12px rgba(255, 42, 84, 0.35);
+  color: #FF0055;
+  border: 1px solid #FF0055;
+  box-shadow: 0 0 16px rgba(255, 0, 85, 0.45);
   animation: destructivePulse 1.5s infinite;
 }
 
 @keyframes destructivePulse {
-  0% { box-shadow: 0 0 6px rgba(255, 42, 84, 0.2); }
-  50% { box-shadow: 0 0 16px rgba(255, 42, 84, 0.6); }
-  100% { box-shadow: 0 0 6px rgba(255, 42, 84, 0.2); }
+  0% { box-shadow: 0 0 8px rgba(255, 0, 85, 0.25); }
+  50% { box-shadow: 0 0 20px rgba(255, 0, 85, 0.7); }
+  100% { box-shadow: 0 0 8px rgba(255, 0, 85, 0.25); }
 }
 
-/* Pulsing Radar & Cyber Core */
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--neon-cyan);
-  box-shadow: 0 0 10px var(--neon-cyan);
-  animation: scifiPulse 2s infinite;
-}
-
-@keyframes scifiPulse {
-  0% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 6px var(--neon-cyan); }
-  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 16px var(--neon-cyan); }
-  100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 6px var(--neon-cyan); }
-}
-
-/* Holographic Radar Ring */
+/* Dual-Orb Pulsing Core */
 .radar-orb {
   position: relative;
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  border: 1px solid rgba(0, 210, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,17 +447,17 @@ kbd, .kbd-badge {
   position: absolute;
   inset: 2px;
   border-radius: 50%;
-  border: 1px dashed rgba(0, 240, 255, 0.6);
-  animation: radarRotate 8s linear infinite;
+  border: 1px dashed var(--cyber-red);
+  animation: radarRotate 6s linear infinite;
 }
 
 .radar-orb::after {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--neon-cyan);
-  box-shadow: 0 0 8px var(--neon-cyan);
+  background: var(--cyber-blue);
+  box-shadow: 0 0 10px var(--cyber-blue);
 }
 
 @keyframes radarRotate {
@@ -465,7 +465,7 @@ kbd, .kbd-badge {
   to { transform: rotate(360deg); }
 }
 
-/* Sci-Fi Tables */
+/* Tables */
 .linear-table {
   width: 100%;
   border-collapse: separate;
@@ -473,13 +473,12 @@ kbd, .kbd-badge {
 }
 
 .linear-table th {
-  background: rgba(0, 240, 255, 0.04);
-  color: var(--neon-cyan);
-  font-family: 'Rajdhani', sans-serif;
+  background: rgba(0, 210, 255, 0.05);
+  color: var(--cyber-blue);
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.8125rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-default);
 }
@@ -497,7 +496,7 @@ kbd, .kbd-badge {
 }
 
 .linear-table tr:hover td {
-  background-color: rgba(0, 240, 255, 0.04);
+  background-color: rgba(0, 210, 255, 0.05);
   color: var(--text-primary);
 }
 
@@ -505,24 +504,24 @@ kbd, .kbd-badge {
 .command-approval-card {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-default);
-  border-left: 4px solid var(--neon-cyan);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  border-left: 4px solid var(--cyber-blue);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
 }
 
 .command-approval-card.modifying {
-  border-left-color: var(--neon-amber);
+  border-left-color: var(--cyber-amber);
 }
 
 .command-approval-card.highrisk {
-  border-left-color: var(--neon-crimson);
+  border-left-color: var(--cyber-red);
 }
 
 /* Modals */
 .modal-backdrop {
   background-color: var(--bg-overlay);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   animation: fadeIn 0.2s ease-out forwards;
 }
 
@@ -556,18 +555,18 @@ kbd, .kbd-badge {
   pointer-events: auto;
   min-width: 320px;
   max-width: 440px;
-  background: rgba(15, 26, 54, 0.95);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  background: rgba(17, 26, 56, 0.95);
+  border: 1px solid var(--cyber-blue);
+  border-radius: 8px;
   padding: 0.875rem 1.125rem;
-  box-shadow: 0 12px 40px -4px rgba(0, 0, 0, 0.8), 0 0 16px rgba(0, 240, 255, 0.2);
+  box-shadow: 0 14px 44px -4px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 210, 255, 0.25);
   display: flex;
   align-items: flex-start;
   gap: 0.875rem;
   font-size: 0.875rem;
   color: var(--text-primary);
   animation: toastScifiSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
 }
 
 @keyframes toastScifiSlideIn {
@@ -590,55 +589,35 @@ kbd, .kbd-badge {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(4, 7, 17, 0.6);
+  background: rgba(5, 7, 17, 0.7);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.25);
+  background: linear-gradient(to bottom, var(--cyber-blue), var(--cyber-red));
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.55);
-  box-shadow: 0 0 8px var(--neon-cyan);
+  box-shadow: 0 0 8px var(--cyber-blue);
 }
 
-/* Glitch Effect on Anomaly */
-.scifi-glitch {
-  position: relative;
-}
-
-.scifi-glitch:hover {
-  animation: scifiGlitchAnim 0.3s ease-in-out;
-}
-
-@keyframes scifiGlitchAnim {
-  0% { transform: translate(0); }
-  20% { transform: translate(-2px, 1px); color: var(--neon-cyan); }
-  40% { transform: translate(2px, -1px); color: var(--neon-magenta); }
-  60% { transform: translate(-1px, -1px); color: var(--neon-emerald); }
-  80% { transform: translate(1px, 2px); }
-  100% { transform: translate(0); }
-}
-
-/* Holographic Chip */
+/* Holographic Chips */
 .scifi-chip {
-  background: rgba(0, 240, 255, 0.05);
-  border: 1px solid rgba(0, 240, 255, 0.18);
-  border-radius: 4px;
-  padding: 0.35rem 0.65rem;
-  font-family: 'Rajdhani', sans-serif;
+  background: rgba(0, 210, 255, 0.06);
+  border: 1px solid rgba(0, 210, 255, 0.22);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.8125rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--text-primary);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .scifi-chip:hover {
-  background: rgba(0, 240, 255, 0.15);
-  border-color: var(--neon-cyan);
-  color: var(--neon-cyan);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+  background: rgba(255, 0, 85, 0.15);
+  border-color: var(--cyber-red);
+  color: #FFFFFF;
+  box-shadow: 0 0 16px rgba(255, 0, 85, 0.4);
   transform: translateY(-1px);
 }
