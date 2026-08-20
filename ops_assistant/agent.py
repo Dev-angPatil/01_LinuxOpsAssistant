@@ -57,13 +57,21 @@ class LlamaCppProvider(LLMProvider):
         self.model_path = model_path
         if self.model_path is None:
             try:
-                from ops_assistant.model_manager.downloader import ModelDownloader
-                downloader = ModelDownloader()
-                active_path = downloader.get_active_model_path()
-                if active_path:
-                    self.model_path = str(active_path)
+                from ops_assistant.config import get_config
+                cfg = get_config()
+                if cfg.get("active_model_path") and os.path.exists(cfg["active_model_path"]):
+                    self.model_path = cfg["active_model_path"]
             except Exception:
                 pass
+            if self.model_path is None:
+                try:
+                    from ops_assistant.model_manager.downloader import ModelDownloader
+                    downloader = ModelDownloader()
+                    active_path = downloader.get_active_model_path()
+                    if active_path:
+                        self.model_path = str(active_path)
+                except Exception:
+                    pass
 
         self.n_ctx = n_ctx
         self.n_threads = n_threads or max(1, (os.cpu_count() or 4) // 2)

@@ -63,23 +63,29 @@ pip install -r requirements.txt
 ### CLI Command Reference
 
 ```bash
-# 1. Run Automated Benchmark across 16 Failure Scenarios
+# 1. Run First-Time Hardware Setup & Model Configuration Wizard
+python3 -m ops_assistant.cli --setup
+
+# 2. Run Automated Benchmark across 16 Failure Scenarios
 python3 -m ops_assistant.cli --benchmark
 
-# 2. Run Interactive Failure Demo Walkthrough
+# 3. Run Interactive Failure Demo Walkthrough
 python3 -m ops_assistant.cli --demo
 
-# 3. Inspect Real-Time Linux Health, Distro Profile & Kernel PSI Pressure
+# 4. Inspect Real-Time Linux Health, Distro Profile & Kernel PSI Pressure
 python3 -m ops_assistant.cli --inspect-health
 
-# 4. Scan and Diagnose Failed System Services
+# 5. Scan and Diagnose Failed System Services
 python3 -m ops_assistant.cli --diagnose-failed
 
-# 5. One-Shot Diagnostic Query with Distro Override & JSON/Markdown Export
+# 6. One-Shot Diagnostic Query with Distro Override & JSON/Markdown Export
 python3 -m ops_assistant.cli "Why is NGINX failing to bind to port 80?" --distro alpine --export-json report.json --export-md report.md
 
-# 6. Interactive Conversational Sysadmin REPL with Interactive Command Execution
+# 7. Interactive Conversational Sysadmin REPL with Interactive Command Execution
 python3 -m ops_assistant.cli -i
+
+# 8. Launch Interactive Web GUI Dashboard
+python3 -m ops_assistant.cli --gui
 ```
 
 ---

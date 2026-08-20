@@ -1,7 +1,7 @@
 """Model Downloader & Manager for Edge GGUF Models.
 
 Provides resilient downloading with progress tracking, SHA256 integrity verification,
-and local registry management for lightweight offline models.
+asynchronous background downloading, and local registry management for lightweight offline models.
 """
 
 from __future__ import annotations
@@ -10,9 +10,10 @@ import json
 import os
 import sys
 import time
+import threading
 import urllib.request
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 from ops_assistant.hardware.advisor import MODEL_CATALOG
 
@@ -28,7 +29,10 @@ def get_default_models_dir() -> Path:
 
 
 class ModelDownloader:
-    """Manages downloading, verification, and inspection of local GGUF models."""
+    """Manages downloading, verification, background progress, and inspection of local GGUF models."""
+
+    _active_downloads: Dict[str, Dict[str, Any]] = {}
+    _lock = threading.Lock()
 
     def __init__(self, target_dir: Optional[Path] = None):
         self.target_dir = target_dir or get_default_models_dir()
@@ -47,6 +51,17 @@ class ModelDownloader:
                 "local_size_bytes": local_path.stat().st_size if is_downloaded else 0,
             }
         return status
+
+    def has_any_model_installed(self) -> bool:
+        """Return True if at least one valid GGUF model exists locally."""
+        for key, info in DEFAULT_MODELS.items():
+            local_path = self.target_dir / info["filename"]
+            if local_path.exists() and local_path.stat().st_size > 1024 * 1024:
+                return True
+        for p in self.target_dir.glob("*.gguf"):
+            if p.stat().st_size > 1024 * 1024:
+                return True
+        return False
 
     def get_active_model_path(self, preferred_key: Optional[str] = None) -> Optional[Path]:
         """Return the path of the preferred or first available local GGUF model."""
@@ -72,7 +87,7 @@ class ModelDownloader:
         progress_callback: Optional[Callable[[int, int, float], None]] = None,
         force: bool = False,
     ) -> Path:
-        """Download the specified model with progress reporting."""
+        """Download the specified model with progress reporting (synchronous)."""
         if model_key not in DEFAULT_MODELS:
             raise ValueError(f"Unknown model key: '{model_key}'. Available: {list(DEFAULT_MODELS.keys())}")
 
@@ -122,6 +137,67 @@ class ModelDownloader:
             }, f, indent=2)
 
         return dest_path
+
+    def start_background_download(self, model_key: str, force: bool = False) -> Dict[str, Any]:
+        """Start downloading a model asynchronously in a background thread."""
+        if model_key not in DEFAULT_MODELS:
+            return {"success": False, "error": f"Unknown model key: '{model_key}'"}
+
+        with self._lock:
+            existing = self._active_downloads.get(model_key)
+            if existing and existing.get("status") == "downloading":
+                return {"success": True, "status": "already_downloading", "progress": existing}
+
+            progress_data = {
+                "model_key": model_key,
+                "model_name": DEFAULT_MODELS[model_key]["name"],
+                "status": "downloading",
+                "downloaded_bytes": 0,
+                "total_bytes": DEFAULT_MODELS[model_key].get("size_bytes", 0),
+                "speed_mbps": 0.0,
+                "percent": 0.0,
+                "error": None,
+                "started_at": time.time(),
+                "completed_at": None,
+            }
+            self._active_downloads[model_key] = progress_data
+
+        def _worker():
+            try:
+                def _cb(downloaded: int, total: int, speed: float):
+                    with self._lock:
+                        p = self._active_downloads.get(model_key)
+                        if p:
+                            p["downloaded_bytes"] = downloaded
+                            p["total_bytes"] = total
+                            p["speed_mbps"] = round(speed, 2)
+                            p["percent"] = round((downloaded / total * 100) if total > 0 else 0.0, 1)
+
+                path = self.download_model(model_key, progress_callback=_cb, force=force)
+                with self._lock:
+                    p = self._active_downloads.get(model_key)
+                    if p:
+                        p["status"] = "completed"
+                        p["percent"] = 100.0
+                        p["completed_at"] = time.time()
+                        p["path"] = str(path)
+            except Exception as e:
+                with self._lock:
+                    p = self._active_downloads.get(model_key)
+                    if p:
+                        p["status"] = "failed"
+                        p["error"] = str(e)
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+        return {"success": True, "status": "started", "progress": progress_data}
+
+    def get_download_progress(self, model_key: Optional[str] = None) -> Dict[str, Any]:
+        """Return the current progress of a specific download or all active downloads."""
+        with self._lock:
+            if model_key:
+                return self._active_downloads.get(model_key, {"status": "idle", "model_key": model_key})
+            return dict(self._active_downloads)
 
     def verify_gguf_header(self, model_path: Path) -> dict:
         """Inspect the GGUF file header safely without loading tensor weights into memory."""

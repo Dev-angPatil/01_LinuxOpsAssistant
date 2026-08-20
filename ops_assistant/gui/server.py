@@ -170,6 +170,43 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             self._send_json(adv)
             return
 
+        elif path == "/api/setup/status":
+            from ops_assistant.hardware.advisor import HardwareAdvisor, MODEL_CATALOG
+            from ops_assistant.model_manager.downloader import ModelDownloader
+            from ops_assistant.config import get_config, is_setup_completed
+            adv = HardwareAdvisor()
+            prof = adv.profiler.profile()
+            rec = adv.get_full_advisory()["recommended_model"]
+            dl = ModelDownloader()
+            cfg = get_config()
+            self._send_json({
+                "setup_completed": is_setup_completed(),
+                "has_models": dl.has_any_model_installed(),
+                "config": cfg,
+                "hardware": prof.to_dict(),
+                "recommended_model": rec,
+                "catalog": MODEL_CATALOG,
+                "installed_models": dl.list_available_models(),
+                "download_progress": dl.get_download_progress()
+            })
+            return
+
+        elif path == "/api/models/list":
+            from ops_assistant.model_manager.downloader import ModelDownloader
+            dl = ModelDownloader()
+            active_p = dl.get_active_model_path()
+            self._send_json({
+                "models": dl.list_available_models(),
+                "active_model_path": str(active_p) if active_p else None
+            })
+            return
+
+        elif path == "/api/models/download/progress":
+            from ops_assistant.model_manager.downloader import ModelDownloader
+            dl = ModelDownloader()
+            self._send_json({"downloads": dl.get_download_progress()})
+            return
+
         elif path == "/api/proactive/audit":
             from ops_assistant.tools import proactive_engine
             res = proactive_engine.run_proactive_audit()
@@ -430,6 +467,47 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
             self._send_json({"success": True, "advisory": adv.get_full_advisory(), "recommended_model": rec})
+            return
+
+        # 11b. Setup Configuration Apply
+        elif path == "/api/setup/apply":
+            from ops_assistant.config import set_setup_completed, get_config
+            from ops_assistant.hardware.advisor import MODEL_CATALOG, HardwareAdvisor
+            from ops_assistant.model_manager.downloader import ModelDownloader
+            provider = body.get("provider", "auto")
+            model_key = body.get("model_key")
+            adv = HardwareAdvisor()
+            prof = adv.profiler.profile()
+            caps = adv.generate_capability_matrix(prof)
+
+            dl = ModelDownloader()
+            model_path = None
+            if model_key and model_key in MODEL_CATALOG:
+                m_info = MODEL_CATALOG[model_key]
+                p = dl.target_dir / m_info["filename"]
+                if p.exists():
+                    model_path = str(p)
+
+            res_cfg = set_setup_completed(
+                provider=provider,
+                model_key=model_key,
+                model_path=model_path,
+                hardware_tier=prof.compute_tier,
+                threads=caps.recommended_threads,
+                ctx_size=caps.recommended_ctx_size,
+                gpu_layers=caps.recommended_gpu_layers
+            )
+            self._send_json({"success": True, "config": res_cfg})
+            return
+
+        # 11c. Background Model Download
+        elif path == "/api/models/download":
+            from ops_assistant.model_manager.downloader import ModelDownloader
+            mkey = body.get("model_key", "")
+            force = bool(body.get("force", False))
+            dl = ModelDownloader()
+            res = dl.start_background_download(mkey, force=force)
+            self._send_json(res)
             return
 
         # 12. Docker Actions

@@ -30,6 +30,7 @@ except ImportError:
 from pathlib import Path
 from ops_assistant.agent import OpsAssistantAgent, LlamaCppProvider, OllamaProvider
 from ops_assistant.model_manager.downloader import ModelDownloader
+from ops_assistant.config import get_config, is_setup_completed, set_setup_completed
 from ops_assistant.collectors.hub import TelemetryHub
 from ops_assistant.tools.executor import SafeExecutor
 from ops_assistant.tools.safety import CommandSafetyValidator
@@ -329,6 +330,190 @@ def auto_tune_system(advisor: Optional[Any] = None, downloader: Optional[ModelDo
             print(f"\n✓ Model '{mkey}' is already available and ready for inference.")
 
     print("\n✓ Auto-tuning completed successfully. Optimal parameters applied.")
+
+
+def run_setup_wizard(
+    advisor: Optional[Any] = None,
+    downloader: Optional[ModelDownloader] = None,
+    force: bool = False,
+    interactive_input: Optional[Callable[[str], str]] = None,
+) -> bool:
+    """First-Launch Hardware Setup & Model Recommendation Wizard."""
+    from ops_assistant.hardware.advisor import HardwareAdvisor, ModelSelector, MODEL_CATALOG
+
+    adv = advisor or HardwareAdvisor()
+    dl = downloader or ModelDownloader()
+    _input = interactive_input or input
+
+    prof = adv.profiler.profile()
+    rec = ModelSelector.recommend_model(prof)
+    caps = adv.generate_capability_matrix(prof)
+
+    if HAS_RICH and console:
+        console.print(Panel.fit(
+            f"[bold cyan]LinuxOps Assistant — Hardware Setup & Model Configuration Wizard[/bold cyan]\n"
+            f"[dim]Automatic Hardware-Aware Model Selection for Edge & Server Nodes[/dim]",
+            border_style="cyan"
+        ))
+
+        # Hardware specs table
+        hw_table = Table(title="Detected Host Hardware Specifications", show_header=True, header_style="bold magenta")
+        hw_table.add_column("Component", style="bold yellow", width=15)
+        hw_table.add_column("Detected Specification", style="white")
+        hw_table.add_column("Inference Capability", style="green")
+
+        hw_table.add_row("CPU", f"{prof.cpu.model_name} ({prof.cpu.logical_cores} threads, {prof.cpu.architecture})", f"AVX2={prof.cpu.has_avx2}, AVX-512={prof.cpu.has_avx512}")
+        hw_table.add_row("Memory", f"{prof.memory.total_gb} GB RAM ({prof.memory.available_gb} GB Free)", f"{prof.memory.safe_model_headroom_mb:.0f} MB Safe Model Headroom")
+        hw_table.add_row("GPU", f"{prof.gpu.device_name}", f"VRAM: {prof.gpu.total_vram_gb} GB ({prof.gpu.compute_api})")
+        hw_table.add_row("Storage", f"{prof.storage.available_gb} GB Free on {prof.storage.target_path}", f"Hardware Tier: [bold cyan]{prof.compute_tier}[/bold cyan] ({prof.hardware_score:.1f}/100)")
+        console.print(hw_table)
+
+        # Recommendation card
+        rec_text = (
+            f"[bold]Recommended AI Model:[/bold] [bold green]{rec['name']}[/bold green]\n"
+            f"[bold]Model Tier:[/bold] {rec.get('tier', 'Standard')} | [bold]File Size:[/bold] {rec.get('size_mb', '0')} MB\n"
+            f"[bold]Acceleration Target:[/bold] [cyan]{rec.get('acceleration', 'CPU Multithreaded')}[/cyan]\n"
+            f"[bold]Rationale:[/bold] {rec['reason']}\n"
+            f"[bold]Tuned Config:[/bold] {caps.recommended_threads} threads, {caps.recommended_ctx_size} context size, {caps.recommended_gpu_layers} GPU layers"
+        )
+        console.print(Panel(rec_text, title="[bold green]Optimal AI Recommendation for Your System[/bold green]", border_style="green"))
+
+        console.print("\n[bold yellow]Select a setup option:[/bold yellow]")
+        console.print(f"  [bold green]1.[/bold green] [bold]Auto-Install Recommended Model[/bold] ({rec['name']}) [dim](Recommended)[/dim]")
+        console.print("  [bold cyan]2.[/bold cyan] Select a different model from Catalog (SmolLM2, Qwen, Llama, DeepSeek)")
+        console.print("  [bold magenta]3.[/bold magenta] Use Deterministic-Only Mode [dim](0 MB download, sub-50ms, zero RAM usage)[/dim]")
+        console.print("  [bold blue]4.[/bold blue] Connect to local Ollama instance [dim](http://localhost:11434)[/dim]")
+        console.print("  [dim]5.[/dim] Skip setup for now\n")
+    else:
+        print("\n" + "=" * 70)
+        print("  LINUXOPS ASSISTANT — HARDWARE SETUP & MODEL CONFIGURATION WIZARD")
+        print("=" * 70)
+        print(f"• CPU: {prof.cpu.model_name} ({prof.cpu.logical_cores} cores, AVX2={prof.cpu.has_avx2})")
+        print(f"• RAM: {prof.memory.total_gb} GB Total ({prof.memory.safe_model_headroom_mb:.0f} MB Safe Headroom)")
+        print(f"• GPU: {prof.gpu.device_name} (VRAM: {prof.gpu.total_vram_gb} GB)")
+        print(f"• Storage: {prof.storage.available_gb} GB Free | Tier: {prof.compute_tier} ({prof.hardware_score:.1f}/100)")
+        print("-" * 70)
+        print(f"RECOMMENDED MODEL: {rec['name']} ({rec.get('size_mb', 0)} MB)")
+        print(f"Rationale: {rec['reason']}")
+        print("-" * 70)
+        print("Select a setup option:")
+        print(f"  1. Auto-Install Recommended: {rec['name']} (Recommended)")
+        print("  2. Select another model from Catalog")
+        print("  3. Use Deterministic-Only Mode (0 MB download, zero RAM)")
+        print("  4. Connect to local Ollama instance")
+        print("  5. Skip setup for now\n")
+
+    try:
+        choice = _input("Enter choice [1-5] (default: 1): ").strip()
+    except (KeyboardInterrupt, EOFError):
+        print("\nSetup cancelled.")
+        return False
+
+    if not choice or choice == "1":
+        mkey = rec.get("model_key")
+        if not mkey or not rec.get("download_required"):
+            print("\n✓ Your system is optimized for Deterministic Engine. No model download needed.")
+            set_setup_completed(
+                provider="deterministic",
+                hardware_tier=prof.compute_tier,
+                threads=caps.recommended_threads,
+                ctx_size=caps.recommended_ctx_size,
+                gpu_layers=caps.recommended_gpu_layers,
+            )
+            return True
+
+        avail = dl.list_available_models()
+        if mkey in avail and avail[mkey]["is_downloaded"]:
+            print(f"\n✓ Model '{mkey}' is already downloaded and verified.")
+            model_path = avail[mkey]["local_path"]
+        else:
+            print(f"\n[*] Downloading recommended model '{mkey}'...")
+            download_model_cli(mkey, dl)
+            model_path = str(dl.target_dir / MODEL_CATALOG[mkey]["filename"])
+
+        set_setup_completed(
+            provider="gguf",
+            model_key=mkey,
+            model_path=model_path,
+            hardware_tier=prof.compute_tier,
+            threads=caps.recommended_threads,
+            ctx_size=caps.recommended_ctx_size,
+            gpu_layers=caps.recommended_gpu_layers,
+        )
+        print(f"\n✓ Setup completed successfully! Model '{mkey}' activated.")
+        return True
+
+    elif choice == "2":
+        models = list(MODEL_CATALOG.items())
+        print("\n--- Available GGUF Model Catalog ---")
+        for idx, (k, info) in enumerate(models, 1):
+            size_mb = info["size_bytes"] / (1024 * 1024)
+            print(f"  [{idx}] {info['name']} (~{size_mb:.0f} MB, RAM req: {info['ram_required_mb']:.0f} MB)")
+
+        try:
+            sel = _input(f"Select model number [1-{len(models)}]: ").strip()
+            sel_idx = int(sel) - 1
+            if 0 <= sel_idx < len(models):
+                chosen_key, chosen_info = models[sel_idx]
+                download_model_cli(chosen_key, dl)
+                model_path = str(dl.target_dir / chosen_info["filename"])
+                set_setup_completed(
+                    provider="gguf",
+                    model_key=chosen_key,
+                    model_path=model_path,
+                    hardware_tier=prof.compute_tier,
+                    threads=caps.recommended_threads,
+                    ctx_size=caps.recommended_ctx_size,
+                    gpu_layers=caps.recommended_gpu_layers,
+                )
+                print(f"\n✓ Setup completed! Model '{chosen_key}' configured.")
+                return True
+            else:
+                print("Invalid selection.")
+                return False
+        except (ValueError, KeyboardInterrupt, EOFError):
+            print("Invalid input.")
+            return False
+
+    elif choice == "3":
+        set_setup_completed(
+            provider="deterministic",
+            hardware_tier=prof.compute_tier,
+            threads=caps.recommended_threads,
+            ctx_size=caps.recommended_ctx_size,
+            gpu_layers=caps.recommended_gpu_layers,
+        )
+        print("\n✓ Configured for Deterministic Fast-Path Engine (<50ms, 0 MB memory footprint).")
+        return True
+
+    elif choice == "4":
+        try:
+            endpoint = _input("Enter Ollama endpoint [http://localhost:11434/api/generate]: ").strip()
+            if not endpoint:
+                endpoint = "http://localhost:11434/api/generate"
+            omodel = _input("Enter Ollama model name [llama3:8b]: ").strip() or "llama3:8b"
+            set_setup_completed(
+                provider="ollama",
+                hardware_tier=prof.compute_tier,
+                threads=caps.recommended_threads,
+                ctx_size=caps.recommended_ctx_size,
+                gpu_layers=caps.recommended_gpu_layers,
+            )
+            from ops_assistant.config import _config_manager
+            cfg = _config_manager.load()
+            cfg["ollama_endpoint"] = endpoint
+            cfg["ollama_model"] = omodel
+            _config_manager.save(cfg)
+            print(f"\n✓ Configured for Ollama at {endpoint} with model '{omodel}'.")
+            return True
+        except (KeyboardInterrupt, EOFError):
+            return False
+
+    elif choice == "5":
+        print("\nSetup skipped. Using default fallback configuration.")
+        return False
+
+    return False
 
 
 def render_proactive_audit():
@@ -1029,6 +1214,20 @@ def run_repl(agent: OpsAssistantAgent, executor: SafeExecutor, distro_override: 
     active_distro = distro_override
     d_info = agent.distro_detector.detect(override_family=active_distro)
     render_banner(d_info.distro_name)
+
+    dl = ModelDownloader()
+    if not is_setup_completed() and not dl.has_any_model_installed() and sys.stdin.isatty():
+        if HAS_RICH and console:
+            console.print("[bold yellow]⚡ First-time launch detected: No local AI model is configured yet.[/bold yellow]")
+        else:
+            print("⚡ First-time launch detected: No local AI model is configured yet.")
+        try:
+            ans = input("Would you like to run the Hardware Setup Wizard now? [Y/n]: ").strip().lower()
+            if ans in ("", "y", "yes"):
+                run_setup_wizard(downloader=dl)
+        except (KeyboardInterrupt, EOFError):
+            pass
+
     print("Type anything — 'what's eating my disk', 'restart nginx', 'show recent errors' — or 'help'.\n")
 
     last_report: Optional[DiagnosticReport] = None
@@ -1941,6 +2140,7 @@ def main():
     parser.add_argument("--profile-hardware", action="store_true", help="Profile CPU, RAM, GPU, and Storage to recommend optimal AI models and tuning")
     parser.add_argument("--test-hardware", action="store_true", help="Run automated hardware benchmarking and validation tests")
     parser.add_argument("--auto-tune", action="store_true", help="Profile hardware, select optimal model, and configure system capabilities")
+    parser.add_argument("--setup", action="store_true", help="Launch interactive First-Time Hardware Setup & Model Configuration Wizard")
     parser.add_argument("--proactive-audit", action="store_true", help="Run proactive autonomous health audit across kernel, storage, docker, and security")
     parser.add_argument("--docker-status", action="store_true", help="List Docker containers, status, and port conflict analysis")
     parser.add_argument("--security-audit", action="store_true", help="Run consolidated security audit (SSH, open ports, brute force, SUID)")
@@ -1955,6 +2155,10 @@ def main():
     parser.add_argument("--no-browser", action="store_true", help="Do not automatically open default web browser for GUI")
 
     args = parser.parse_args()
+
+    if args.setup:
+        run_setup_wizard(force=True)
+        return
 
     if args.profile_hardware:
         render_hardware_profile()

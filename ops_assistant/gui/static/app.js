@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCharts();
   startTelemetrySSE();
   loadInitialData();
+  checkSetupStatusOnLoad();
 
   // Setup prompt form submit
   const form = document.getElementById('agent-prompt-form');
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       closeModal('modal-permission');
       closeModal('modal-logs');
+      closeModal('modal-setup-wizard');
     }
   });
 });
@@ -1343,4 +1345,300 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// ==========================================================================
+// HARDWARE SETUP & MODEL CONFIGURATION WIZARD
+// ==========================================================================
+let currentSetupData = null;
+let downloadPollInterval = null;
+
+async function checkSetupStatusOnLoad() {
+  try {
+    const res = await fetch('/api/setup/status');
+    const data = await res.json();
+    currentSetupData = data;
+    // Auto-open wizard if setup is not completed and no model is installed
+    if (!data.setup_completed && !data.has_models) {
+      setTimeout(() => {
+        openSetupWizard();
+      }, 500);
+    }
+  } catch (e) {
+    console.warn('Could not check setup status:', e);
+  }
+}
+
+async function openSetupWizard() {
+  openModal('modal-setup-wizard');
+  try {
+    const res = await fetch('/api/setup/status');
+    const data = await res.json();
+    currentSetupData = data;
+    renderSetupModalData(data);
+  } catch (e) {
+    showToast('Failed to load hardware advisory: ' + e.message, 'error');
+  }
+}
+
+function renderSetupModalData(data) {
+  if (!data) return;
+  const hw = data.hardware || {};
+  const rec = data.recommended_model || {};
+  const cfg = data.config || {};
+  const installed = data.installed_models || {};
+  const catalog = data.catalog || {};
+
+  // 1. Hardware Badges & Specs
+  const tierBadge = document.getElementById('setup-tier-badge');
+  if (tierBadge && hw.compute_tier) {
+    tierBadge.textContent = `${hw.compute_tier} (${(hw.hardware_score || 0).toFixed(1)}/100)`;
+  }
+
+  const cpuInfo = document.getElementById('setup-cpu-info');
+  const cpuCores = document.getElementById('setup-cpu-cores');
+  if (cpuInfo && hw.cpu) {
+    cpuInfo.textContent = hw.cpu.model_name || 'CPU';
+    cpuCores.textContent = `${hw.cpu.logical_cores || 1} cores • AVX2: ${hw.cpu.has_avx2 ? 'Yes' : 'No'}`;
+  }
+
+  const ramInfo = document.getElementById('setup-ram-info');
+  const ramHeadroom = document.getElementById('setup-ram-headroom');
+  if (ramInfo && hw.memory) {
+    ramInfo.textContent = `${hw.memory.total_gb || 0} GB RAM (${hw.memory.available_gb || 0} GB Free)`;
+    ramHeadroom.textContent = `Safe AI Headroom: ${(hw.memory.safe_model_headroom_mb || 0).toFixed(0)} MB`;
+  }
+
+  const gpuInfo = document.getElementById('setup-gpu-info');
+  const gpuVram = document.getElementById('setup-gpu-vram');
+  if (gpuInfo && hw.gpu) {
+    gpuInfo.textContent = hw.gpu.device_name || 'No Dedicated GPU';
+    gpuVram.textContent = hw.gpu.present ? `${hw.gpu.total_vram_gb || 0} GB VRAM • ${hw.gpu.compute_api}` : 'CPU Multithreaded Fallback';
+  }
+
+  const diskInfo = document.getElementById('setup-disk-info');
+  const diskFree = document.getElementById('setup-disk-free');
+  if (diskInfo && hw.storage) {
+    diskInfo.textContent = `${hw.storage.available_gb || 0} GB Free`;
+    diskFree.textContent = `Target: ${hw.storage.target_path || '/'}`;
+  }
+
+  // 2. Recommended Model Card
+  const recName = document.getElementById('setup-rec-name');
+  const recReason = document.getElementById('setup-rec-reason');
+  const recSize = document.getElementById('setup-rec-size');
+  const recTier = document.getElementById('setup-rec-tier');
+  const recAccel = document.getElementById('setup-rec-accel-badge');
+  const recConfigHint = document.getElementById('setup-rec-config-hint');
+  const btnInstallRec = document.getElementById('setup-btn-install-rec');
+
+  if (recName) recName.textContent = rec.name || 'Deterministic Rule Engine';
+  if (recReason) recReason.textContent = rec.reason || 'Optimal offline Linux diagnostic engine.';
+  if (recSize) recSize.textContent = rec.size_mb ? `~${rec.size_mb} MB` : '0 MB';
+  if (recTier) recTier.textContent = rec.tier || 'Tier 0';
+  if (recAccel) recAccel.textContent = rec.acceleration || 'Zero Memory Footprint';
+  if (recConfigHint) {
+    recConfigHint.textContent = `Config: ${cfg.recommended_threads || 4} threads, ${cfg.recommended_ctx_size || 2048} ctx size`;
+  }
+
+  if (btnInstallRec) {
+    if (rec.model_key && installed[rec.model_key] && installed[rec.model_key].is_downloaded) {
+      btnInstallRec.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Active &amp; Ready</span>`;
+      btnInstallRec.className = 'btn btn-secondary px-5 py-2 text-xs font-semibold flex items-center space-x-2 text-emerald-400 border-emerald-500/30';
+    } else if (!rec.download_required) {
+      btnInstallRec.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>Activate Deterministic</span>`;
+      btnInstallRec.className = 'btn btn-primary px-5 py-2 text-xs font-semibold flex items-center space-x-2';
+    } else {
+      btnInstallRec.innerHTML = `<i data-lucide="download" class="w-4 h-4"></i><span>1-Click Install &amp; Activate</span>`;
+      btnInstallRec.className = 'btn btn-primary px-5 py-2 text-xs font-semibold flex items-center space-x-2 shadow-md shadow-cyan-500/10';
+    }
+  }
+
+  // 3. Status text
+  const statusText = document.getElementById('setup-active-status-text');
+  if (statusText) {
+    const mode = cfg.provider || 'auto';
+    const model = cfg.active_model_key ? `Model: ${cfg.active_model_key}` : 'Deterministic Engine';
+    statusText.textContent = `Current Mode: ${mode.toUpperCase()} (${model}) • Setup: ${data.setup_completed ? 'Configured' : 'First-Run Pending'}`;
+  }
+
+  // 4. Populate Full Catalog list
+  renderCatalogList(catalog, installed);
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderCatalogList(catalog, installed) {
+  const container = document.getElementById('catalog-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  Object.entries(catalog).forEach(([key, info]) => {
+    const isDl = installed[key] && installed[key].is_downloaded;
+    const sizeMb = (info.size_bytes / (1024 * 1024)).toFixed(0);
+    const item = document.createElement('div');
+    item.className = 'p-3 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-between space-x-3 text-xs';
+    
+    item.innerHTML = `
+      <div class="space-y-0.5 min-w-0">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-white truncate">${escapeHtml(info.name)}</span>
+          <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-white/10 text-zinc-400">${escapeHtml(info.tier)}</span>
+          ${isDl ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-300">Installed</span>' : ''}
+        </div>
+        <p class="text-[11px] text-zinc-400 truncate">${escapeHtml(info.description)}</p>
+        <div class="text-[10px] font-mono text-zinc-500">
+          Size: ~${sizeMb} MB • RAM required: ${info.ram_required_mb} MB • Min cores: ${info.min_cores}
+        </div>
+      </div>
+      <div class="shrink-0">
+        ${isDl 
+          ? `<button onclick="applySetupMode('gguf', '${key}')" class="btn btn-secondary px-3 py-1 text-xs text-emerald-300">Activate</button>`
+          : `<button onclick="downloadCatalogModel('${key}')" class="btn btn-primary px-3 py-1 text-xs flex items-center space-x-1">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Install</span>
+            </button>`
+        }
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+function toggleModelCatalogList() {
+  const container = document.getElementById('catalog-list-container');
+  const chevron = document.getElementById('catalog-chevron');
+  if (container) {
+    const isHidden = container.classList.contains('hidden');
+    if (isHidden) {
+      container.classList.remove('hidden');
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+    } else {
+      container.classList.add('hidden');
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
+  }
+}
+
+async function installRecommendedModel() {
+  if (!currentSetupData) return;
+  const rec = currentSetupData.recommended_model;
+  if (!rec) return;
+
+  if (!rec.download_required || !rec.model_key) {
+    // Deterministic mode
+    await applySetupMode('deterministic');
+    return;
+  }
+
+  const mkey = rec.model_key;
+  await downloadCatalogModel(mkey);
+}
+
+async function downloadCatalogModel(modelKey) {
+  const progressBox = document.getElementById('setup-download-container');
+  const modelNameEl = document.getElementById('setup-download-model-name');
+  if (progressBox) progressBox.classList.remove('hidden');
+  if (modelNameEl) modelNameEl.textContent = `Downloading ${modelKey}...`;
+
+  try {
+    const res = await fetch('/api/models/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model_key: modelKey, force: false })
+    });
+    const data = await res.json();
+    if (!data.success && data.status !== 'already_downloading') {
+      showToast('Download failed to start: ' + (data.error || 'Unknown error'), 'error');
+      if (progressBox) progressBox.classList.add('hidden');
+      return;
+    }
+
+    showToast(`Download started for ${modelKey}...`, 'info');
+    startProgressPolling(modelKey);
+  } catch (e) {
+    showToast('Download error: ' + e.message, 'error');
+    if (progressBox) progressBox.classList.add('hidden');
+  }
+}
+
+function startProgressPolling(modelKey) {
+  if (downloadPollInterval) clearInterval(downloadPollInterval);
+
+  const progressBox = document.getElementById('setup-download-container');
+  const progressBar = document.getElementById('setup-download-progress-bar');
+  const pctEl = document.getElementById('setup-download-pct');
+  const bytesEl = document.getElementById('setup-download-bytes');
+  const speedEl = document.getElementById('setup-download-speed');
+  const statusEl = document.getElementById('setup-download-status');
+
+  downloadPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/models/download/progress');
+      const data = await res.json();
+      const downloads = data.downloads || {};
+      const prog = downloads[modelKey];
+
+      if (!prog) return;
+
+      const pct = prog.percent || 0.0;
+      const dlMb = ((prog.downloaded_bytes || 0) / (1024 * 1024)).toFixed(1);
+      const totMb = ((prog.total_bytes || 0) / (1024 * 1024)).toFixed(1);
+      const speed = prog.speed_mbps || 0.0;
+
+      if (progressBar) progressBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+      if (pctEl) pctEl.textContent = `${pct.toFixed(1)}%`;
+      if (bytesEl) bytesEl.textContent = `${dlMb} / ${totMb} MB`;
+      if (speedEl) speedEl.textContent = `${speed.toFixed(1)} MB/s`;
+
+      if (prog.status === 'completed') {
+        clearInterval(downloadPollInterval);
+        downloadPollInterval = null;
+        if (statusEl) statusEl.textContent = '✓ Download Completed!';
+        showToast(`Model ${modelKey} downloaded and verified successfully!`, 'success');
+        
+        // Auto-apply setup with the downloaded model
+        await applySetupMode('gguf', modelKey);
+        
+        setTimeout(() => {
+          if (progressBox) progressBox.classList.add('hidden');
+          openSetupWizard();
+        }, 1200);
+      } else if (prog.status === 'failed') {
+        clearInterval(downloadPollInterval);
+        downloadPollInterval = null;
+        if (statusEl) statusEl.textContent = '❌ Download Failed';
+        showToast(`Download failed: ${prog.error}`, 'error');
+      }
+    } catch (e) {
+      console.warn('Progress poll error:', e);
+    }
+  }, 600);
+}
+
+async function applySetupMode(provider, modelKey = null) {
+  try {
+    const body = { provider };
+    if (modelKey) body.model_key = modelKey;
+
+    const res = await fetch('/api/setup/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Configuration updated: ${provider.toUpperCase()}` + (modelKey ? ` (${modelKey})` : ''), 'success');
+      // Refresh status
+      const statRes = await fetch('/api/setup/status');
+      const statData = await statRes.json();
+      currentSetupData = statData;
+      renderSetupModalData(statData);
+    } else {
+      showToast('Failed to apply configuration: ' + (data.error || 'Unknown error'), 'error');
+    }
+  } catch (e) {
+    showToast('Error applying setup: ' + e.message, 'error');
+  }
+}
+
 
