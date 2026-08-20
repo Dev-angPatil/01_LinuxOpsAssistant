@@ -1,5 +1,5 @@
 // ==========================================================================
-// LinuxOps Assistant — Cyber Red & Blue Dual-Tone Client Application Logic
+// LinuxOps Assistant — Luxury Avant-Garde Editorial Client Application Logic
 // ==========================================================================
 
 // Global state
@@ -12,7 +12,7 @@ let sfxEnabled = true;
 let audioCtx = null;
 
 // ==========================================================================
-// SCI-FI WEB AUDIO SYNTHESIZER
+// LUXURY WEB AUDIO SYNTHESIZER
 // ==========================================================================
 function getAudioContext() {
   if (!audioCtx) {
@@ -38,37 +38,37 @@ function playScifiSound(type) {
 
     if (type === 'click' || type === 'tab') {
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(820, now);
-      osc.frequency.exponentialRampToValueAtTime(1450, now + 0.04);
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.04);
       gain.gain.setValueAtTime(0.04, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
       osc.start(now);
       osc.stop(now + 0.04);
     } else if (type === 'scan' || type === 'execute') {
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(420, now);
-      osc.frequency.exponentialRampToValueAtTime(1100, now + 0.09);
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
       osc.start(now);
-      osc.stop(now + 0.12);
+      osc.stop(now + 0.10);
     } else if (type === 'success') {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(523.25, now);
       osc.frequency.setValueAtTime(659.25, now + 0.05);
       osc.frequency.setValueAtTime(783.99, now + 0.10);
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
       osc.start(now);
-      osc.stop(now + 0.20);
+      osc.stop(now + 0.18);
     } else if (type === 'alert' || type === 'error') {
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(360, now);
-      osc.frequency.exponentialRampToValueAtTime(150, now + 0.14);
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.12);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
       osc.start(now);
-      osc.stop(now + 0.14);
+      osc.stop(now + 0.12);
     }
   } catch (e) {
     // Fail silently
@@ -80,27 +80,11 @@ function toggleSFX() {
   const btn = document.getElementById('btn-toggle-sfx');
   if (btn) {
     btn.innerHTML = sfxEnabled 
-      ? '<i data-lucide="volume-2" class="w-3.5 h-3.5 text-[#00D2FF]"></i><span class="text-[#00D2FF] text-[10px]">SFX ON</span>'
-      : '<i data-lucide="volume-x" class="w-3.5 h-3.5 text-[#62759B]"></i><span class="text-[#62759B] text-[10px]">SFX OFF</span>';
+      ? '<i data-lucide="volume-2" class="w-4 h-4 text-white"></i>'
+      : '<i data-lucide="volume-x" class="w-4 h-4 text-slate-500"></i>';
     if (window.lucide) lucide.createIcons();
   }
   if (sfxEnabled) playScifiSound('click');
-}
-
-function toggleScanlines() {
-  const overlay = document.getElementById('scanline-layer');
-  const btn = document.getElementById('btn-toggle-scanlines');
-  if (overlay) {
-    overlay.classList.toggle('hidden');
-    const isHidden = overlay.classList.contains('hidden');
-    if (btn) {
-      btn.innerHTML = !isHidden
-        ? '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#00D2FF]"></i><span class="text-[#00D2FF] text-[10px]">SCANLINES</span>'
-        : '<i data-lucide="tv" class="w-3.5 h-3.5 text-[#62759B]"></i><span class="text-[#62759B] text-[10px]">CLEAN HUD</span>';
-      if (window.lucide) lucide.createIcons();
-    }
-  }
-  playScifiSound('click');
 }
 
 function updateTacticalClock() {
@@ -111,6 +95,16 @@ function updateTacticalClock() {
     const local = d.toTimeString().substring(0, 8);
     clockEl.textContent = `${local} [${utc}]`;
   }
+}
+
+function focusCommandDeck() {
+  switchTab('home');
+  const input = document.getElementById('agent-prompt-input');
+  if (input) {
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input.focus();
+  }
+  playScifiSound('click');
 }
 
 // Initialize on DOM load
@@ -148,17 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Global Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
-    // '/' to focus agent prompt
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
-      const promptInput = document.getElementById('agent-prompt-input');
-      if (promptInput) {
-        switchTab('home');
-        promptInput.focus();
-        playScifiSound('click');
-      }
+      focusCommandDeck();
     }
-    // Escape to close modals
     if (e.key === 'Escape') {
       closeModal('modal-permission');
       closeModal('modal-logs');
@@ -177,29 +164,29 @@ function showToast(message, type = 'info', duration = 3500) {
   toast.className = 'toast-item';
 
   let iconName = 'info';
-  let iconColor = 'text-[#00D2FF]';
+  let iconColor = 'text-white';
   if (type === 'success') {
     iconName = 'check-circle';
-    iconColor = 'text-[#00D2FF]';
+    iconColor = 'text-emerald-400';
     playScifiSound('success');
   } else if (type === 'error') {
     iconName = 'alert-circle';
-    iconColor = 'text-[#FF0055]';
+    iconColor = 'text-rose-400';
     playScifiSound('alert');
   } else if (type === 'warning') {
     iconName = 'alert-triangle';
-    iconColor = 'text-[#FFB800]';
+    iconColor = 'text-amber-400';
     playScifiSound('alert');
   } else {
     playScifiSound('click');
   }
 
   toast.innerHTML = `
-    <div class="mt-0.5 ${iconColor} shrink-0 drop-shadow-[0_0_6px_currentColor]">
+    <div class="mt-0.5 ${iconColor} shrink-0">
       <i data-lucide="${iconName}" class="w-4 h-4"></i>
     </div>
-    <div class="flex-1 text-xs text-[#F0F6FF] leading-relaxed break-words font-tech font-semibold">${escapeHtml(message)}</div>
-    <button onclick="this.parentElement.remove()" class="text-[#62759B] hover:text-[#00D2FF] font-mono text-sm leading-none">&times;</button>
+    <div class="flex-1 text-xs text-white leading-relaxed break-words font-sans font-medium">${escapeHtml(message)}</div>
+    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white font-mono text-sm leading-none">&times;</button>
   `;
 
   container.appendChild(toast);
@@ -255,7 +242,6 @@ function requestCommandPermission(options) {
       rollbackBox.classList.add('hidden');
     }
 
-    // Handlers
     const cleanup = () => {
       approveBtn.onclick = null;
       dryRunBtn.onclick = null;
@@ -313,20 +299,20 @@ async function executeDryRunSandbox(cmd) {
 // TAB SWITCHING & INITIALIZATION
 // ==========================================================================
 const TAB_TITLES = {
-  'home': 'AI Ops Deck',
+  'home': 'Home / AI Ops Deck',
   'health': 'System Health & PSI Telemetry',
   'services': 'Services & Process Management',
   'storage': 'Storage Matrix & Cleanup',
   'network': 'Network & Ports Control',
   'taxonomy': '16-Class Failure Taxonomy',
   'packages': 'Package Nexus',
-  'desktop': 'Cyber Runner & Portals'
+  'desktop': 'Runner & Portals'
 };
 
 function switchTab(tabId) {
   playScifiSound('tab');
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-capsule-tab').forEach(el => el.classList.remove('active'));
 
   const activeContent = document.getElementById('tab-content-' + tabId);
   const activeBtn = document.getElementById('tab-btn-' + tabId);
@@ -334,12 +320,6 @@ function switchTab(tabId) {
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeBtn) activeBtn.classList.add('active');
 
-  const titleEl = document.getElementById('current-tab-title');
-  if (titleEl && TAB_TITLES[tabId]) {
-    titleEl.textContent = TAB_TITLES[tabId];
-  }
-
-  // Trigger lazy loading
   if (tabId === 'services') loadServices();
   if (tabId === 'network') loadNetwork();
   if (tabId === 'taxonomy') loadTaxonomyScenarios();
@@ -396,44 +376,41 @@ async function fetchHealthSnapshot() {
 function updateTelemetryUI(snap) {
   if (!snap) return;
 
-  // Header
-  const dInfo = snap.distro_info || {};
-  const distroName = dInfo.distro_name || 'Linux';
-  document.getElementById('header-hostname').textContent = (snap.hostname || 'localhost').toUpperCase();
-  document.getElementById('header-distro').textContent = distroName;
-  document.getElementById('header-kernel').textContent = 'Kernel ' + (snap.kernel_release || '');
-
-  const pressureBadge = document.getElementById('header-pressure');
-  pressureBadge.textContent = 'PSI: ' + (snap.pressure_status || 'NORMAL');
-  if (snap.pressure_status === 'ELEVATED') {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FFB800]';
-  } else if (snap.pressure_status === 'CRITICAL') {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#FF0055]';
-  } else {
-    pressureBadge.className = 'font-mono text-[11px] font-bold text-[#00D2FF]';
-  }
-
-  // Health Cards
+  // Header & Hero Stats
   const cpu = snap.cpu || {};
   const mem = snap.memory || {};
   const load = snap.load || {};
 
   const totalCpuPct = (cpu.user_pct || 0) + (cpu.system_pct || 0);
-  document.getElementById('health-cpu-pct').textContent = totalCpuPct.toFixed(1) + '%';
-  document.getElementById('health-cpu-cores').textContent = (cpu.core_count || 1) + ' Cores';
-  document.getElementById('health-cpu-breakdown').textContent = `User: ${(cpu.user_pct||0).toFixed(1)}% | Sys: ${(cpu.system_pct||0).toFixed(1)}% | IO: ${(cpu.iowait_pct||0).toFixed(1)}%`;
 
-  document.getElementById('health-ram-pct').textContent = (mem.used_percent || 0).toFixed(1) + '%';
-  document.getElementById('health-ram-avail').textContent = Math.round(mem.used_mb||0) + ' / ' + Math.round(mem.total_mb||0) + ' MB';
-  document.getElementById('health-swap-info').textContent = 'Swap: ' + (mem.swap_used_percent||0).toFixed(1) + '% used';
+  // Hero Card Stats
+  const heroCpu = document.getElementById('hero-cpu-stat');
+  if (heroCpu) heroCpu.textContent = totalCpuPct.toFixed(1) + '%';
+  const heroPsi = document.getElementById('hero-psi-stat');
+  if (heroPsi) heroPsi.textContent = snap.pressure_status || 'NORMAL';
 
-  document.getElementById('health-load-1m').textContent = (load.load_1m || 0).toFixed(2);
-  document.getElementById('health-load-5m').textContent = `5m: ${(load.load_5m||0).toFixed(2)} | 15m: ${(load.load_15m||0).toFixed(2)}`;
-  document.getElementById('health-procs-count').textContent = `${load.running_processes||0} running / ${load.total_processes||0} procs`;
+  // Health Elements
+  const cpuPctEl = document.getElementById('health-cpu-pct');
+  if (cpuPctEl) cpuPctEl.textContent = totalCpuPct.toFixed(1) + '%';
+  const cpuCoresEl = document.getElementById('health-cpu-cores');
+  if (cpuCoresEl) cpuCoresEl.textContent = (cpu.core_count || 1) + ' Cores';
+  const cpuBreakdownEl = document.getElementById('health-cpu-breakdown');
+  if (cpuBreakdownEl) cpuBreakdownEl.textContent = `User: ${(cpu.user_pct||0).toFixed(1)}% | Sys: ${(cpu.system_pct||0).toFixed(1)}% | IO: ${(cpu.iowait_pct||0).toFixed(1)}%`;
 
-  document.getElementById('health-psi-badge').textContent = snap.pressure_status || 'NORMAL';
-  document.getElementById('health-zombie-count').textContent = (cpu.zombie_count || 0) + ' Zombies';
-  document.getElementById('health-uptime-str').textContent = 'Uptime: ' + ((snap.uptime_seconds||0)/3600).toFixed(1) + ' hrs';
+  const ramPctEl = document.getElementById('health-ram-pct');
+  if (ramPctEl) ramPctEl.textContent = (mem.used_percent || 0).toFixed(1) + '%';
+  const swapInfoEl = document.getElementById('health-swap-info');
+  if (swapInfoEl) swapInfoEl.textContent = 'Swap: ' + (mem.swap_used_percent||0).toFixed(1) + '% used';
+
+  const load1mEl = document.getElementById('health-load-1m');
+  if (load1mEl) load1mEl.textContent = (load.load_1m || 0).toFixed(2);
+  const load5mEl = document.getElementById('health-load-5m');
+  if (load5mEl) load5mEl.textContent = `5m: ${(load.load_5m||0).toFixed(2)} | 15m: ${(load.load_15m||0).toFixed(2)}`;
+
+  const psiBadge = document.getElementById('health-psi-badge');
+  if (psiBadge) psiBadge.textContent = snap.pressure_status || 'NORMAL';
+  const uptimeEl = document.getElementById('health-uptime-str');
+  if (uptimeEl) uptimeEl.textContent = 'Uptime: ' + ((snap.uptime_seconds||0)/3600).toFixed(1) + ' hrs';
 
   // Update Charts
   const nowStr = new Date().toLocaleTimeString();
@@ -461,7 +438,6 @@ function updateTelemetryUI(snap) {
     memoryChart.update('none');
   }
 
-  // Update PSI & Disks tables
   renderPSITable(snap.psi_metrics);
   renderDisksTable(snap.disks);
 }
@@ -472,10 +448,10 @@ function initCharts() {
     maintainAspectRatio: false,
     animation: false,
     scales: {
-      y: { min: 0, max: 100, grid: { color: 'rgba(0,210,255,0.06)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 } } },
-      x: { grid: { color: 'rgba(0,210,255,0.06)' }, ticks: { color: '#62759B', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
+      y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#64748B', font: { family: 'JetBrains Mono', size: 10 } } },
+      x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#64748B', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
     },
-    plugins: { legend: { labels: { color: '#F0F6FF', font: { family: 'Space Grotesk', size: 12, weight: 600 }, boxWidth: 12 } } }
+    plugins: { legend: { labels: { color: '#E2E8F0', font: { family: 'Space Grotesk', size: 12, weight: 600 }, boxWidth: 12 } } }
   };
 
   const ctxCpu = document.getElementById('chart-cpu');
@@ -485,8 +461,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'CPU Total %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.12)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'I/O Wait %', data: [], borderColor: '#FF0055', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'CPU Total %', data: [], borderColor: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.08)', fill: true, tension: 0.25, borderWidth: 2 },
+          { label: 'I/O Wait %', data: [], borderColor: '#94A3B8', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
         ]
       },
       options: chartOptions
@@ -500,8 +476,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'RAM Used %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.10)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'Swap Used %', data: [], borderColor: '#FF0055', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'RAM Used %', data: [], borderColor: '#E2E8F0', backgroundColor: 'rgba(255, 255, 255, 0.06)', fill: true, tension: 0.25, borderWidth: 2 },
+          { label: 'Swap Used %', data: [], borderColor: '#64748B', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
         ]
       },
       options: chartOptions
@@ -513,18 +489,18 @@ function renderPSITable(psi) {
   const container = document.getElementById('psi-table-container');
   if (!container) return;
   if (!psi) {
-    container.innerHTML = '<p class="text-[#62759B] font-mono">Kernel PSI metrics not available (/proc/pressure unmounted).</p>';
+    container.innerHTML = '<p class="text-slate-500 font-mono">Kernel PSI metrics not available (/proc/pressure unmounted).</p>';
     return;
   }
 
   let html = '<div class="grid grid-cols-3 gap-3">';
   for (const [subsys, metrics] of Object.entries(psi)) {
     const avg10 = metrics.some_avg10 || 0;
-    const colorClass = avg10 > 20 ? 'text-[#FF0055]' : (avg10 > 5 ? 'text-[#FFB800]' : 'text-[#00D2FF]');
-    html += `<div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-1.5">
-      <span class="font-display font-bold uppercase text-[#62759B] text-[10px]">${subsys}</span>
-      <div class="text-xl font-bold font-mono ${colorClass}">${avg10.toFixed(2)}%</div>
-      <p class="text-[10px] text-[#62759B] font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
+    const colorClass = avg10 > 20 ? 'text-rose-400' : (avg10 > 5 ? 'text-amber-400' : 'text-white');
+    html += `<div class="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-1.5">
+      <span class="font-sans font-semibold uppercase text-slate-400 text-[10px] tracking-wider">${subsys}</span>
+      <div class="font-editorial italic text-2xl ${colorClass}">${avg10.toFixed(2)}%</div>
+      <p class="text-[10px] text-slate-500 font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
     </div>`;
   }
   html += '</div>';
@@ -535,20 +511,19 @@ function renderDisksTable(disks) {
   const container = document.getElementById('disks-table-container');
   if (!container) return;
   if (!disks || disks.length === 0) {
-    container.innerHTML = '<p class="text-[#62759B] font-mono">No filesystem mounts discovered.</p>';
+    container.innerHTML = '<p class="text-slate-500 font-mono">No filesystem mounts discovered.</p>';
     return;
   }
 
-  let html = '<div class="space-y-2.5">';
+  let html = '<div class="space-y-3">';
   disks.slice(0, 4).forEach(d => {
-    const color = d.used_percent > 85 ? 'bg-[#FF0055]' : (d.used_percent > 70 ? 'bg-[#FFB800]' : 'bg-[#00D2FF]');
-    html += `<div class="p-3 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-2 font-mono text-xs">
+    html += `<div class="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2 font-sans text-xs">
       <div class="flex justify-between">
-        <span class="text-white font-bold">${d.mountpoint}</span>
-        <span class="text-[#00D2FF]">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
+        <span class="text-white font-medium">${d.mountpoint}</span>
+        <span class="text-slate-300 font-mono">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
       </div>
-      <div class="w-full bg-black/80 h-1.5 rounded-full overflow-hidden border border-[#00D2FF]/20">
-        <div class="${color} h-full transition-all duration-500" style="width: ${Math.min(100, d.used_percent)}%"></div>
+      <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden">
+        <div class="bg-white h-full transition-all duration-500" style="width: ${Math.min(100, d.used_percent)}%"></div>
       </div>
     </div>`;
   });
@@ -557,7 +532,7 @@ function renderDisksTable(disks) {
 }
 
 // ==========================================================================
-// AI OPS AGENT: CHAT, REASONING & COMMAND PERMISSION FEED
+// AI OPS AGENT: CHAT & TACTICAL STREAM
 // ==========================================================================
 function quickPrompt(text) {
   playScifiSound('click');
@@ -576,33 +551,30 @@ async function submitAgentPrompt(promptText) {
 
   if (!feed) return;
 
-  // Append user prompt item with generous interior margins & padding
   const userCard = document.createElement('div');
-  userCard.className = 'p-5 sm:p-6 rounded-lg bg-[#080C1E] border border-[#00D2FF]/25 font-mono text-xs text-white space-y-2.5 shadow-[0_2px_12px_rgba(0,0,0,0.5)]';
+  userCard.className = 'p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/15 font-mono text-xs text-white space-y-2';
   userCard.innerHTML = `
-    <div class="flex items-center justify-between text-[10px] text-[#00D2FF] font-display font-bold uppercase tracking-wider">
+    <div class="flex items-center justify-between text-[10px] text-slate-400 font-sans uppercase tracking-wider">
       <span class="flex items-center space-x-1.5">
-        <i data-lucide="user" class="w-3.5 h-3.5 text-[#00D2FF]"></i>
-        <span>SYSADMIN COMMAND VECTOR</span>
+        <i data-lucide="user" class="w-3.5 h-3.5 text-slate-300"></i>
+        <span>Sysadmin Command Vector</span>
       </span>
-      <span class="text-[#62759B]">${new Date().toLocaleTimeString()}</span>
+      <span>${new Date().toLocaleTimeString()}</span>
     </div>
-    <div class="text-xs sm:text-[13px] text-[#F0F6FF] font-semibold pl-4 border-l-2 border-[#00D2FF] leading-relaxed">${escapeHtml(promptText)}</div>
+    <div class="text-xs sm:text-[13px] text-white font-semibold pl-4 border-l-2 border-white leading-relaxed">${escapeHtml(promptText)}</div>
   `;
   feed.appendChild(userCard);
 
-  // Append thinking placeholder
   const agentCard = document.createElement('div');
-  agentCard.className = 'p-6 sm:p-7 rounded-lg bg-[#0C1229] border border-[#00D2FF]/20 space-y-3';
+  agentCard.className = 'p-6 sm:p-7 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3';
   agentCard.innerHTML = `
-    <div class="flex items-center space-x-2.5 text-xs font-display font-bold text-[#00D2FF]">
-      <span class="inline-block w-2 h-2 rounded-full bg-[#00D2FF] animate-ping"></span>
-      <span>AI-OS REASONING &amp; AST VALIDATION IN PROGRESS...</span>
+    <div class="flex items-center space-x-2.5 text-xs font-sans text-slate-300">
+      <span class="inline-block w-2 h-2 rounded-full bg-white animate-ping"></span>
+      <span>Reasoning &amp; AST validation in progress...</span>
     </div>
   `;
   feed.appendChild(agentCard);
 
-  // Scroll feed to bottom
   feed.parentElement.scrollTop = feed.parentElement.scrollHeight;
 
   if (input) input.value = '';
@@ -619,9 +591,9 @@ async function submitAgentPrompt(promptText) {
     renderAgentResponseCard(agentCard, data);
   } catch (e) {
     agentCard.innerHTML = `
-      <div class="text-xs text-[#FF0055] font-mono font-bold flex items-center space-x-2">
+      <div class="text-xs text-rose-400 font-mono font-bold flex items-center space-x-2">
         <i data-lucide="alert-circle" class="w-4 h-4"></i>
-        <span>Agent Dispatch Error: ${escapeHtml(e.message)}</span>
+        <span>Agent Error: ${escapeHtml(e.message)}</span>
       </div>
     `;
   } finally {
@@ -634,21 +606,18 @@ async function submitAgentPrompt(promptText) {
 function renderAgentResponseCard(card, data) {
   playScifiSound('success');
   const safetyClass = getSafetyBadgeClass(data.safety_level || 'READ_ONLY');
-  const isModifying = data.safety_level && data.safety_level !== 'READ_ONLY';
-  const cardBorderClass = isModifying ? 'command-approval-card modifying' : 'scifi-card';
 
-  card.className = `p-6 sm:p-7 space-y-4 ${cardBorderClass}`;
+  card.className = 'avant-card-elevated p-6 sm:p-7 space-y-5';
 
   let stepsHtml = '';
   if (data.steps && data.steps.length > 0) {
     stepsHtml = `
-      <div class="space-y-1.5 text-[11px] text-[#ADC1E2] font-mono border-l-2 border-[#00D2FF]/40 pl-3.5 py-1 leading-relaxed">
+      <div class="space-y-1.5 text-[11px] text-slate-300 font-mono border-l-2 border-white/30 pl-3.5 py-1 leading-relaxed">
         ${data.steps.map(s => `<div>&bull; ${escapeHtml(s)}</div>`).join('')}
       </div>
     `;
   }
 
-  // Planned Command Section
   let commandSectionHtml = '';
   const plannedCmds = data.planned_commands || (data.command ? [{
     command: data.command,
@@ -661,46 +630,43 @@ function renderAgentResponseCard(card, data) {
   if (plannedCmds.length > 0) {
     commandSectionHtml = `
       <div class="space-y-3 pt-1">
-        <div class="text-[10px] font-display font-bold uppercase tracking-wider text-[#00D2FF]">PLANNED COMMAND EXECUTION &amp; GUARDRAILS:</div>
+        <div class="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400">Planned Command Execution &amp; Guardrails:</div>
         ${plannedCmds.map((c) => `
-          <div class="p-4 sm:p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-3 shadow-[inset_0_0_12px_rgba(0,0,0,0.85)]">
+          <div class="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/10 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2.5 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
-              <span class="text-[10px] font-mono text-[#00D2FF]">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-3 py-0.5 rounded-full uppercase">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="text-[10px] font-mono text-slate-400">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
             </div>
 
-            <!-- Exact Command -->
-            <div class="p-3 rounded-lg bg-black/80 border border-[#00D2FF]/20 font-mono text-xs text-white flex items-start justify-between space-x-2.5">
+            <div class="p-3.5 rounded-xl bg-black/80 border border-white/10 font-mono text-xs text-white flex items-start justify-between space-x-2.5">
               <div class="break-all select-all flex-1">
-                <span class="text-[#00D2FF] select-none font-bold">$ </span>
-                <span class="font-semibold">${escapeHtml(c.command)}</span>
+                <span class="text-slate-500 select-none">$ </span>
+                <span class="font-semibold text-white">${escapeHtml(c.command)}</span>
               </div>
-              <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-[#00D2FF] hover:text-white px-1" title="Copy Command">
+              <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-slate-400 hover:text-white px-1" title="Copy Command">
                 <i data-lucide="copy" class="w-3.5 h-3.5"></i>
               </button>
             </div>
 
-            <!-- Short Description of What It Will Do -->
-            <div class="text-xs sm:text-[13px] text-[#F0F6FF] font-sans leading-relaxed">
-              <span class="text-[#62759B] text-[10px] font-display font-bold uppercase block mb-0.5">RATIONALE:</span>
+            <div class="text-xs sm:text-[13px] text-slate-200 font-sans leading-relaxed">
+              <span class="text-slate-500 text-[10px] font-semibold uppercase block mb-0.5">Rationale:</span>
               ${escapeHtml(c.description || 'Executes operation on the system.')}
             </div>
 
             ${c.rollback_command ? `
-              <div class="text-[11px] font-mono text-[#ADC1E2]">
-                <span class="text-[#FFB800] font-bold">Rollback:</span> ${escapeHtml(c.rollback_command)}
+              <div class="text-[11px] font-mono text-slate-400">
+                <span class="text-amber-400 font-bold">Rollback:</span> ${escapeHtml(c.rollback_command)}
               </div>
             ` : ''}
 
-            <!-- Permission Confirmation Buttons -->
-            <div class="flex items-center space-x-2.5 pt-2 border-t border-[#00D2FF]/15">
-              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.command-approval-card'))" class="btn btn-primary px-4 py-2 text-xs">
+            <div class="flex items-center space-x-2.5 pt-2 border-t border-white/10">
+              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.avant-card-elevated'))" class="btn-editorial-primary !py-1.5 !px-3.5 text-xs">
                 <i data-lucide="play" class="w-3 h-3"></i>
-                <span>AUTHORIZE &amp; EXECUTE</span>
+                <span>Authorize &amp; Execute</span>
               </button>
-              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn btn-secondary px-4 py-2 text-xs">
+              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn-editorial-secondary !py-1.5 !px-3.5 text-xs">
                 <i data-lucide="flask-conical" class="w-3 h-3"></i>
-                <span>DRY-RUN SANDBOX</span>
+                <span>Dry-Run Sandbox</span>
               </button>
             </div>
           </div>
@@ -709,18 +675,17 @@ function renderAgentResponseCard(card, data) {
     `;
   }
 
-  // Diagnostic Report / Output JSON viewer
   let outputDetailsHtml = '';
   if (data.output && !plannedCmds.length) {
     outputDetailsHtml = `
-      <pre class="p-4 sm:p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 text-[11px] font-mono text-[#00D2FF] overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
+      <pre class="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/10 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
     `;
   }
 
   let rollbackBtnHtml = '';
   if (data.rollback_command && data.executed) {
     rollbackBtnHtml = `
-      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn btn-secondary px-3.5 py-1.5 text-xs">
+      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn-editorial-secondary !py-1 !px-3 text-xs">
         <i data-lucide="undo-2" class="w-3 h-3"></i>
         <span>Rollback State</span>
       </button>
@@ -728,24 +693,24 @@ function renderAgentResponseCard(card, data) {
   }
 
   card.innerHTML = `
-    <div class="flex items-center justify-between text-xs border-b border-[#00D2FF]/20 pb-3 font-mono">
+    <div class="flex items-center justify-between text-xs border-b border-white/10 pb-3 font-sans">
       <div class="flex items-center space-x-2.5">
-        <span class="font-bold text-white flex items-center space-x-1.5">
-          <i data-lucide="bot" class="w-4 h-4 text-[#00D2FF]"></i>
-          <span class="font-display">INTENT: ${escapeHtml(data.intent || 'ACTION')}</span>
+        <span class="font-semibold text-white flex items-center space-x-1.5">
+          <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+          <span>Intent: ${escapeHtml(data.intent || 'ACTION')}</span>
         </span>
-        <span class="${safetyClass} text-[10px] px-2.5 py-0.5 rounded font-bold uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
+        <span class="${safetyClass} text-[10px] font-mono px-3 py-0.5 rounded-full uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
       </div>
-      <span class="text-[#62759B] text-[10px]">${new Date().toLocaleTimeString()}</span>
+      <span class="text-slate-500 text-[10px]">${new Date().toLocaleTimeString()}</span>
     </div>
 
-    <div class="text-xs sm:text-[13px] text-[#F0F6FF] font-sans font-semibold leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
+    <div class="text-xs sm:text-[13px] text-white font-sans font-medium leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
     
     ${stepsHtml}
     ${commandSectionHtml}
     ${outputDetailsHtml}
 
-    <div class="flex items-center justify-between pt-1 font-mono text-[10px] text-[#62759B]">
+    <div class="flex items-center justify-between pt-1 font-mono text-[10px] text-slate-500">
       <span>Risk Score: ${(data.risk_score || 0.05).toFixed(2)}</span>
       ${rollbackBtnHtml}
     </div>
@@ -758,7 +723,7 @@ function clearAgentFeed() {
   playScifiSound('click');
   const feed = document.getElementById('agent-feed-container');
   if (feed) {
-    feed.innerHTML = '<p class="text-xs font-mono text-[#62759B] p-2">Tactical reasoning feed purged.</p>';
+    feed.innerHTML = '<p class="text-xs font-mono text-slate-500 p-2">Tactical reasoning feed purged.</p>';
   }
 }
 
@@ -787,19 +752,18 @@ async function executeCommandDirect(cmd, rollbackCmd, cardEl) {
       showToast(`Command returned non-zero exit code (${data.returncode})`, 'warning');
     }
 
-    // Append execution result box to card
     if (cardEl) {
       const resultBox = document.createElement('div');
-      resultBox.className = 'p-4 sm:p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 space-y-2 font-mono text-xs shadow-[inset_0_0_10px_rgba(0,0,0,0.85)] leading-relaxed';
+      resultBox.className = 'p-4 sm:p-5 rounded-2xl bg-black/70 border border-white/10 space-y-2 font-mono text-xs leading-relaxed';
       resultBox.innerHTML = `
-        <div class="flex items-center justify-between text-[10px] text-[#62759B]">
-          <span class="font-bold text-[#00D2FF]">&check; EXECUTION COMPLETE</span>
+        <div class="flex items-center justify-between text-[10px] text-slate-500">
+          <span class="font-bold text-white">&check; Execution Complete</span>
           <span>Exit: ${data.returncode} | Latency: ${data.latency_ms || 0}ms</span>
         </div>
-        <pre class="text-[11px] text-[#00D2FF] overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
+        <pre class="text-[11px] text-slate-200 overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
         ${(rollbackCmd || data.rollback_command) ? `
           <div class="pt-2 flex justify-end">
-            <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn btn-secondary px-3 py-1 text-[10px]">
+            <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn-editorial-secondary !py-1 !px-2.5 text-[10px]">
               <i data-lucide="undo-2" class="w-3 h-3"></i>
               <span>Rollback</span>
             </button>
@@ -869,35 +833,35 @@ function renderServicesTable(services) {
   if (!tbody) return;
 
   if (!services || services.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-[#62759B] py-6 font-mono">No matching services found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-500 py-6 font-mono">No matching services found.</td></tr>';
     return;
   }
 
   tbody.innerHTML = services.map(s => {
     const isRunning = s.active_state === 'active' || s.sub_state === 'running';
     const isFailed = s.active_state === 'failed';
-    const statusColor = isFailed ? 'text-[#FF0055]' : (isRunning ? 'text-[#00D2FF]' : 'text-[#62759B]');
-    const dotColor = isFailed ? 'bg-[#FF0055]' : (isRunning ? 'bg-[#00D2FF]' : 'bg-[#62759B]');
+    const statusColor = isFailed ? 'text-rose-400' : (isRunning ? 'text-emerald-400' : 'text-slate-500');
+    const dotColor = isFailed ? 'bg-rose-400' : (isRunning ? 'bg-emerald-400' : 'bg-slate-600');
 
     return `
       <tr>
         <td class="font-semibold text-white">
           <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full ${dotColor} drop-shadow-[0_0_4px_currentColor]"></span>
+            <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
             <span>${escapeHtml(s.unit)}</span>
           </div>
         </td>
         <td class="${statusColor} font-bold">${escapeHtml(s.active_state)} (${escapeHtml(s.sub_state)})</td>
         <td class="text-right space-x-1.5">
-          <button onclick="promptServiceAction('${escapeHtml(s.unit)}', '${isRunning ? 'restart' : 'start'}')" class="btn btn-secondary px-2.5 py-1 text-[11px]">
+          <button onclick="promptServiceAction('${escapeHtml(s.unit)}', '${isRunning ? 'restart' : 'start'}')" class="btn-editorial-secondary !py-1 !px-2.5 text-[11px]">
             ${isRunning ? 'Restart' : 'Start'}
           </button>
           ${isRunning ? `
-            <button onclick="promptServiceAction('${escapeHtml(s.unit)}', 'stop')" class="btn btn-danger px-2.5 py-1 text-[11px]">
+            <button onclick="promptServiceAction('${escapeHtml(s.unit)}', 'stop')" class="btn-editorial-primary !py-1 !px-2.5 text-[11px]">
               Stop
             </button>
           ` : ''}
-          <button onclick="viewServiceLogs('${escapeHtml(s.unit)}')" class="btn btn-ghost px-2 py-1 text-[11px] text-[#00D2FF]">
+          <button onclick="viewServiceLogs('${escapeHtml(s.unit)}')" class="btn-editorial-ghost !py-1 !px-2 text-[11px]">
             Logs
           </button>
         </td>
@@ -944,7 +908,7 @@ async function viewServiceLogs(svc) {
   const title = document.getElementById('modal-logs-title');
   const content = document.getElementById('modal-logs-content');
 
-  if (title) title.textContent = `JOURNAL LOGS: ${svc}`;
+  if (title) title.textContent = `Journal Logs: ${svc}`;
   if (content) content.textContent = 'Streaming journal logs from journalctl...';
   openModal('modal-logs');
 
@@ -972,13 +936,13 @@ async function loadProcesses() {
 
       tbody.innerHTML = (procs || []).slice(0, 30).map(p => `
         <tr>
-          <td class="font-mono text-[#00D2FF]">${p.pid}</td>
-          <td class="text-[#62759B]">${escapeHtml(p.user || 'root')}</td>
+          <td class="font-mono text-white">${p.pid}</td>
+          <td class="text-slate-400">${escapeHtml(p.user || 'root')}</td>
           <td class="font-bold text-white">${(p.cpu_pct||0).toFixed(1)}%</td>
-          <td class="text-[#FF0055] font-bold">${(p.mem_pct||0).toFixed(1)}%</td>
+          <td class="text-slate-300 font-bold">${(p.mem_pct||0).toFixed(1)}%</td>
           <td class="truncate max-w-[140px] text-white" title="${escapeHtml(p.command)}">${escapeHtml(p.command)}</td>
           <td class="text-right">
-            <button onclick="promptKillProcess(${p.pid}, '${escapeHtml(p.command)}')" class="btn btn-danger px-2 py-0.5 text-[10px]">
+            <button onclick="promptKillProcess(${p.pid}, '${escapeHtml(p.command)}')" class="btn-editorial-primary !py-0.5 !px-2 text-[10px]">
               Kill
             </button>
           </td>
@@ -1030,7 +994,7 @@ async function previewOrganize() {
   if (!container) return;
 
   container.classList.remove('hidden');
-  container.innerHTML = '<span class="text-[#00D2FF] font-mono">Analyzing target directory topology...</span>';
+  container.innerHTML = '<span class="text-slate-400 font-mono">Analyzing target directory topology...</span>';
 
   try {
     const res = await fetch('/api/storage/organize/preview', {
@@ -1041,19 +1005,19 @@ async function previewOrganize() {
     const data = await res.json();
     if (data.success) {
       container.innerHTML = `
-        <div class="space-y-1.5 text-xs">
-          <div class="text-[#00D2FF] font-bold">Preview: Discovered ${data.total_files || 0} candidate files to organize:</div>
-          <div class="space-y-1 text-[#F0F6FF]">
-            ${(data.moves || []).slice(0, 10).map(m => `<div>&bull; ${escapeHtml(m.source)} &rarr; <span class="text-[#00D2FF]">${escapeHtml(m.destination)}</span></div>`).join('')}
-            ${(data.moves || []).length > 10 ? `<div class="text-[#62759B]">...and ${data.moves.length - 10} more items</div>` : ''}
+        <div class="space-y-1.5 text-xs font-sans">
+          <div class="text-white font-bold">Preview: Discovered ${data.total_files || 0} candidate files to organize:</div>
+          <div class="space-y-1 text-slate-300 font-mono">
+            ${(data.moves || []).slice(0, 10).map(m => `<div>&bull; ${escapeHtml(m.source)} &rarr; <span class="text-white">${escapeHtml(m.destination)}</span></div>`).join('')}
+            ${(data.moves || []).length > 10 ? `<div class="text-slate-500">...and ${data.moves.length - 10} more items</div>` : ''}
           </div>
         </div>
       `;
     } else {
-      container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(data.error)}</span>`;
+      container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(data.error)}</span>`;
     }
   } catch (e) {
-    container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(e.message)}</span>`;
+    container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(e.message)}</span>`;
   }
 }
 
@@ -1102,7 +1066,7 @@ async function cleanStorage(dryRun) {
   const container = document.getElementById('clean-result-container');
   if (container) {
     container.classList.remove('hidden');
-    container.innerHTML = '<span class="text-[#00D2FF]">Scanning purge candidates...</span>';
+    container.innerHTML = '<span class="text-slate-400">Scanning purge candidates...</span>';
   }
 
   try {
@@ -1114,15 +1078,15 @@ async function cleanStorage(dryRun) {
     const data = await res.json();
     if (container) {
       container.innerHTML = `
-        <div class="space-y-1.5 text-xs">
-          <div class="text-[#00D2FF] font-bold">${dryRun ? 'Purge Preview' : 'Purge Executed'}:</div>
+        <div class="space-y-1.5 text-xs font-sans">
+          <div class="text-white font-bold">${dryRun ? 'Purge Preview' : 'Purge Executed'}:</div>
           <div>Reclaimable Space: <span class="text-white font-bold">${data.reclaimable_mb || 0} MB</span></div>
-          <div class="text-[#62759B]">${escapeHtml(data.details || 'Cache analysis complete.')}</div>
+          <div class="text-slate-400">${escapeHtml(data.details || 'Cache analysis complete.')}</div>
         </div>
       `;
     }
   } catch (e) {
-    if (container) container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(e.message)}</span>`;
+    if (container) container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(e.message)}</span>`;
   }
 }
 
@@ -1131,25 +1095,25 @@ async function loadLargeFiles() {
   const container = document.getElementById('large-files-container');
   if (!container) return;
 
-  container.innerHTML = '<p class="text-[#00D2FF] font-mono">Scanning filesystem tree for files &gt;100MB...</p>';
+  container.innerHTML = '<p class="text-slate-400 font-mono">Scanning filesystem tree for files &gt;100MB...</p>';
 
   try {
     const res = await fetch('/api/storage/large-files?min_mb=100');
     if (res.ok) {
       const files = await res.json();
       if (!files || files.length === 0) {
-        container.innerHTML = '<p class="text-[#00D2FF] font-mono">No files larger than 100MB found.</p>';
+        container.innerHTML = '<p class="text-slate-400 font-mono">No files larger than 100MB found.</p>';
         return;
       }
       container.innerHTML = files.map(f => `
-        <div class="p-2.5 rounded-lg bg-[#050711] border border-[#00D2FF]/15 flex items-center justify-between text-xs font-mono">
+        <div class="p-3 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between text-xs font-mono">
           <span class="truncate max-w-[220px] text-white" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
-          <span class="text-[#FF0055] font-bold">${(f.size_mb||0).toFixed(1)} MB</span>
+          <span class="text-white font-bold">${(f.size_mb||0).toFixed(1)} MB</span>
         </div>
       `).join('');
     }
   } catch (e) {
-    container.innerHTML = `<p class="text-[#FF0055] font-mono">Error: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="text-rose-400 font-mono">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -1166,10 +1130,10 @@ async function loadNetwork() {
       if (tbody) {
         tbody.innerHTML = (ports || []).map(p => `
           <tr>
-            <td class="font-bold text-[#00D2FF] font-mono">${p.port}</td>
-            <td class="text-[#62759B] uppercase font-mono">${p.proto}</td>
-            <td class="text-white font-mono">${p.address}</td>
-            <td class="text-[#FF0055] font-mono truncate max-w-[120px]">${escapeHtml(p.process || '-')}</td>
+            <td class="font-bold text-white font-mono">${p.port}</td>
+            <td class="text-slate-400 uppercase font-mono">${p.proto}</td>
+            <td class="text-slate-300 font-mono">${p.address}</td>
+            <td class="text-slate-400 font-mono truncate max-w-[120px]">${escapeHtml(p.process || '-')}</td>
           </tr>
         `).join('');
       }
@@ -1183,10 +1147,10 @@ async function loadNetwork() {
         card.innerHTML = `
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full ${fw.active ? 'bg-[#00D2FF]' : 'bg-[#FF0055]'} drop-shadow-[0_0_4px_currentColor]"></span>
+              <span class="w-2 h-2 rounded-full ${fw.active ? 'bg-emerald-400' : 'bg-rose-400'}"></span>
               <span class="font-bold text-white">${escapeHtml(fw.firewall_backend || 'UFW/NFT')}: ${fw.active ? 'ACTIVE & FILTERING' : 'INACTIVE'}</span>
             </div>
-            <p class="text-[11px] text-[#62759B]">${escapeHtml(fw.summary || 'Firewall packet filtering active.')}</p>
+            <p class="text-[11px] text-slate-400">${escapeHtml(fw.summary || 'Firewall packet filtering active.')}</p>
           </div>
         `;
       }
@@ -1248,12 +1212,12 @@ async function loadTaxonomyScenarios() {
       if (!grid) return;
 
       grid.innerHTML = (scenarios || []).map(sc => `
-        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-4 rounded-lg bg-[#080C1E] hover:bg-gradient-to-r hover:from-[#00D2FF]/15 hover:to-[#FF0055]/15 border border-[#00D2FF]/20 text-left transition space-y-1.5 group shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
-          <div class="text-xs font-display font-bold text-white group-hover:text-[#00D2FF] flex items-center space-x-1.5">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-[#00D2FF]"></i>
+        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-left transition space-y-1.5 group">
+          <div class="text-xs font-semibold text-white group-hover:text-slate-200 flex items-center space-x-1.5">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-white"></i>
             <span class="truncate">${escapeHtml(sc.name)}</span>
           </div>
-          <div class="text-[10px] text-[#62759B] font-mono truncate">${escapeHtml(sc.category || 'System')}</div>
+          <div class="text-[10px] text-slate-500 font-mono truncate">${escapeHtml(sc.category || 'System')}</div>
         </button>
       `).join('');
       if (window.lucide) lucide.createIcons();
@@ -1269,7 +1233,7 @@ async function runTaxonomyScenario(scenarioId) {
   if (!reportContainer) return;
 
   reportContainer.classList.remove('hidden');
-  document.getElementById('diag-report-title').textContent = `DIAGNOSING SCENARIO: ${scenarioId.toUpperCase()}...`;
+  document.getElementById('diag-report-title').textContent = `Diagnosing Scenario: ${scenarioId.toUpperCase()}...`;
   document.getElementById('diag-symptom').textContent = 'Correlating multi-vector telemetry across journald, dmesg, and PSI metrics...';
   document.getElementById('diag-root-cause').textContent = 'Constructing directed causality DAG...';
   document.getElementById('diag-rationale').textContent = 'Calculating topological in-degree minimization...';
@@ -1283,12 +1247,11 @@ async function runTaxonomyScenario(scenarioId) {
     const report = await res.json();
     playScifiSound('success');
 
-    document.getElementById('diag-report-title').textContent = `XAI DIAGNOSIS // ${report.taxonomy_class || scenarioId.toUpperCase()}`;
+    document.getElementById('diag-report-title').textContent = `XAI Diagnosis: ${report.taxonomy_class || scenarioId.toUpperCase()}`;
     document.getElementById('diag-symptom').textContent = report.symptom || 'Anomaly detected.';
     document.getElementById('diag-root-cause').textContent = report.root_cause || 'Root cause isolated.';
     document.getElementById('diag-rationale').textContent = report.rationale || 'Topological analysis completed.';
 
-    // Render Mermaid DAG if available
     const mermaidContainer = document.getElementById('mermaid-dag-container');
     if (mermaidContainer && report.mermaid_dag) {
       mermaidContainer.innerHTML = `<div class="mermaid">${escapeHtml(report.mermaid_dag)}</div>`;
@@ -1296,29 +1259,28 @@ async function runTaxonomyScenario(scenarioId) {
         mermaid.init(undefined, mermaidContainer.querySelectorAll('.mermaid'));
       }
     } else if (mermaidContainer) {
-      mermaidContainer.innerHTML = '<span class="text-xs font-mono text-[#62759B]">Topological Graph: InDegree=0 Root Isolated</span>';
+      mermaidContainer.innerHTML = '<span class="text-xs font-mono text-slate-500">Topological Graph: InDegree=0 Root Isolated</span>';
     }
 
-    // Render Remediation Commands
     const cmdsContainer = document.getElementById('diag-commands-container');
     if (cmdsContainer) {
       const cmds = report.remediation_commands || [];
       if (cmds.length === 0) {
-        cmdsContainer.innerHTML = '<p class="text-xs text-[#00D2FF] font-mono">No mutating commands required. State is clean.</p>';
+        cmdsContainer.innerHTML = '<p class="text-xs text-white font-mono">No mutating commands required. State is clean.</p>';
       } else {
         cmdsContainer.innerHTML = cmds.map(c => `
-          <div class="p-4 rounded-lg bg-[#050711] border border-[#00D2FF]/20 space-y-2.5">
+          <div class="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-2.5">
             <div class="flex items-center justify-between">
-              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2.5 py-0.5 rounded font-bold uppercase">${c.safety_level || 'READ_ONLY'}</span>
-              <span class="text-[10px] font-mono text-[#00D2FF]">Risk: ${(c.risk_score||0.05).toFixed(2)}</span>
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-3 py-0.5 rounded-full uppercase">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="text-[10px] font-mono text-slate-400">Risk: ${(c.risk_score||0.05).toFixed(2)}</span>
             </div>
-            <div class="p-2.5 rounded bg-black/80 font-mono text-xs text-white border border-[#00D2FF]/20 flex items-center justify-between">
-              <span class="font-semibold text-[#00D2FF]">$ ${escapeHtml(c.command)}</span>
-              <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale || '')}', '${escapeHtml(c.safety_level || 'READ_ONLY')}', ${c.risk_score || 0.05}, '${escapeHtml(c.rollback || '')}')" class="btn btn-primary px-3.5 py-1 text-xs">
+            <div class="p-3 rounded-xl bg-black/80 font-mono text-xs text-white border border-white/10 flex items-center justify-between">
+              <span class="font-semibold text-white">$ ${escapeHtml(c.command)}</span>
+              <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale || '')}', '${escapeHtml(c.safety_level || 'READ_ONLY')}', ${c.risk_score || 0.05}, '${escapeHtml(c.rollback || '')}')" class="btn-editorial-primary !py-1 !px-3 text-xs">
                 Execute
               </button>
             </div>
-            <p class="text-xs text-[#ADC1E2] font-sans leading-relaxed">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
+            <p class="text-xs text-slate-300 font-sans leading-relaxed">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
           </div>
         `).join('');
       }
@@ -1348,26 +1310,26 @@ async function searchPackage() {
   const container = document.getElementById('pkg-result-container');
 
   if (!pkg || !container) return;
-  container.innerHTML = '<p class="text-[#00D2FF] font-mono">Querying multi-distro package repository...</p>';
+  container.innerHTML = '<p class="text-slate-400 font-mono">Querying multi-distro package repository...</p>';
 
   try {
     const res = await fetch(`/api/packages/search?query=${encodeURIComponent(pkg)}`);
     if (res.ok) {
       const data = await res.json();
       container.innerHTML = `
-        <div class="space-y-2.5">
+        <div class="space-y-2.5 font-sans">
           <div class="flex items-center justify-between text-white font-bold">
-            <span class="font-display">${escapeHtml(data.package || pkg)}</span>
-            <span class="text-xs text-[#00D2FF]">${data.installed ? 'INSTALLED' : 'AVAILABLE IN REPO'}</span>
+            <span class="font-editorial italic text-base">${escapeHtml(data.package || pkg)}</span>
+            <span class="text-xs text-slate-400 font-mono">${data.installed ? 'INSTALLED' : 'AVAILABLE IN REPO'}</span>
           </div>
-          <p class="text-xs text-[#ADC1E2] font-sans leading-relaxed">${escapeHtml(data.description || 'Package metadata located.')}</p>
+          <p class="text-xs text-slate-300 leading-relaxed">${escapeHtml(data.description || 'Package metadata located.')}</p>
           <div class="pt-2 flex space-x-2.5">
             ${!data.installed ? `
-              <button onclick="requestCommandPermission({command: 'pacman -S --noconfirm ${pkg}', description: 'Installs package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.35, onApprove: () => executeCommandDirect('pacman -S --noconfirm ${pkg}', 'pacman -R --noconfirm ${pkg}')})" class="btn btn-primary px-3.5 py-1.5 text-xs">
+              <button onclick="requestCommandPermission({command: 'pacman -S --noconfirm ${pkg}', description: 'Installs package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.35, onApprove: () => executeCommandDirect('pacman -S --noconfirm ${pkg}', 'pacman -R --noconfirm ${pkg}')})" class="btn-editorial-primary !py-1.5 !px-3.5 text-xs">
                 Install Package
               </button>
             ` : `
-              <button onclick="requestCommandPermission({command: 'pacman -R --noconfirm ${pkg}', description: 'Removes package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.40, onApprove: () => executeCommandDirect('pacman -R --noconfirm ${pkg}', 'pacman -S --noconfirm ${pkg}')})" class="btn btn-danger px-3.5 py-1.5 text-xs">
+              <button onclick="requestCommandPermission({command: 'pacman -R --noconfirm ${pkg}', description: 'Removes package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.40, onApprove: () => executeCommandDirect('pacman -R --noconfirm ${pkg}', 'pacman -S --noconfirm ${pkg}')})" class="btn-editorial-primary !py-1.5 !px-3.5 text-xs">
                 Remove Package
               </button>
             `}
@@ -1376,7 +1338,7 @@ async function searchPackage() {
       `;
     }
   } catch (e) {
-    container.innerHTML = `<p class="text-[#FF0055] font-mono">Error: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="text-rose-400 font-mono">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -1419,7 +1381,7 @@ function promptDownload() {
       const container = document.getElementById('download-result-container');
       if (container) {
         container.classList.remove('hidden');
-        container.innerHTML = '<span class="text-[#00D2FF]">Streaming bytes from remote host...</span>';
+        container.innerHTML = '<span class="text-slate-400">Streaming bytes from remote host...</span>';
       }
       try {
         const res = await fetch('/api/download', {
@@ -1431,14 +1393,14 @@ function promptDownload() {
         if (container) {
           if (data.success) {
             container.innerHTML = `
-              <div class="text-[#00D2FF] font-bold">&check; Download completed: ${escapeHtml(data.filename || 'file')} (${(data.size_mb || 0).toFixed(2)} MB) in ${dest}</div>
+              <div class="text-white font-bold">&check; Download completed: ${escapeHtml(data.filename || 'file')} (${(data.size_mb || 0).toFixed(2)} MB) in ${dest}</div>
             `;
           } else {
-            container.innerHTML = `<span class="text-[#FF0055]">Download failed: ${escapeHtml(data.error)}</span>`;
+            container.innerHTML = `<span class="text-rose-400">Download failed: ${escapeHtml(data.error)}</span>`;
           }
         }
       } catch (e) {
-        if (container) container.innerHTML = `<span class="text-[#FF0055]">Error: ${escapeHtml(e.message)}</span>`;
+        if (container) container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(e.message)}</span>`;
       }
     }
   });
@@ -1486,11 +1448,11 @@ function getSafetyBadgeClass(lvl) {
 }
 
 function getSafetyTextColor(lvl) {
-  if (lvl === 'READ_ONLY') return 'text-[#00D2FF]';
-  if (lvl === 'MODIFYING') return 'text-[#FFB800]';
-  if (lvl === 'HIGH_RISK') return 'text-[#FF0055]';
-  if (lvl === 'DESTRUCTIVE') return 'text-[#FF0055]';
-  return 'text-[#00D2FF]';
+  if (lvl === 'READ_ONLY') return 'text-sky-400';
+  if (lvl === 'MODIFYING') return 'text-amber-400';
+  if (lvl === 'HIGH_RISK') return 'text-rose-400';
+  if (lvl === 'DESTRUCTIVE') return 'text-rose-500';
+  return 'text-white';
 }
 
 function escapeHtml(str) {
