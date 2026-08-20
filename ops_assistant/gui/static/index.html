@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Linux Operations Assistant // Cyber Command Center</title>
+  <title>Linux Operations Assistant // Ethereal Avant-Garde Command Center</title>
   <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -11,28 +11,30 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Mermaid.js for Causal DAG rendering -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=5.0">
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
           colors: {
+            ethereal: {
+              white: '#F8FAFC',
+              mist: '#DDEBF8',
+              silver: '#CBD5E1',
+              ice: '#A0C4FF',
+              lavender: '#C7D2FE'
+            },
             cyber: {
               blue: '#00D2FF',
               cobalt: '#0066FF',
               red: '#FF0055',
               crimson: '#FF2A54',
-              amber: '#FFB800',
-              void: '#050711',
-              dark: '#080C1E',
-              surface: '#0C1229',
-              elevated: '#101835',
-              input: '#070B1A'
+              amber: '#FFB800'
             }
           },
           fontFamily: {
-            display: ['Orbitron', 'Syne', 'sans-serif'],
+            display: ['Syne', 'Orbitron', 'sans-serif'],
             hero: ['Syne', 'sans-serif'],
             tech: ['Space Grotesk', 'sans-serif'],
             sans: ['Plus Jakarta Sans', 'sans-serif'],
@@ -43,17 +45,17 @@
     }
   </script>
 </head>
-<body class="bg-[#050711] text-[#F0F6FF] min-h-screen flex font-tech antialiased selection:bg-[#00D2FF] selection:text-black overflow-hidden">
+<body class="text-[#F8FAFC] min-h-screen flex font-tech antialiased selection:bg-[#00D2FF] selection:text-black overflow-hidden">
 
-  <!-- Ambient CRT Scanline Overlay -->
+  <!-- Ambient CRT Scanline & Grain Overlay -->
   <div class="scanline-overlay" id="scanline-layer"></div>
 
-  <!-- LEFT SIDEBAR: ELEVATED CYBER NAVIGATION -->
-  <aside class="w-64 shrink-0 bg-[#080C1E]/95 border-r border-[#00D2FF]/20 flex flex-col h-screen sticky top-0 z-30 select-none backdrop-blur-md">
+  <!-- LEFT SIDEBAR: SUSPENDED ZERO-G GLASS NAVIGATION -->
+  <aside class="w-64 shrink-0 bg-[var(--glass-sidebar)] border-r border-[rgba(160,210,255,0.18)] flex flex-col h-screen sticky top-0 z-30 select-none backdrop-blur-xl">
     
-    <!-- Sidebar Header & Cyber Core Brand -->
-    <div class="p-4 border-b border-[#00D2FF]/20 flex items-center space-x-3 bg-[#0C1229]/70">
-      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-[#00D2FF]/20 via-[#0066FF]/20 to-[#FF0055]/20 border border-[#00D2FF]/40 text-[#00D2FF] flex items-center justify-center font-hero font-extrabold text-base shadow-[0_0_12px_rgba(0,210,255,0.3)] shrink-0">
+    <!-- Sidebar Header & Avant-Garde Core Brand -->
+    <div class="p-4 border-b border-[rgba(160,210,255,0.18)] flex items-center space-x-3 bg-white/[0.02]">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00D2FF]/20 via-[#A0C4FF]/20 to-[#FF0055]/20 border border-[rgba(160,210,255,0.4)] text-[#00D2FF] flex items-center justify-center font-hero font-extrabold text-base shadow-[0_0_16px_rgba(0,210,255,0.3)] shrink-0">
         <i data-lucide="cpu" class="w-5 h-5 text-[#00D2FF] stroke-[2.2]"></i>
       </div>
       <div class="min-w-0">
@@ -61,7 +63,7 @@
           <h1 class="font-hero font-bold text-sm tracking-wider text-white truncate">LINUX<span class="text-[#00D2FF]">OPS</span></h1>
           <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#00D2FF]/15 text-[#00D2FF] border border-[#00D2FF]/30">v3.0</span>
         </div>
-        <p class="text-[10px] text-[#62759B] font-mono tracking-wider uppercase truncate">Linux Operations Assistant</p>
+        <p class="text-[10px] text-[#7E94B8] font-mono tracking-wider uppercase truncate">Linux Operations Assistant</p>
       </div>
     </div>
 
@@ -70,7 +72,7 @@
       
       <!-- Core Assistant Deck -->
       <div class="space-y-1">
-        <div class="px-3 pb-1 text-[10px] font-display font-semibold text-[#62759B] uppercase tracking-widest">COMMAND CORE</div>
+        <div class="px-3 pb-1 text-[10px] font-display font-semibold text-[#7E94B8] uppercase tracking-widest">COMMAND CORE</div>
         <button onclick="switchTab('home')" id="tab-btn-home" class="nav-tab active w-full hud-corner">
           <i data-lucide="terminal" class="w-4 h-4"></i>
           <span class="flex-1 text-left font-semibold">AI Ops Deck</span>
@@ -80,7 +82,7 @@
 
       <!-- System Function Modules -->
       <div class="space-y-1">
-        <div class="px-3 pb-1 text-[10px] font-display font-semibold text-[#62759B] uppercase tracking-widest">TELEMETRY &amp; OPS</div>
+        <div class="px-3 pb-1 text-[10px] font-display font-semibold text-[#7E94B8] uppercase tracking-widest">TELEMETRY &amp; OPS</div>
         <button onclick="switchTab('health')" id="tab-btn-health" class="nav-tab w-full">
           <i data-lucide="activity" class="w-4 h-4"></i>
           <span class="flex-1 text-left font-medium">Health &amp; PSI</span>
@@ -113,7 +115,7 @@
     </div>
 
     <!-- Sidebar Footer: Host Status & Dual-Orb Radar -->
-    <div class="p-3.5 border-t border-[#00D2FF]/20 bg-[#070B1A]/95 space-y-2.5 text-xs">
+    <div class="p-3.5 border-t border-[rgba(160,210,255,0.18)] bg-black/20 space-y-2.5 text-xs">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-2.5 min-w-0">
           <div class="radar-orb shrink-0"></div>
@@ -122,24 +124,24 @@
             <span class="text-[9px] text-[#00D2FF] font-mono block">QUANTUM LINK ACTIVE</span>
           </div>
         </div>
-        <button id="btn-refresh-health" title="Refresh Telemetry" class="p-1.5 hover:bg-[#00D2FF]/15 rounded text-[#62759B] hover:text-[#00D2FF] transition">
+        <button id="btn-refresh-health" title="Refresh Telemetry" class="p-1.5 hover:bg-[#00D2FF]/15 rounded-lg text-[#7E94B8] hover:text-[#00D2FF] transition">
           <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
         </button>
       </div>
-      <div class="text-[10px] text-[#62759B] font-mono flex items-center justify-between pt-1 border-t border-[#00D2FF]/10">
+      <div class="text-[10px] text-[#7E94B8] font-mono flex items-center justify-between pt-1 border-t border-[rgba(160,210,255,0.1)]">
         <span id="header-distro" class="truncate text-zinc-300">Linux</span>
         <span class="text-[#00D2FF]/40">&bull;</span>
         <span id="header-pressure" class="font-bold text-[#00D2FF]">PSI: NORMAL</span>
       </div>
-      <div class="text-[9px] text-[#62759B] font-mono truncate" id="header-kernel">Kernel ...</div>
+      <div class="text-[9px] text-[#7E94B8] font-mono truncate" id="header-kernel">Kernel ...</div>
     </div>
   </aside>
 
   <!-- MAIN WORKSPACE (CENTER / RIGHT) -->
-  <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[#050711]">
+  <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-transparent">
     
     <!-- Top Tactical Header HUD Bar -->
-    <header class="border-b border-[#00D2FF]/20 bg-[#080C1E]/90 backdrop-blur-md sticky top-0 z-20 px-7 py-3 flex items-center justify-between shrink-0 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
+    <header class="border-b border-[rgba(160,210,255,0.18)] bg-[var(--glass-header)] backdrop-blur-xl sticky top-0 z-20 px-7 py-3.5 flex items-center justify-between shrink-0 shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
       <div class="flex items-center space-x-2.5">
         <span class="text-xs font-hero font-bold text-[#00D2FF] uppercase tracking-wider">SYS://CORE</span>
         <span class="text-[#00D2FF]/40">/</span>
@@ -147,25 +149,25 @@
       </div>
       <div class="flex items-center space-x-3.5 text-xs">
         <!-- Live Tactical Clock -->
-        <div class="hidden sm:flex items-center space-x-1.5 text-[#00D2FF] bg-[#00D2FF]/10 border border-[#00D2FF]/25 px-3 py-1 rounded font-mono text-[11px]">
+        <div class="hidden sm:flex items-center space-x-1.5 text-[#00D2FF] bg-[#00D2FF]/10 border border-[#00D2FF]/25 px-3 py-1 rounded-lg font-mono text-[11px]">
           <i data-lucide="clock" class="w-3 h-3 text-[#00D2FF]"></i>
           <span id="hud-tactical-clock">00:00:00 UTC</span>
         </div>
 
         <!-- Audio SFX Toggle Button -->
-        <button id="btn-toggle-sfx" onclick="toggleSFX()" class="flex items-center space-x-1.5 bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/25 px-2.5 py-1 rounded transition text-xs font-mono">
+        <button id="btn-toggle-sfx" onclick="toggleSFX()" class="flex items-center space-x-1.5 bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/25 px-2.5 py-1 rounded-lg transition text-xs font-mono">
           <i data-lucide="volume-2" class="w-3.5 h-3.5 text-[#00D2FF]"></i>
           <span class="text-[#00D2FF] text-[10px]">SFX ON</span>
         </button>
 
         <!-- Scanlines CRT Toggle Button -->
-        <button id="btn-toggle-scanlines" onclick="toggleScanlines()" class="hidden md:flex items-center space-x-1.5 bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/25 px-2.5 py-1 rounded transition text-xs font-mono">
+        <button id="btn-toggle-scanlines" onclick="toggleScanlines()" class="hidden md:flex items-center space-x-1.5 bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/25 px-2.5 py-1 rounded-lg transition text-xs font-mono">
           <i data-lucide="tv" class="w-3.5 h-3.5 text-[#00D2FF]"></i>
           <span class="text-[#00D2FF] text-[10px]">SCANLINES</span>
         </button>
 
         <!-- Sandbox Status Badge -->
-        <div class="hidden lg:flex items-center space-x-2 text-[#00D2FF] text-[11px] font-mono bg-[#00D2FF]/10 border border-[#00D2FF]/25 px-3 py-1 rounded">
+        <div class="hidden lg:flex items-center space-x-2 text-[#00D2FF] text-[11px] font-mono bg-[#00D2FF]/10 border border-[#00D2FF]/25 px-3 py-1 rounded-lg">
           <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00D2FF] animate-ping"></span>
           <span>AST GUARDRAILS ARMORED</span>
         </div>
@@ -180,22 +182,22 @@
     <!-- ======================================================== -->
     <div id="tab-content-home" class="tab-content space-y-8">
       
-      <!-- Elevated Command Deck Box with Generous Margins -->
-      <div class="scifi-card-elevated hud-corner p-7 md:p-8 space-y-6">
+      <!-- Elevated Command Deck Box with Floating Glassmorphism -->
+      <div class="glass-panel-elevated hud-corner p-7 md:p-8 space-y-6">
         
         <!-- Header Row with Distinct Margins & Font Scaling -->
-        <div class="flex items-center justify-between pb-1 border-b border-[#00D2FF]/10">
-          <div class="flex items-center space-x-2.5 text-sm sm:text-base font-display font-bold text-[#00D2FF] uppercase tracking-wider">
+        <div class="flex items-center justify-between pb-2 border-b border-[rgba(160,210,255,0.12)]">
+          <div class="flex items-center space-x-2.5 text-sm sm:text-base font-display font-bold text-white uppercase tracking-wider">
             <i data-lucide="zap" class="w-4 h-4 text-[#00D2FF] animate-pulse"></i>
             <span>AUTONOMOUS SYSADMIN COMMAND DECK</span>
           </div>
-          <div class="flex items-center space-x-2 text-xs text-[#00D2FF] font-mono bg-[#00D2FF]/10 border border-[#00D2FF]/25 px-2.5 py-1 rounded-md">
-            <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00D2FF] shadow-[0_0_6px_#00D2FF]"></span>
+          <div class="flex items-center space-x-2 text-xs text-[#00D2FF] font-mono bg-[#00D2FF]/10 border border-[#00D2FF]/25 px-3 py-1 rounded-lg">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00D2FF] shadow-[0_0_8px_#00D2FF]"></span>
             <span>4-TIER RISK MATRIX ACTIVE</span>
           </div>
         </div>
 
-        <!-- Prompt Form with Clean Margins & Generous Padding -->
+        <!-- Prompt Form with Translucent Glass Input -->
         <form id="agent-prompt-form" class="space-y-3 pt-1">
           <div class="relative flex items-center">
             <div class="absolute left-4 text-[#00D2FF] font-mono text-sm select-none font-bold">AI://&gt;</div>
@@ -203,7 +205,7 @@
               type="text" 
               id="agent-prompt-input" 
               placeholder="Ask a diagnostic query, control services, analyze telemetry, or organize directories..." 
-              class="scifi-input w-full pl-18 pr-32 py-3.5 text-sm placeholder-[#384666] font-mono"
+              class="scifi-input w-full pl-18 pr-32 py-3.5 text-sm placeholder-[#475569] font-mono"
               autocomplete="off"
             />
             <button 
@@ -218,8 +220,8 @@
         </form>
 
         <!-- Mission Presets Row with Generous Spacing -->
-        <div class="pt-2 border-t border-[#00D2FF]/10">
-          <div class="text-[10px] font-display font-semibold uppercase tracking-widest text-[#62759B] mb-3">MISSION PRESETS:</div>
+        <div class="pt-2 border-t border-[rgba(160,210,255,0.12)]">
+          <div class="text-[10px] font-display font-semibold uppercase tracking-widest text-[#7E94B8] mb-3">MISSION PRESETS:</div>
           <div class="flex flex-wrap items-center gap-2.5 text-xs">
             <button type="button" onclick="quickPrompt('Why is port 80 blocked in firewall?')" class="scifi-chip">
               ⚡ Port 80 Blocked
@@ -247,23 +249,23 @@
       </div>
 
       <!-- Agent Activity / Reasoning Stream Feed with Unified Padding -->
-      <div class="scifi-card hud-corner p-7 md:p-8 space-y-6">
-        <div class="flex items-center justify-between border-b border-[#00D2FF]/15 pb-4">
-          <div class="flex items-center space-x-2.5 font-display font-bold text-sm sm:text-base text-[#00D2FF] uppercase tracking-wider">
+      <div class="glass-panel hud-corner p-7 md:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-[rgba(160,210,255,0.15)] pb-4">
+          <div class="flex items-center space-x-2.5 font-display font-bold text-sm sm:text-base text-white uppercase tracking-wider">
             <i data-lucide="layers" class="w-4 h-4 text-[#00D2FF]"></i>
             <span>TACTICAL REASONING &amp; EXECUTION STREAM</span>
           </div>
-          <button onclick="clearAgentFeed()" class="text-xs font-tech font-semibold text-[#62759B] hover:text-[#00D2FF] transition">PURGE STREAM</button>
+          <button onclick="clearAgentFeed()" class="text-xs font-tech font-semibold text-[#7E94B8] hover:text-[#00D2FF] transition">PURGE STREAM</button>
         </div>
 
         <div id="agent-feed-container" class="space-y-5">
           <!-- Initial Placeholder with Balanced Padding & Line Height -->
-          <div class="p-6 sm:p-7 rounded-lg bg-[#080C1E]/80 border border-[#00D2FF]/20 space-y-3 font-tech">
+          <div class="p-6 sm:p-7 rounded-xl bg-white/[0.02] border border-[rgba(160,210,255,0.18)] space-y-3 font-tech">
             <div class="flex items-center space-x-2 text-[#00D2FF] font-display font-bold text-sm">
               <i data-lucide="sparkles" class="w-4 h-4 text-[#00D2FF]"></i>
               <span>OPS ASSISTANT CORE ONLINE</span>
             </div>
-            <p class="leading-relaxed font-sans text-xs sm:text-[13px] text-[#ADC1E2] leading-6">
+            <p class="leading-relaxed font-sans text-xs sm:text-[13px] text-[#CBD5E1] leading-6">
               Enter any natural language sysadmin instruction or anomaly query in the command deck above. The assistant will construct a dynamic Directed Causality DAG, correlate Kernel PSI pressure stall metrics, enforce AST sandboxed validation, synthesize state-reverting rollback commands, and request explicit authorization before mutating system state.
             </p>
           </div>
@@ -277,46 +279,46 @@
     <div id="tab-content-health" class="tab-content hidden space-y-8">
       <!-- 4 Core Metric Gauges -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="scifi-card hud-corner p-5 space-y-2.5">
-          <span class="text-[11px] text-[#62759B] font-display font-semibold uppercase tracking-wider">CPU UTILIZATION</span>
+        <div class="glass-panel hud-corner p-5 space-y-2.5">
+          <span class="text-[11px] text-[#7E94B8] font-display font-semibold uppercase tracking-wider">CPU UTILIZATION</span>
           <div class="flex items-baseline justify-between">
-            <span id="health-cpu-pct" class="text-2xl font-bold font-display text-[#00D2FF] drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]">0.0%</span>
-            <span id="health-cpu-cores" class="text-xs text-[#62759B] font-mono">1 Core</span>
+            <span id="health-cpu-pct" class="text-2xl font-bold font-display text-[#00D2FF] drop-shadow-[0_0_10px_rgba(0,210,255,0.4)]">0.0%</span>
+            <span id="health-cpu-cores" class="text-xs text-[#7E94B8] font-mono">1 Core</span>
           </div>
-          <p class="text-[10px] text-[#62759B] font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
+          <p class="text-[10px] text-[#7E94B8] font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
         </div>
 
-        <div class="scifi-card hud-corner p-5 space-y-2.5">
-          <span class="text-[11px] text-[#62759B] font-display font-semibold uppercase tracking-wider">MEMORY (RAM)</span>
+        <div class="glass-panel hud-corner p-5 space-y-2.5">
+          <span class="text-[11px] text-[#7E94B8] font-display font-semibold uppercase tracking-wider">MEMORY (RAM)</span>
           <div class="flex items-baseline justify-between">
-            <span id="health-ram-pct" class="text-2xl font-bold font-display text-[#00D2FF] drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]">0.0%</span>
-            <span id="health-ram-avail" class="text-xs text-[#62759B] font-mono">0 / 0 MB</span>
+            <span id="health-ram-pct" class="text-2xl font-bold font-display text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">0.0%</span>
+            <span id="health-ram-avail" class="text-xs text-[#7E94B8] font-mono">0 / 0 MB</span>
           </div>
-          <p class="text-[10px] text-[#62759B] font-mono truncate" id="health-swap-info">Swap: 0% used</p>
+          <p class="text-[10px] text-[#7E94B8] font-mono truncate" id="health-swap-info">Swap: 0% used</p>
         </div>
 
-        <div class="scifi-card hud-corner p-5 space-y-2.5">
-          <span class="text-[11px] text-[#62759B] font-display font-semibold uppercase tracking-wider">LOAD AVERAGE</span>
+        <div class="glass-panel hud-corner p-5 space-y-2.5">
+          <span class="text-[11px] text-[#7E94B8] font-display font-semibold uppercase tracking-wider">LOAD AVERAGE</span>
           <div class="flex items-baseline justify-between">
-            <span id="health-load-1m" class="text-2xl font-bold font-display text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]">0.00</span>
-            <span id="health-load-5m" class="text-xs text-[#62759B] font-mono">5m: 0.00 | 15m: 0.00</span>
+            <span id="health-load-1m" class="text-2xl font-bold font-display text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">0.00</span>
+            <span id="health-load-5m" class="text-xs text-[#7E94B8] font-mono">5m: 0.00 | 15m: 0.00</span>
           </div>
-          <p class="text-[10px] text-[#62759B] font-mono truncate" id="health-procs-count">0 running / 0 procs</p>
+          <p class="text-[10px] text-[#7E94B8] font-mono truncate" id="health-procs-count">0 running / 0 procs</p>
         </div>
 
-        <div class="scifi-card hud-corner p-5 space-y-2.5">
-          <span class="text-[11px] text-[#62759B] font-display font-semibold uppercase tracking-wider">KERNEL PSI STALL</span>
+        <div class="glass-panel hud-corner p-5 space-y-2.5">
+          <span class="text-[11px] text-[#7E94B8] font-display font-semibold uppercase tracking-wider">KERNEL PSI STALL</span>
           <div class="flex items-baseline justify-between">
-            <span id="health-psi-badge" class="text-2xl font-bold font-display text-[#00D2FF] drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]">NORMAL</span>
-            <span id="health-zombie-count" class="text-xs text-[#62759B] font-mono">0 Zombies</span>
+            <span id="health-psi-badge" class="text-2xl font-bold font-display text-[#00D2FF] drop-shadow-[0_0_10px_rgba(0,210,255,0.4)]">NORMAL</span>
+            <span id="health-zombie-count" class="text-xs text-[#7E94B8] font-mono">0 Zombies</span>
           </div>
-          <p class="text-[10px] text-[#62759B] font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
+          <p class="text-[10px] text-[#7E94B8] font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
         </div>
       </div>
 
       <!-- Real-Time Telemetry Charts -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="scifi-card hud-corner p-6 space-y-3.5">
+        <div class="glass-panel hud-corner p-6 space-y-3.5">
           <div class="flex items-center justify-between">
             <h3 class="font-display font-semibold text-xs text-[#00D2FF] uppercase tracking-wider flex items-center space-x-2">
               <i data-lucide="cpu" class="w-4 h-4 text-[#00D2FF]"></i>
@@ -329,13 +331,13 @@
           </div>
         </div>
 
-        <div class="scifi-card hud-corner p-6 space-y-3.5">
+        <div class="glass-panel hud-corner p-6 space-y-3.5">
           <div class="flex items-center justify-between">
-            <h3 class="font-display font-semibold text-xs text-[#00D2FF] uppercase tracking-wider flex items-center space-x-2">
-              <i data-lucide="database" class="w-4 h-4 text-[#00D2FF]"></i>
+            <h3 class="font-display font-semibold text-xs text-white uppercase tracking-wider flex items-center space-x-2">
+              <i data-lucide="database" class="w-4 h-4 text-[#A0C4FF]"></i>
               <span>RAM &amp; SWAP CONSUMPTION BUFFER</span>
             </h3>
-            <span class="text-[10px] font-mono text-[#00D2FF]">LIVE BUFFER</span>
+            <span class="text-[10px] font-mono text-[#A0C4FF]">LIVE BUFFER</span>
           </div>
           <div class="h-56 relative">
             <canvas id="chart-memory"></canvas>
@@ -345,23 +347,23 @@
 
       <!-- PSI & Filesystem Tables Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <h3 class="font-display font-semibold text-xs text-[#00D2FF] uppercase tracking-wider flex items-center space-x-2">
             <i data-lucide="gauge" class="w-4 h-4 text-[#00D2FF]"></i>
             <span>KERNEL PRESSURE STALL MATRIX (/proc/pressure/*)</span>
           </h3>
-          <div id="psi-table-container" class="text-xs text-[#ADC1E2] space-y-2">
-            <p class="text-[#62759B] font-mono">Loading kernel PSI metrics...</p>
+          <div id="psi-table-container" class="text-xs text-[#CBD5E1] space-y-2">
+            <p class="text-[#7E94B8] font-mono">Loading kernel PSI metrics...</p>
           </div>
         </div>
 
-        <div class="scifi-card hud-corner p-6 space-y-4">
-          <h3 class="font-display font-semibold text-xs text-[#00D2FF] uppercase tracking-wider flex items-center space-x-2">
-            <i data-lucide="hard-drive" class="w-4 h-4 text-[#00D2FF]"></i>
+        <div class="glass-panel hud-corner p-6 space-y-4">
+          <h3 class="font-display font-semibold text-xs text-white uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="hard-drive" class="w-4 h-4 text-[#A0C4FF]"></i>
             <span>FILESYSTEM PARTITIONS &amp; SECTORS</span>
           </h3>
-          <div id="disks-table-container" class="text-xs text-[#ADC1E2] space-y-2">
-            <p class="text-[#62759B] font-mono">Loading filesystem partition telemetry...</p>
+          <div id="disks-table-container" class="text-xs text-[#CBD5E1] space-y-2">
+            <p class="text-[#7E94B8] font-mono">Loading filesystem partition telemetry...</p>
           </div>
         </div>
       </div>
@@ -373,7 +375,7 @@
     <div id="tab-content-services" class="tab-content hidden space-y-8">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- System Services Controller -->
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-display font-semibold text-sm text-white flex items-center space-x-2">
               <i data-lucide="settings" class="w-4 h-4 text-[#00D2FF]"></i>
@@ -395,7 +397,7 @@
             />
           </div>
 
-          <div class="overflow-y-auto max-h-96 border border-[#00D2FF]/20 rounded-lg bg-[#050711]/60">
+          <div class="overflow-y-auto max-h-96 border border-[rgba(160,210,255,0.18)] rounded-xl bg-black/25">
             <table class="linear-table">
               <thead>
                 <tr>
@@ -405,14 +407,14 @@
                 </tr>
               </thead>
               <tbody id="services-table-body">
-                <tr><td colspan="3" class="text-center text-[#62759B] py-6 font-mono">Loading service units...</td></tr>
+                <tr><td colspan="3" class="text-center text-[#7E94B8] py-6 font-mono">Loading service units...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
         <!-- Interactive Process Manager -->
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-display font-semibold text-sm text-white flex items-center space-x-2">
               <i data-lucide="activity" class="w-4 h-4 text-[#00D2FF]"></i>
@@ -424,7 +426,7 @@
             </button>
           </div>
 
-          <div class="overflow-y-auto max-h-96 border border-[#00D2FF]/20 rounded-lg bg-[#050711]/60">
+          <div class="overflow-y-auto max-h-96 border border-[rgba(160,210,255,0.18)] rounded-xl bg-black/25">
             <table class="linear-table">
               <thead>
                 <tr>
@@ -437,7 +439,7 @@
                 </tr>
               </thead>
               <tbody id="processes-table-body">
-                <tr><td colspan="6" class="text-center text-[#62759B] py-6 font-mono">Loading active processes...</td></tr>
+                <tr><td colspan="6" class="text-center text-[#7E94B8] py-6 font-mono">Loading active processes...</td></tr>
               </tbody>
             </table>
           </div>
@@ -450,15 +452,15 @@
     <!-- ======================================================== -->
     <div id="tab-content-storage" class="tab-content hidden space-y-8">
       <!-- Smart Directory Organizer Card -->
-      <div class="scifi-card-elevated hud-corner p-7 md:p-8 space-y-5">
+      <div class="glass-panel-elevated hud-corner p-7 md:p-8 space-y-5">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-[#00D2FF]/15 border border-[#00D2FF]/40 flex items-center justify-center text-[#00D2FF] shadow-[0_0_12px_rgba(0,210,255,0.3)]">
+            <div class="w-9 h-9 rounded-xl bg-[#00D2FF]/15 border border-[#00D2FF]/40 flex items-center justify-center text-[#00D2FF] shadow-[0_0_14px_rgba(0,210,255,0.3)]">
               <i data-lucide="folder-archive" class="w-5 h-5"></i>
             </div>
             <div>
               <h3 class="text-sm font-display font-bold text-white">SMART DIRECTORY ORGANIZER</h3>
-              <p class="text-xs text-[#ADC1E2]">Auto-organizes chaotic directories into categorized nodes with dry-run verification.</p>
+              <p class="text-xs text-[#CBD5E1]">Auto-organizes chaotic directories into categorized nodes with dry-run verification.</p>
             </div>
           </div>
         </div>
@@ -487,13 +489,13 @@
           </button>
         </div>
 
-        <div id="organize-result-container" class="hidden p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 text-xs font-mono text-[#00D2FF] space-y-2"></div>
+        <div id="organize-result-container" class="hidden p-5 rounded-xl bg-black/40 border border-[rgba(160,210,255,0.22)] text-xs font-mono text-[#00D2FF] space-y-2"></div>
       </div>
 
       <!-- Large File Scanner & Cleaner Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Large Files Scanner -->
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-display font-semibold text-sm text-white flex items-center space-x-2">
               <i data-lucide="search" class="w-4 h-4 text-[#00D2FF]"></i>
@@ -501,18 +503,18 @@
             </h3>
             <button onclick="loadLargeFiles()" class="btn btn-secondary px-3 py-1 text-xs">SCAN ROOT</button>
           </div>
-          <div id="large-files-container" class="overflow-y-auto max-h-72 border border-[#00D2FF]/20 rounded-lg p-3.5 text-xs space-y-2 bg-[#050711]/60">
-            <p class="text-[#62759B] font-mono">Click 'SCAN ROOT' to search for space hogs.</p>
+          <div id="large-files-container" class="overflow-y-auto max-h-72 border border-[rgba(160,210,255,0.18)] rounded-xl p-3.5 text-xs space-y-2 bg-black/25">
+            <p class="text-[#7E94B8] font-mono">Click 'SCAN ROOT' to search for space hogs.</p>
           </div>
         </div>
 
         <!-- Storage Cleaner -->
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <h3 class="font-display font-semibold text-sm text-white flex items-center space-x-2">
             <i data-lucide="trash-2" class="w-4 h-4 text-[#FF0055]"></i>
             <span>SYSTEM LOG &amp; CACHE PURGER</span>
           </h3>
-          <p class="text-xs text-[#ADC1E2] leading-relaxed">Safely purges rotated journal logs, package caches, and obsolete temporary files.</p>
+          <p class="text-xs text-[#CBD5E1] leading-relaxed">Safely purges rotated journal logs, package caches, and obsolete temporary files.</p>
           <div class="flex space-x-3 pt-2">
             <button onclick="cleanStorage(true)" class="btn btn-secondary flex-1 py-2.5 text-xs">
               PREVIEW PURGE
@@ -521,7 +523,7 @@
               EXECUTE PURGE
             </button>
           </div>
-          <div id="clean-result-container" class="hidden p-4 rounded-lg bg-[#050711] border border-[#FF0055]/30 text-xs text-[#FF0055] font-mono"></div>
+          <div id="clean-result-container" class="hidden p-4 rounded-xl bg-black/40 border border-[#FF0055]/30 text-xs text-[#FF0055] font-mono"></div>
         </div>
       </div>
     </div>
@@ -532,7 +534,7 @@
     <div id="tab-content-network" class="tab-content hidden space-y-8">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Listening Ports -->
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-display font-semibold text-sm text-white flex items-center space-x-2">
               <i data-lucide="radio" class="w-4 h-4 text-[#00D2FF]"></i>
@@ -540,7 +542,7 @@
             </h3>
             <button onclick="loadNetwork()" class="text-xs font-tech font-semibold text-[#00D2FF] hover:text-white transition">REFRESH</button>
           </div>
-          <div class="overflow-y-auto max-h-80 border border-[#00D2FF]/20 rounded-lg bg-[#050711]/60">
+          <div class="overflow-y-auto max-h-80 border border-[rgba(160,210,255,0.18)] rounded-xl bg-black/25">
             <table class="linear-table">
               <thead>
                 <tr>
@@ -551,19 +553,19 @@
                 </tr>
               </thead>
               <tbody id="network-ports-body">
-                <tr><td colspan="4" class="text-center text-[#62759B] py-6 font-mono">Loading listening sockets...</td></tr>
+                <tr><td colspan="4" class="text-center text-[#7E94B8] py-6 font-mono">Loading listening sockets...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
         <!-- Firewall Management -->
-        <div class="scifi-card hud-corner p-6 space-y-4">
+        <div class="glass-panel hud-corner p-6 space-y-4">
           <h3 class="font-display font-semibold text-sm text-white flex items-center space-x-2">
             <i data-lucide="shield" class="w-4 h-4 text-[#00D2FF]"></i>
             <span>CYBER FIREWALL MATRIX (UFW / NFTABLES)</span>
           </h3>
-          <div id="firewall-status-card" class="p-3.5 rounded-lg bg-[#080C1E] border border-[#00D2FF]/25 text-xs font-mono text-[#00D2FF]">
+          <div id="firewall-status-card" class="p-3.5 rounded-xl bg-black/35 border border-[rgba(160,210,255,0.22)] text-xs font-mono text-[#00D2FF]">
             Status: Loading...
           </div>
           <div class="flex items-center space-x-2.5 pt-1">
@@ -583,28 +585,28 @@
     <!-- TAB 6: 16-CLASS FAILURE TAXONOMY & DAG -->
     <!-- ======================================================== -->
     <div id="tab-content-taxonomy" class="tab-content hidden space-y-8">
-      <div class="scifi-card-elevated hud-corner p-7 md:p-8 space-y-5">
+      <div class="glass-panel-elevated hud-corner p-7 md:p-8 space-y-5">
         <div class="flex items-center space-x-3">
-          <div class="w-9 h-9 rounded-lg bg-[#00D2FF]/15 border border-[#00D2FF]/40 flex items-center justify-center text-[#00D2FF] shadow-[0_0_12px_rgba(0,210,255,0.3)]">
+          <div class="w-9 h-9 rounded-xl bg-[#00D2FF]/15 border border-[#00D2FF]/40 flex items-center justify-center text-[#00D2FF] shadow-[0_0_14px_rgba(0,210,255,0.3)]">
             <i data-lucide="shield-alert" class="w-5 h-5"></i>
           </div>
           <div>
             <h3 class="text-sm font-display font-bold text-white">16-CLASS LINUX FAILURE TAXONOMY &amp; TOPOLOGICAL DAG</h3>
-            <p class="text-xs text-[#ADC1E2]">Simulate and diagnose Linux failures with Topological In-Degree=0 Root Cause Isolation.</p>
+            <p class="text-xs text-[#CBD5E1]">Simulate and diagnose Linux failures with Topological In-Degree=0 Root Cause Isolation.</p>
           </div>
         </div>
 
         <!-- 16 Scenarios Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1" id="taxonomy-scenarios-grid">
-          <div class="p-4 bg-[#080C1E] rounded-lg text-xs text-[#62759B] text-center col-span-4 font-mono">Loading failure scenarios...</div>
+          <div class="p-4 bg-white/[0.02] rounded-xl text-xs text-[#7E94B8] text-center col-span-4 font-mono">Loading failure scenarios...</div>
         </div>
       </div>
 
       <!-- Diagnostic Report & Causality DAG Visualizer -->
-      <div id="taxonomy-report-container" class="hidden scifi-card hud-corner p-7 md:p-8 space-y-6">
-        <div class="flex items-center justify-between border-b border-[#00D2FF]/20 pb-4">
+      <div id="taxonomy-report-container" class="hidden glass-panel hud-corner p-7 md:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-[rgba(160,210,255,0.18)] pb-4">
           <h4 class="font-display font-bold text-sm text-white" id="diag-report-title">DIAGNOSTIC REPORT</h4>
-          <span id="diag-report-badge" class="badge-readonly text-[10px] font-mono px-3 py-1 rounded font-bold uppercase">RESOLVED</span>
+          <span id="diag-report-badge" class="badge-readonly text-[10px] font-mono px-3 py-1 rounded-md font-bold uppercase">RESOLVED</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -618,15 +620,15 @@
               <p class="text-[#00D2FF] font-bold mt-1 font-tech text-sm" id="diag-root-cause">-</p>
             </div>
             <div>
-              <span class="text-[#62759B] font-display font-bold uppercase tracking-wider text-[10px]">Rationale:</span>
-              <p class="text-[#ADC1E2] mt-1 leading-relaxed font-sans text-xs leading-6" id="diag-rationale">-</p>
+              <span class="text-[#7E94B8] font-display font-bold uppercase tracking-wider text-[10px]">Rationale:</span>
+              <p class="text-[#CBD5E1] mt-1 leading-relaxed font-sans text-xs leading-6" id="diag-rationale">-</p>
             </div>
           </div>
 
           <!-- Mermaid Causal Graph Visualizer -->
           <div class="space-y-2">
             <span class="text-[10px] text-[#00D2FF] font-display font-bold uppercase tracking-wider">Topological Causality DAG (Root: InDegree=0):</span>
-            <div id="mermaid-dag-container" class="p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/20 flex items-center justify-center min-h-36 overflow-x-auto"></div>
+            <div id="mermaid-dag-container" class="p-5 rounded-xl bg-black/40 border border-[rgba(160,210,255,0.2)] flex items-center justify-center min-h-36 overflow-x-auto"></div>
           </div>
         </div>
 
@@ -642,13 +644,13 @@
     <!-- TAB 7: PACKAGE MANAGER -->
     <!-- ======================================================== -->
     <div id="tab-content-packages" class="tab-content hidden space-y-8">
-      <div class="scifi-card-elevated hud-corner p-7 md:p-8 space-y-5">
+      <div class="glass-panel-elevated hud-corner p-7 md:p-8 space-y-5">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-display font-bold text-white flex items-center space-x-2">
             <i data-lucide="package" class="w-4 h-4 text-[#00D2FF]"></i>
             <span>MULTI-DISTRO PACKAGE &amp; ENVIRONMENT NEXUS</span>
           </h3>
-          <span class="text-[10px] font-mono px-2.5 py-0.5 rounded bg-[#00D2FF]/15 text-[#00D2FF] border border-[#00D2FF]/30 font-bold" id="pkg-distro-badge">ARCH LINUX (PACMAN)</span>
+          <span class="text-[10px] font-mono px-2.5 py-0.5 rounded-md bg-[#00D2FF]/15 text-[#00D2FF] border border-[#00D2FF]/30 font-bold" id="pkg-distro-badge">ARCH LINUX (PACMAN)</span>
         </div>
 
         <div class="flex space-x-3 pt-1">
@@ -667,8 +669,8 @@
           </button>
         </div>
 
-        <div id="pkg-result-container" class="p-5 rounded-lg bg-[#050711] border border-[#00D2FF]/25 text-xs font-mono text-[#F0F6FF] space-y-2">
-          <p class="text-[#62759B]">Enter a package name to search repository metadata.</p>
+        <div id="pkg-result-container" class="p-5 rounded-xl bg-black/40 border border-[rgba(160,210,255,0.22)] text-xs font-mono text-[#F8FAFC] space-y-2">
+          <p class="text-[#7E94B8]">Enter a package name to search repository metadata.</p>
         </div>
       </div>
     </div>
@@ -678,15 +680,15 @@
     <!-- ======================================================== -->
     <div id="tab-content-desktop" class="tab-content hidden space-y-8">
       <!-- Direct CLI Command Runner with Permission Check -->
-      <div class="scifi-card-elevated hud-corner p-7 md:p-8 space-y-5">
+      <div class="glass-panel-elevated hud-corner p-7 md:p-8 space-y-5">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-[#00D2FF]/15 border border-[#00D2FF]/40 flex items-center justify-center text-[#00D2FF] shadow-[0_0_12px_rgba(0,210,255,0.3)]">
+            <div class="w-9 h-9 rounded-xl bg-[#00D2FF]/15 border border-[#00D2FF]/40 flex items-center justify-center text-[#00D2FF] shadow-[0_0_14px_rgba(0,210,255,0.3)]">
               <i data-lucide="terminal" class="w-5 h-5"></i>
             </div>
             <div>
               <h3 class="text-sm font-display font-bold text-white">DIRECT CLI COMMAND RUNNER</h3>
-              <p class="text-xs text-[#ADC1E2]">Execute commands through AST safety validation and ephemeral CoW sandboxing.</p>
+              <p class="text-xs text-[#CBD5E1]">Execute commands through AST safety validation and ephemeral CoW sandboxing.</p>
             </div>
           </div>
         </div>
@@ -708,7 +710,7 @@
       </div>
 
       <!-- Universal Downloader -->
-      <div class="scifi-card hud-corner p-7 md:p-8 space-y-5">
+      <div class="glass-panel hud-corner p-7 md:p-8 space-y-5">
         <h3 class="text-sm font-display font-bold text-white flex items-center space-x-2">
           <i data-lucide="download" class="w-4 h-4 text-[#00D2FF]"></i>
           <span>UNIVERSAL STREAM DOWNLOADER</span>
@@ -731,7 +733,7 @@
         </div>
 
         <div class="flex items-center justify-between pt-1">
-          <label class="flex items-center space-x-2 text-xs text-[#ADC1E2] cursor-pointer">
+          <label class="flex items-center space-x-2 text-xs text-[#CBD5E1] cursor-pointer">
             <input type="checkbox" id="download-auto-extract" checked class="rounded bg-black border-[#00D2FF]/30 text-[#00D2FF] focus:ring-0">
             <span>Auto-extract archives (.zip, .tar.gz, .tar.xz)</span>
           </label>
@@ -744,30 +746,30 @@
           </button>
         </div>
 
-        <div id="download-result-container" class="hidden p-4 rounded-lg bg-[#050711] border border-[#00D2FF]/25 text-xs font-mono text-[#00D2FF] space-y-2"></div>
+        <div id="download-result-container" class="hidden p-4 rounded-xl bg-black/40 border border-[rgba(160,210,255,0.22)] text-xs font-mono text-[#00D2FF] space-y-2"></div>
       </div>
 
       <!-- Quick Desktop Launchers -->
-      <div class="scifi-card hud-corner p-7 md:p-8 space-y-4">
+      <div class="glass-panel hud-corner p-7 md:p-8 space-y-4">
         <h3 class="text-xs font-display font-semibold text-[#00D2FF] uppercase tracking-wider flex items-center space-x-2">
           <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
           <span>QUICK DESKTOP PORTALS (XDG-OPEN)</span>
         </h3>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button onclick="desktopAction('open_folder', {path: '~'})" class="p-4 rounded-lg bg-[#080C1E]/80 hover:bg-[#00D2FF]/15 border border-[#00D2FF]/20 flex items-center space-x-3 transition">
+          <button onclick="desktopAction('open_folder', {path: '~'})" class="p-4 rounded-xl bg-white/[0.03] hover:bg-[#00D2FF]/15 border border-[rgba(160,210,255,0.2)] flex items-center space-x-3 transition">
             <i data-lucide="home" class="w-4 h-4 text-[#00D2FF]"></i>
             <span class="text-xs font-semibold text-white">HOME NODE</span>
           </button>
-          <button onclick="desktopAction('open_folder', {path: '~/Downloads'})" class="p-4 rounded-lg bg-[#080C1E]/80 hover:bg-[#00D2FF]/15 border border-[#00D2FF]/20 flex items-center space-x-3 transition">
+          <button onclick="desktopAction('open_folder', {path: '~/Downloads'})" class="p-4 rounded-xl bg-white/[0.03] hover:bg-[#00D2FF]/15 border border-[rgba(160,210,255,0.2)] flex items-center space-x-3 transition">
             <i data-lucide="download" class="w-4 h-4 text-[#00D2FF]"></i>
             <span class="text-xs font-semibold text-white">DOWNLOADS</span>
           </button>
-          <button onclick="desktopAction('open_folder', {path: '~/Pictures'})" class="p-4 rounded-lg bg-[#080C1E]/80 hover:bg-[#00D2FF]/15 border border-[#00D2FF]/20 flex items-center space-x-3 transition">
+          <button onclick="desktopAction('open_folder', {path: '~/Pictures'})" class="p-4 rounded-xl bg-white/[0.03] hover:bg-[#00D2FF]/15 border border-[rgba(160,210,255,0.2)] flex items-center space-x-3 transition">
             <i data-lucide="image" class="w-4 h-4 text-[#00D2FF]"></i>
             <span class="text-xs font-semibold text-white">PICTURES</span>
           </button>
-          <button onclick="desktopAction('open_browser', {url: 'https://google.com'})" class="p-4 rounded-lg bg-[#080C1E]/80 hover:bg-[#00D2FF]/15 border border-[#00D2FF]/20 flex items-center space-x-3 transition">
+          <button onclick="desktopAction('open_browser', {url: 'https://google.com'})" class="p-4 rounded-xl bg-white/[0.03] hover:bg-[#00D2FF]/15 border border-[rgba(160,210,255,0.2)] flex items-center space-x-3 transition">
             <i data-lucide="globe" class="w-4 h-4 text-[#00D2FF]"></i>
             <span class="text-xs font-semibold text-white">WEB BROWSER</span>
           </button>
@@ -782,63 +784,63 @@
   <!-- MODAL 1: COMMAND EXECUTION PERMISSION DIALOG -->
   <!-- ======================================================== -->
   <div id="modal-permission" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="modal-dialog scifi-card-elevated hud-corner max-w-xl w-full p-7 space-y-5 border border-[#00D2FF]/40 shadow-[0_0_35px_rgba(0,210,255,0.25)]">
+    <div class="modal-dialog glass-panel-elevated hud-corner max-w-xl w-full p-7 space-y-5 border border-[rgba(160,210,255,0.4)] shadow-[0_0_35px_rgba(0,210,255,0.25)]">
       
       <!-- Modal Header -->
-      <div class="flex items-center justify-between border-b border-[#00D2FF]/20 pb-4">
+      <div class="flex items-center justify-between border-b border-[rgba(160,210,255,0.2)] pb-4">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-[#00D2FF] text-black flex items-center justify-center shadow-[0_0_12px_rgba(0,210,255,0.5)]">
+          <div class="w-8 h-8 rounded-xl bg-[#00D2FF] text-black flex items-center justify-center shadow-[0_0_14px_rgba(0,210,255,0.5)]">
             <i data-lucide="shield-check" class="w-5 h-5 text-black"></i>
           </div>
           <div>
             <h3 class="font-display font-bold text-sm text-white tracking-wider">CYBERNETIC EXECUTION GATE</h3>
-            <p class="text-[11px] text-[#ADC1E2]">Inspect AST risk score &amp; parameters prior to execution authorization.</p>
+            <p class="text-[11px] text-[#CBD5E1]">Inspect AST risk score &amp; parameters prior to execution authorization.</p>
           </div>
         </div>
-        <button onclick="closeModal('modal-permission')" class="text-[#62759B] hover:text-[#00D2FF] text-xl font-mono leading-none">&times;</button>
+        <button onclick="closeModal('modal-permission')" class="text-[#7E94B8] hover:text-[#00D2FF] text-xl font-mono leading-none">&times;</button>
       </div>
 
       <!-- Command Display Box -->
       <div class="space-y-2">
-        <div class="flex items-center justify-between text-[11px] text-[#ADC1E2]">
+        <div class="flex items-center justify-between text-[11px] text-[#CBD5E1]">
           <span class="font-display font-semibold uppercase text-[#00D2FF]">COMMAND VECTOR:</span>
           <button id="modal-perm-copy-btn" onclick="copyModalCommand()" class="text-[#00D2FF] hover:text-white flex items-center space-x-1">
             <i data-lucide="copy" class="w-3 h-3"></i>
             <span>COPY</span>
           </button>
         </div>
-        <div class="p-3.5 rounded-lg bg-[#050711] border border-[#00D2FF]/30 font-mono text-xs text-[#F0F6FF] break-all select-all flex items-start space-x-2 shadow-[inset_0_0_12px_rgba(0,0,0,0.85)]">
+        <div class="p-3.5 rounded-xl bg-black/60 border border-[rgba(160,210,255,0.3)] font-mono text-xs text-[#F8FAFC] break-all select-all flex items-start space-x-2 shadow-[inset_0_0_12px_rgba(0,0,0,0.85)]">
           <span class="text-[#00D2FF] select-none font-bold">$</span>
           <span id="modal-perm-command" class="flex-1 font-semibold text-[#00D2FF]">-</span>
         </div>
       </div>
 
       <!-- Description / What it will do -->
-      <div class="p-4 rounded-lg bg-[#080C1E] border border-[#00D2FF]/20 space-y-1.5">
+      <div class="p-4 rounded-xl bg-white/[0.02] border border-[rgba(160,210,255,0.2)] space-y-1.5">
         <span class="text-[10px] text-[#00D2FF] font-display font-bold uppercase tracking-wider">IMPACT VECTOR &amp; RATIONALE:</span>
-        <p id="modal-perm-description" class="text-xs sm:text-[13px] text-[#F0F6FF] leading-relaxed font-sans">-</p>
+        <p id="modal-perm-description" class="text-xs sm:text-[13px] text-[#F8FAFC] leading-relaxed font-sans">-</p>
       </div>
 
       <!-- Safety & Metadata Grid -->
       <div class="grid grid-cols-2 gap-2.5 text-[11px] font-mono">
-        <div class="p-3 rounded-lg bg-[#080C1E] border border-[#00D2FF]/20">
-          <span class="text-[#62759B] text-[10px] block uppercase font-display font-bold">SAFETY LEVEL</span>
+        <div class="p-3 rounded-xl bg-white/[0.02] border border-[rgba(160,210,255,0.2)]">
+          <span class="text-[#7E94B8] text-[10px] block uppercase font-display font-bold">SAFETY LEVEL</span>
           <span id="modal-perm-safety" class="font-bold text-[#00D2FF]">READ_ONLY</span>
         </div>
-        <div class="p-3 rounded-lg bg-[#080C1E] border border-[#00D2FF]/20">
-          <span class="text-[#62759B] text-[10px] block uppercase font-display font-bold">RISK SCORE</span>
+        <div class="p-3 rounded-xl bg-white/[0.02] border border-[rgba(160,210,255,0.2)]">
+          <span class="text-[#7E94B8] text-[10px] block uppercase font-display font-bold">RISK SCORE</span>
           <span id="modal-perm-risk" class="font-bold text-[#FF0055]">0.05 / 1.00</span>
         </div>
       </div>
 
       <!-- Rollback Preview (if available) -->
-      <div id="modal-perm-rollback-box" class="hidden p-3 rounded-lg bg-[#080C1E] border border-[#00D2FF]/20 space-y-1.5 text-xs font-mono">
+      <div id="modal-perm-rollback-box" class="hidden p-3 rounded-xl bg-white/[0.02] border border-[rgba(160,210,255,0.2)] space-y-1.5 text-xs font-mono">
         <span class="text-[10px] text-[#FFB800] uppercase font-display font-bold">STATE REVERTING ROLLBACK:</span>
-        <div id="modal-perm-rollback" class="text-[#ADC1E2] break-all text-[11px]">-</div>
+        <div id="modal-perm-rollback" class="text-[#CBD5E1] break-all text-[11px]">-</div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[#00D2FF]/20">
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-[rgba(160,210,255,0.2)]">
         <button onclick="closeModal('modal-permission')" class="btn btn-ghost px-4 py-2 text-xs">
           ABORT
         </button>
@@ -859,21 +861,21 @@
   <!-- MODAL 2: SERVICE JOURNAL LOGS VIEWER -->
   <!-- ======================================================== -->
   <div id="modal-logs" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="modal-dialog scifi-card-elevated hud-corner max-w-3xl w-full p-7 space-y-5 border border-[#00D2FF]/40">
-      <div class="flex items-center justify-between border-b border-[#00D2FF]/20 pb-4">
+    <div class="modal-dialog glass-panel-elevated hud-corner max-w-3xl w-full p-7 space-y-5 border border-[rgba(160,210,255,0.4)]">
+      <div class="flex items-center justify-between border-b border-[rgba(160,210,255,0.2)] pb-4">
         <h3 class="font-display font-bold text-sm text-white flex items-center space-x-2">
           <i data-lucide="file-text" class="w-4 h-4 text-[#00D2FF]"></i>
           <span id="modal-logs-title">SERVICE JOURNAL LOG STREAM</span>
         </h3>
-        <button onclick="closeModal('modal-logs')" class="text-[#62759B] hover:text-[#00D2FF] text-xl font-mono leading-none">&times;</button>
+        <button onclick="closeModal('modal-logs')" class="text-[#7E94B8] hover:text-[#00D2FF] text-xl font-mono leading-none">&times;</button>
       </div>
-      <pre id="modal-logs-content" class="p-5 bg-[#050711] border border-[#00D2FF]/25 rounded-lg text-xs font-mono text-[#00D2FF] overflow-y-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_16px_rgba(0,0,0,0.9)]"></pre>
+      <pre id="modal-logs-content" class="p-5 bg-black/60 border border-[rgba(160,210,255,0.25)] rounded-xl text-xs font-mono text-[#00D2FF] overflow-y-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_16px_rgba(0,0,0,0.9)]"></pre>
     </div>
   </div>
 
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=5.0"></script>
 </body>
 </html>

@@ -1,43 +1,46 @@
 /* ==========================================================================
-   LinuxOps Assistant — Ethereal Avant-Garde Sci-Fi Hybrid Design System
-   Suspended Zero-G Glassmorphism, Liquid Mesh Gradients & Micro-Neon Accents
+   LinuxOps Assistant — Ethereal Avant-Garde & Sci-Fi Hybrid Command Center
+   Suspended Weightless Glassmorphism, Liquid Mesh Gradients & Volumetric Glow
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@600;700;800&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Ethereal Pale Mist & Iridescent Silver Palette */
+  /* Ethereal Pale Mist & Celestial Silver Palette */
   --ethereal-white: #F8FAFC;
-  --ethereal-mist: #D9E8F5;
-  --ethereal-silver: #C4D7E8;
+  --ethereal-mist: #DDEBF8;
+  --ethereal-silver: #CBD5E1;
   --ethereal-ice: #A0C4FF;
+  --ethereal-lavender: #C7D2FE;
 
-  /* Cyber Sci-Fi Electric Accents */
+  /* Sci-Fi Electric Accents */
   --cyber-blue: #00D2FF;
   --cyber-blue-deep: #0066FF;
-  --cyber-blue-dim: rgba(0, 210, 255, 0.08);
-  --cyber-blue-glow: 0 0 16px rgba(0, 210, 255, 0.35);
+  --cyber-blue-dim: rgba(0, 210, 255, 0.09);
+  --cyber-blue-glow: 0 0 16px rgba(0, 210, 255, 0.4);
 
   --cyber-red: #FF0055;
   --cyber-red-bright: #FF2A54;
-  --cyber-red-dim: rgba(255, 0, 85, 0.08);
-  --cyber-red-glow: 0 0 16px rgba(255, 0, 85, 0.35);
+  --cyber-red-dim: rgba(255, 0, 85, 0.09);
+  --cyber-red-glow: 0 0 16px rgba(255, 0, 85, 0.4);
 
   --cyber-amber: #FFB800;
 
-  /* Deep Cosmic Nebula Surfaces */
-  --bg-cosmos: #030612;
-  --bg-subtle: #060B1E;
-  --bg-glass: rgba(10, 16, 38, 0.65);
-  --bg-glass-elevated: rgba(14, 22, 50, 0.78);
-  --bg-glass-hover: rgba(20, 32, 70, 0.85);
-  --bg-input: rgba(4, 7, 18, 0.85);
-  --bg-overlay: rgba(3, 5, 14, 0.92);
+  /* Translucent Floating Glass Surfaces (Zero-G) */
+  --bg-cosmos: #030614;
+  --glass-surface: rgba(8, 14, 34, 0.60);
+  --glass-surface-elevated: rgba(12, 20, 48, 0.72);
+  --glass-surface-hover: rgba(16, 26, 62, 0.85);
+  --glass-sidebar: rgba(6, 11, 28, 0.75);
+  --glass-header: rgba(6, 11, 28, 0.70);
+  --glass-input: rgba(4, 8, 20, 0.75);
+  --glass-modal: rgba(10, 18, 42, 0.90);
+  --bg-overlay: rgba(2, 4, 12, 0.85);
 
-  /* Ultra-Thin Glowing Neon Line Borders */
+  /* Ultra-Thin Glowing Neon & Silver Line Borders */
   --border-ethereal-subtle: rgba(160, 210, 255, 0.12);
   --border-ethereal-default: rgba(160, 210, 255, 0.22);
-  --border-ethereal-glow: rgba(0, 210, 255, 0.45);
+  --border-ethereal-strong: rgba(160, 210, 255, 0.38);
   --border-focus: #00D2FF;
 
   /* Typography Colors */
@@ -50,15 +53,15 @@
 
   /* Status Colors */
   --status-safe: #00D2FF;
-  --status-safe-bg: rgba(0, 210, 255, 0.08);
+  --status-safe-bg: rgba(0, 210, 255, 0.10);
   --status-safe-border: rgba(0, 210, 255, 0.35);
 
   --status-modifying: #FFB800;
-  --status-modifying-bg: rgba(255, 184, 0, 0.08);
+  --status-modifying-bg: rgba(255, 184, 0, 0.10);
   --status-modifying-border: rgba(255, 184, 0, 0.35);
 
   --status-danger: #FF0055;
-  --status-danger-bg: rgba(255, 0, 85, 0.10);
+  --status-danger-bg: rgba(255, 0, 85, 0.12);
   --status-danger-border: rgba(255, 0, 85, 0.40);
 }
 
@@ -73,13 +76,15 @@ body {
   font-family: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, sans-serif;
   background-color: var(--bg-cosmos);
   background-image: 
-    radial-gradient(circle at 15% 12%, rgba(0, 210, 255, 0.09) 0%, transparent 45%),
-    radial-gradient(circle at 85% 20%, rgba(160, 196, 255, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 85%, rgba(255, 0, 85, 0.07) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 60%),
-    linear-gradient(to right, rgba(160, 210, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(160, 210, 255, 0.015) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+    radial-gradient(circle at 10% 15%, rgba(0, 210, 255, 0.14) 0%, transparent 40%),
+    radial-gradient(circle at 90% 18%, rgba(199, 210, 254, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(255, 0, 85, 0.10) 0%, transparent 40%),
+    radial-gradient(circle at 50% 60%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 20% 80%, rgba(160, 196, 255, 0.10) 0%, transparent 45%),
+    linear-gradient(to right, rgba(160, 210, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(160, 210, 255, 0.018) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
@@ -113,7 +118,7 @@ body {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* Ambient Scanline / Ethereal Grain Overlay */
+/* Ambient Ethereal Scanline & Grain */
 .scanline-overlay {
   position: fixed;
   top: 0;
@@ -122,39 +127,46 @@ body {
   height: 100vh;
   pointer-events: none;
   z-index: 9999;
-  background: linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(160, 210, 255, 0.012) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.008), rgba(0, 210, 255, 0.008));
+  background: linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(160, 210, 255, 0.01) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.006), rgba(0, 210, 255, 0.006));
   background-size: 100% 4px, 4px 100%;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
-/* Suspended Zero-G Glassmorphism Panels */
-.linear-card, .scifi-card {
+/* Floating Glassmorphism Panels (Weightless Zero-G Aesthetic) */
+.glass-panel, .linear-card, .scifi-card {
   position: relative;
-  background: var(--bg-glass);
+  background: var(--glass-surface);
   border: 1px solid var(--border-ethereal-default);
-  border-radius: 12px;
+  border-radius: 14px;
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.45), inset 0 0 16px rgba(160, 210, 255, 0.03);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 16px 40px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 20px rgba(160, 210, 255, 0.02);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.linear-card:hover, .scifi-card:hover {
-  border-color: rgba(160, 210, 255, 0.35);
-  box-shadow: 0 16px 42px 0 rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 210, 255, 0.12), inset 0 0 20px rgba(160, 210, 255, 0.05);
+.glass-panel:hover, .linear-card:hover, .scifi-card:hover {
+  border-color: rgba(160, 210, 255, 0.40);
+  box-shadow: 0 20px 48px 0 rgba(0, 0, 0, 0.55), 0 0 20px rgba(0, 210, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transform: translateY(-1.5px);
 }
 
-.linear-card-elevated, .scifi-card-elevated {
+.glass-panel-elevated, .linear-card-elevated, .scifi-card-elevated {
   position: relative;
-  background: var(--bg-glass-elevated);
-  border: 1px solid rgba(160, 210, 255, 0.30);
-  border-radius: 12px;
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
-  box-shadow: 0 20px 50px -6px rgba(0, 0, 0, 0.7), 0 0 24px rgba(0, 210, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: var(--glass-surface-elevated);
+  border: 1px solid rgba(160, 210, 255, 0.32);
+  border-radius: 14px;
+  backdrop-filter: blur(34px);
+  -webkit-backdrop-filter: blur(34px);
+  box-shadow: 0 24px 56px -6px rgba(0, 0, 0, 0.65), 0 0 26px rgba(0, 210, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Avant-Garde Minimalist Corner Accents */
+.glass-panel-elevated:hover, .scifi-card-elevated:hover {
+  border-color: rgba(160, 210, 255, 0.45);
+  box-shadow: 0 28px 64px -6px rgba(0, 0, 0, 0.75), 0 0 32px rgba(0, 210, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Minimalist Neon Corner Brackets */
 .hud-corner {
   position: relative;
 }
@@ -196,19 +208,19 @@ body {
   filter: drop-shadow(0 0 4px var(--cyber-blue));
 }
 
-/* Sleek Suspended Navigation Tabs */
+/* Suspended Zero-G Navigation Tabs */
 .nav-tab {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 0.875rem;
+  padding: 0.7rem 0.9rem;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--text-secondary);
-  border-radius: 8px;
-  transition: all 0.18s ease;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
@@ -220,17 +232,18 @@ body {
 
 .nav-tab:hover {
   color: #FFFFFF;
-  background: rgba(160, 210, 255, 0.06);
-  border-color: rgba(160, 210, 255, 0.18);
+  background: rgba(160, 210, 255, 0.08);
+  border-color: rgba(160, 210, 255, 0.22);
+  transform: translateX(2px);
 }
 
 .nav-tab.active {
   color: #FFFFFF;
-  background: rgba(0, 210, 255, 0.10);
-  border: 1px solid rgba(160, 210, 255, 0.35);
-  border-left: 3px solid var(--cyber-blue);
+  background: rgba(0, 210, 255, 0.12);
+  border: 1px solid rgba(160, 210, 255, 0.38);
+  border-left: 3.5px solid var(--cyber-blue);
   font-weight: 600;
-  box-shadow: 0 0 16px rgba(0, 210, 255, 0.15), inset 0 0 12px rgba(0, 210, 255, 0.05);
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.18), inset 0 0 14px rgba(0, 210, 255, 0.06);
 }
 
 .nav-tab.active i, .nav-tab.active svg {
@@ -240,14 +253,14 @@ body {
 
 .nav-tab i, .nav-tab svg {
   color: var(--text-muted);
-  transition: all 0.18s ease;
+  transition: all 0.2s ease;
 }
 
 .nav-tab:hover i, .nav-tab:hover svg {
   color: var(--cyber-blue);
 }
 
-/* Polished Sci-Fi & Ethereal Buttons */
+/* Polished Sci-Fi & Avant-Garde Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -268,16 +281,16 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #00A6FF 0%, #0066FF 60%, #E6004C 100%);
+  background: linear-gradient(135deg, #00B4D8 0%, #0066FF 55%, #E6004C 100%);
   color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 0 16px rgba(0, 166, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 18px rgba(0, 180, 216, 0.38);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #1AC0FF 0%, #1A75FF 60%, #FF1A66 100%);
-  box-shadow: 0 0 22px rgba(0, 166, 255, 0.5);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #2ED8FF 0%, #1A75FF 55%, #FF1A66 100%);
+  box-shadow: 0 0 24px rgba(0, 180, 216, 0.55);
+  transform: translateY(-1.5px);
 }
 
 .btn-primary:active {
@@ -285,17 +298,18 @@ body {
 }
 
 .btn-secondary {
-  background: rgba(160, 210, 255, 0.06);
+  background: rgba(160, 210, 255, 0.08);
   color: var(--text-primary);
-  border-color: rgba(160, 210, 255, 0.22);
+  border-color: rgba(160, 210, 255, 0.25);
+  backdrop-filter: blur(12px);
 }
 
 .btn-secondary:hover {
-  background: rgba(160, 210, 255, 0.14);
+  background: rgba(160, 210, 255, 0.16);
   border-color: var(--cyber-blue);
   color: #FFFFFF;
-  box-shadow: 0 0 14px rgba(0, 210, 255, 0.2);
-  transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.24);
+  transform: translateY(-1.5px);
 }
 
 .btn-secondary:active {
@@ -303,17 +317,17 @@ body {
 }
 
 .btn-danger {
-  background: rgba(255, 0, 85, 0.14);
-  color: #FF7092;
-  border-color: rgba(255, 0, 85, 0.35);
+  background: rgba(255, 0, 85, 0.16);
+  color: #FF7B9C;
+  border-color: rgba(255, 0, 85, 0.38);
 }
 
 .btn-danger:hover {
   background: linear-gradient(135deg, #FF0055 0%, #D60047 100%);
   color: #FFFFFF;
   border-color: #FF0055;
-  box-shadow: 0 0 18px rgba(255, 0, 85, 0.5);
-  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(255, 0, 85, 0.55);
+  transform: translateY(-1.5px);
 }
 
 .btn-ghost {
@@ -322,32 +336,33 @@ body {
 }
 
 .btn-ghost:hover {
-  background: rgba(160, 210, 255, 0.06);
+  background: rgba(160, 210, 255, 0.08);
   color: var(--cyber-blue);
 }
 
 /* Translucent Glass Inputs */
 .linear-input, .scifi-input {
-  background: var(--bg-input);
+  background: var(--glass-input);
   border: 1px solid var(--border-ethereal-default);
-  border-radius: 8px;
+  border-radius: 9px;
   color: var(--text-primary);
   font-family: 'JetBrains Mono', monospace;
   transition: all 0.2s ease;
   outline: none;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .linear-input:focus, .scifi-input:focus {
   border-color: var(--cyber-blue);
-  box-shadow: 0 0 14px rgba(0, 210, 255, 0.28), inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .linear-input::placeholder {
   color: var(--text-dim);
 }
 
-/* Zero-G Radar & Indicator */
+/* Zero-G Radar & Status Orb */
 .radar-orb {
   position: relative;
   width: 26px;
@@ -374,7 +389,7 @@ body {
   height: 6px;
   border-radius: 50%;
   background: var(--cyber-blue);
-  box-shadow: 0 0 8px var(--cyber-blue);
+  box-shadow: 0 0 10px var(--cyber-blue);
 }
 
 @keyframes radarRotate {
@@ -382,7 +397,7 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Telemetry Tables */
+/* Telemetry Tables with Glass Backdrop */
 .linear-table {
   width: 100%;
   border-collapse: separate;
@@ -390,7 +405,7 @@ body {
 }
 
 .linear-table th {
-  background: rgba(160, 210, 255, 0.04);
+  background: rgba(160, 210, 255, 0.05);
   color: var(--cyber-blue);
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.8125rem;
@@ -413,40 +428,41 @@ body {
 }
 
 .linear-table tr:hover td {
-  background-color: rgba(160, 210, 255, 0.04);
+  background-color: rgba(160, 210, 255, 0.06);
   color: var(--text-primary);
 }
 
 /* Quick Action Chips */
 .scifi-chip {
-  background: rgba(160, 210, 255, 0.05);
-  border: 1px solid rgba(160, 210, 255, 0.18);
-  border-radius: 6px;
-  padding: 0.45rem 0.8rem;
+  background: rgba(160, 210, 255, 0.06);
+  border: 1px solid rgba(160, 210, 255, 0.20);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--text-primary);
-  transition: all 0.18s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
+  backdrop-filter: blur(10px);
 }
 
 .scifi-chip:hover {
-  background: rgba(160, 210, 255, 0.12);
+  background: rgba(160, 210, 255, 0.15);
   border-color: var(--cyber-blue);
   color: #FFFFFF;
-  box-shadow: 0 0 12px rgba(0, 210, 255, 0.22);
-  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(0, 210, 255, 0.25);
+  transform: translateY(-1.5px);
 }
 
 /* Command Approval Card */
 .command-approval-card {
-  background: var(--bg-glass-elevated);
+  background: var(--glass-surface-elevated);
   border: 1px solid var(--border-ethereal-default);
   border-left: 4px solid var(--cyber-blue);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
 
 .command-approval-card.modifying {
@@ -460,8 +476,8 @@ body {
 /* Modals */
 .modal-backdrop {
   background-color: var(--bg-overlay);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   animation: fadeIn 0.2s ease-out forwards;
 }
 
@@ -495,18 +511,18 @@ body {
   pointer-events: auto;
   min-width: 320px;
   max-width: 440px;
-  background: rgba(14, 22, 50, 0.95);
+  background: rgba(12, 20, 48, 0.95);
   border: 1px solid var(--cyber-blue);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 0.875rem 1.125rem;
-  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.8), 0 0 14px rgba(0, 210, 255, 0.2);
+  box-shadow: 0 14px 40px -4px rgba(0, 0, 0, 0.8), 0 0 16px rgba(0, 210, 255, 0.25);
   display: flex;
   align-items: flex-start;
   gap: 0.875rem;
   font-size: 0.875rem;
   color: var(--text-primary);
   animation: toastScifiSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
 }
 
 @keyframes toastScifiSlideIn {
@@ -528,9 +544,9 @@ kbd, .kbd-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(160, 210, 255, 0.06);
+  background: rgba(160, 210, 255, 0.08);
   border: 1px solid rgba(160, 210, 255, 0.25);
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 1px 6px;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
@@ -568,7 +584,7 @@ kbd, .kbd-badge {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(3, 6, 18, 0.7);
+  background: rgba(3, 6, 18, 0.5);
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(160, 210, 255, 0.25);
