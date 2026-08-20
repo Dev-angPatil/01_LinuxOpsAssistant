@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linux Operations Assistant — Autonomous Copilot</title>
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for real-time telemetry graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Mermaid.js for Causal DAG rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              canvas: '#08090C',
+              subtle: '#0D0E13',
+              card: '#121319',
+              elevated: '#181922',
+              hover: '#1E202B',
+              input: '#090A0E'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#08090C] text-zinc-100 min-h-screen flex flex-col font-sans antialiased selection:bg-white selection:text-black">
+
+  <!-- TOP STATUS & TELEMETRY HEADER -->
+  <header class="border-b border-white/[0.08] bg-[#0D0E13]/90 backdrop-blur sticky top-0 z-40 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-3.5">
+      <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-mono font-bold text-sm shadow-sm">
+        <i data-lucide="terminal" class="w-4 h-4 text-black stroke-[2.5]"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="font-semibold text-sm tracking-tight text-white">LinuxOps Assistant</h1>
+          <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-white/10 text-zinc-300 border border-white/10">v3.0.0</span>
+        </div>
+        <p class="text-[11px] text-zinc-500 font-mono">AST Sandboxed &bull; Topological DAG &bull; Permission Gated</p>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Strip & Status -->
+    <div class="flex items-center space-x-3 text-xs">
+      <div class="hidden md:flex items-center space-x-2.5 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg font-mono text-[11px]">
+        <span class="pulse-dot" id="header-pulse"></span>
+        <span class="text-zinc-300 font-medium" id="header-hostname">localhost</span>
+        <span class="text-zinc-600">/</span>
+        <span class="text-zinc-300" id="header-distro">Linux</span>
+        <span class="text-zinc-600">/</span>
+        <span class="text-zinc-400" id="header-kernel">Kernel ...</span>
+      </div>
+
+      <div class="flex items-center space-x-2 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg">
+        <span class="text-zinc-400 text-[11px]">PSI:</span>
+        <span id="header-pressure" class="font-mono text-[11px] font-semibold text-emerald-400">NORMAL</span>
+      </div>
+
+      <!-- Quick Command Prompt Shortcut Hint -->
+      <div class="hidden lg:flex items-center space-x-1.5 text-zinc-500 text-[11px]">
+        <span>Prompt:</span>
+        <kbd>/</kbd>
+      </div>
+
+      <button id="btn-refresh-health" title="Refresh Telemetry" class="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white transition">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TAB STRIP -->
+  <nav class="bg-[#0B0C10] border-b border-white/[0.06] px-6 py-2 flex items-center space-x-1 overflow-x-auto text-xs">
+    <button onclick="switchTab('home')" id="tab-btn-home" class="nav-tab active">
+      <i data-lucide="bot" class="w-3.5 h-3.5"></i>
+      <span>AI Ops Agent</span>
+    </button>
+    <button onclick="switchTab('health')" id="tab-btn-health" class="nav-tab">
+      <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+      <span>Health & PSI</span>
+    </button>
+    <button onclick="switchTab('services')" id="tab-btn-services" class="nav-tab">
+      <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+      <span>Services & Procs</span>
+    </button>
+    <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-tab">
+      <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
+      <span>Storage & Cleanup</span>
+    </button>
+    <button onclick="switchTab('network')" id="tab-btn-network" class="nav-tab">
+      <i data-lucide="network" class="w-3.5 h-3.5"></i>
+      <span>Network & Firewall</span>
+    </button>
+    <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-tab">
+      <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+      <span>16-Class Taxonomy</span>
+    </button>
+    <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-tab">
+      <i data-lucide="package" class="w-3.5 h-3.5"></i>
+      <span>Packages</span>
+    </button>
+    <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-tab">
+      <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+      <span>Desktop & Runner</span>
+    </button>
+  </nav>
+
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: AI OPS AGENT COMMAND CENTER (HOME) -->
+    <!-- ======================================================== -->
+    <div id="tab-content-home" class="tab-content space-y-6">
+      
+      <!-- Linear Prompt Box -->
+      <div class="linear-card-elevated p-5 space-y-3.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-white"></i>
+            <span>Autonomous Operations Copilot</span>
+          </div>
+          <div class="flex items-center space-x-2 text-[11px] text-zinc-500 font-mono">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>Safety Guardrails Active</span>
+          </div>
+        </div>
+
+        <!-- Prompt Form -->
+        <form id="agent-prompt-form" class="space-y-2">
+          <div class="relative flex items-center">
+            <div class="absolute left-3.5 text-zinc-500 font-mono text-xs select-none">$</div>
+            <input 
+              type="text" 
+              id="agent-prompt-input" 
+              placeholder="Ask a diagnostic question, organize folders, control services, or enter a query..." 
+              class="linear-input w-full pl-8 pr-28 py-3 text-sm placeholder-zinc-600 font-mono"
+              autocomplete="off"
+            />
+            <button 
+              type="submit" 
+              id="btn-submit-prompt" 
+              class="btn btn-primary absolute right-2 px-3.5 py-1.5 text-xs font-medium">
+              <span>Execute</span>
+              <kbd class="ml-1 bg-black/10 border-black/20 text-black">↵</kbd>
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick Action Suggestion Chips -->
+        <div class="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+          <span class="text-zinc-500 text-[11px] mr-1">Quick Actions:</span>
+          <button type="button" onclick="quickPrompt('Organize my Downloads folder')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            📁 Organize ~/Downloads
+          </button>
+          <button type="button" onclick="quickPrompt('Why is port 80 blocked in firewall?')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            🔬 Diagnose Port 80 Blocked
+          </button>
+          <button type="button" onclick="quickPrompt('Show system health and pressure')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            📊 System Health & PSI
+          </button>
+          <button type="button" onclick="quickPrompt('Restart nginx service')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            ⚙️ Restart NGINX
+          </button>
+          <button type="button" onclick="quickPrompt('Clean old logs and temp files')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            🧹 Clean Logs & Temp
+          </button>
+          <button type="button" onclick="quickPrompt('Find large files over 100MB')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            🔍 Find Space Hogs
+          </button>
+          <button type="button" onclick="quickPrompt('Audit SSH security configuration')" class="px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] transition text-[11px] font-medium">
+            🛡️ SSH Security Audit
+          </button>
+        </div>
+      </div>
+
+      <!-- Agent Activity / Reasoning Stream Feed -->
+      <div class="linear-card p-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div class="flex items-center space-x-2 font-semibold text-xs text-zinc-300 uppercase tracking-wider">
+            <i data-lucide="layers" class="w-4 h-4 text-white"></i>
+            <span>Agent Activity & Execution Stream</span>
+          </div>
+          <button onclick="clearAgentFeed()" class="text-xs text-zinc-500 hover:text-zinc-300 transition">Clear Stream</button>
+        </div>
+
+        <div id="agent-feed-container" class="space-y-4">
+          <!-- Initial Placeholder -->
+          <div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] text-xs text-zinc-400 space-y-2 font-sans">
+            <div class="flex items-center space-x-2 text-white font-medium">
+              <i data-lucide="info" class="w-3.5 h-3.5"></i>
+              <span>Ops Assistant Ready</span>
+            </div>
+            <p class="leading-relaxed">
+              Enter any sysadmin question or operation in the prompt above. The assistant will inspect system state, propose exact commands with flag explanations, verify safety levels, and request explicit permission before executing modifying actions.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: SYSTEM HEALTH & PSI TELEMETRY -->
+    <!-- ======================================================== -->
+    <div id="tab-content-health" class="tab-content hidden space-y-6">
+      <!-- 4 Core Metric Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div class="linear-card p-4 space-y-1.5">
+          <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">CPU Utilization</span>
+          <div class="flex items-baseline justify-between">
+            <span id="health-cpu-pct" class="text-2xl font-bold font-mono text-white">0.0%</span>
+            <span id="health-cpu-cores" class="text-xs text-zinc-500 font-mono">1 Core</span>
+          </div>
+          <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
+        </div>
+
+        <div class="linear-card p-4 space-y-1.5">
+          <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Memory (RAM)</span>
+          <div class="flex items-baseline justify-between">
+            <span id="health-ram-pct" class="text-2xl font-bold font-mono text-white">0.0%</span>
+            <span id="health-ram-avail" class="text-xs text-zinc-500 font-mono">0 / 0 MB</span>
+          </div>
+          <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-swap-info">Swap: 0% used</p>
+        </div>
+
+        <div class="linear-card p-4 space-y-1.5">
+          <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Load Average</span>
+          <div class="flex items-baseline justify-between">
+            <span id="health-load-1m" class="text-2xl font-bold font-mono text-white">0.00</span>
+            <span id="health-load-5m" class="text-xs text-zinc-500 font-mono">5m: 0.00 | 15m: 0.00</span>
+          </div>
+          <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-procs-count">0 running / 0 procs</p>
+        </div>
+
+        <div class="linear-card p-4 space-y-1.5">
+          <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Kernel PSI Pressure</span>
+          <div class="flex items-baseline justify-between">
+            <span id="health-psi-badge" class="text-2xl font-bold font-mono text-emerald-400">NORMAL</span>
+            <span id="health-zombie-count" class="text-xs text-zinc-500 font-mono">0 Zombies</span>
+          </div>
+          <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
+        </div>
+      </div>
+
+      <!-- Real-Time Telemetry Charts -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="linear-card p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
+              <i data-lucide="cpu" class="w-3.5 h-3.5 text-zinc-400"></i>
+              <span>CPU Utilization & I/O Wait Trend</span>
+            </h3>
+            <span class="text-[10px] font-mono text-zinc-500">1Hz SSE Stream</span>
+          </div>
+          <div class="h-56 relative">
+            <canvas id="chart-cpu"></canvas>
+          </div>
+        </div>
+
+        <div class="linear-card p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
+              <i data-lucide="database" class="w-3.5 h-3.5 text-zinc-400"></i>
+              <span>RAM & Swap Consumption Trend</span>
+            </h3>
+            <span class="text-[10px] font-mono text-zinc-500">Live Buffer</span>
+          </div>
+          <div class="h-56 relative">
+            <canvas id="chart-memory"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- PSI & Filesystem Tables Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="linear-card p-5 space-y-3">
+          <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="gauge" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <span>Kernel Pressure Stall Information (PSI /proc/pressure)</span>
+          </h3>
+          <div id="psi-table-container" class="text-xs text-zinc-400 space-y-2">
+            <p class="text-zinc-600 font-mono">Loading kernel PSI metrics...</p>
+          </div>
+        </div>
+
+        <div class="linear-card p-5 space-y-3">
+          <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <span>Filesystem Partitions & Mounts</span>
+          </h3>
+          <div id="disks-table-container" class="text-xs text-zinc-400 space-y-2">
+            <p class="text-zinc-600 font-mono">Loading filesystem partition telemetry...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: SERVICES & PROCESS MANAGER -->
+    <!-- ======================================================== -->
+    <div id="tab-content-services" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- System Services Controller -->
+        <div class="linear-card p-5 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+              <i data-lucide="settings" class="w-4 h-4 text-zinc-400"></i>
+              <span>System Services (systemd / OpenRC)</span>
+            </h3>
+            <button onclick="loadServices()" class="text-xs text-zinc-400 hover:text-white flex items-center space-x-1 transition">
+              <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <input 
+              type="text" 
+              id="service-search-input" 
+              placeholder="Filter service units (e.g. nginx, ssh, docker)..." 
+              oninput="filterServices()"
+              class="linear-input w-full px-3 py-1.5 text-xs font-mono"
+            />
+          </div>
+
+          <div class="overflow-y-auto max-h-96 border border-white/[0.08] rounded-lg">
+            <table class="linear-table">
+              <thead>
+                <tr>
+                  <th>Unit</th>
+                  <th>State</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="services-table-body">
+                <tr><td colspan="3" class="text-center text-zinc-600 py-6 font-mono">Loading service units...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Interactive Process Manager -->
+        <div class="linear-card p-5 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+              <i data-lucide="activity" class="w-4 h-4 text-zinc-400"></i>
+              <span>Process Table (Top CPU & Memory)</span>
+            </h3>
+            <button onclick="loadProcesses()" class="text-xs text-zinc-400 hover:text-white flex items-center space-x-1 transition">
+              <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div class="overflow-y-auto max-h-96 border border-white/[0.08] rounded-lg">
+            <table class="linear-table">
+              <thead>
+                <tr>
+                  <th>PID</th>
+                  <th>User</th>
+                  <th>CPU%</th>
+                  <th>MEM%</th>
+                  <th>Command</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="processes-table-body">
+                <tr><td colspan="6" class="text-center text-zinc-600 py-6 font-mono">Loading active processes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: STORAGE & CLEANUP -->
+    <!-- ======================================================== -->
+    <div id="tab-content-storage" class="tab-content hidden space-y-6">
+      <!-- Smart Directory Organizer Card -->
+      <div class="linear-card-elevated p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+              <i data-lucide="folder-archive" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-white">Smart Directory Organizer</h3>
+              <p class="text-xs text-zinc-400">Auto-organizes cluttered directories into categorized subfolders with dry-run verification.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2.5 pt-1">
+          <input 
+            type="text" 
+            id="organize-path-input" 
+            value="~/Downloads" 
+            placeholder="Target directory path..." 
+            class="linear-input flex-1 px-3.5 py-2 text-xs font-mono"
+          />
+          <button 
+            type="button" 
+            onclick="previewOrganize()" 
+            class="btn btn-secondary px-4 py-2 text-xs">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            <span>Preview Dry-Run</span>
+          </button>
+          <button 
+            type="button" 
+            onclick="promptOrganizeNow()" 
+            class="btn btn-primary px-4 py-2 text-xs">
+            <i data-lucide="folder-check" class="w-3.5 h-3.5"></i>
+            <span>Organize With Permission</span>
+          </button>
+        </div>
+
+        <div id="organize-result-container" class="hidden p-4 rounded-lg bg-[#060709] border border-white/[0.08] text-xs font-mono text-zinc-300 space-y-2"></div>
+      </div>
+
+      <!-- Large File Scanner & Cleaner Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Large Files Scanner -->
+        <div class="linear-card p-5 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+              <i data-lucide="search" class="w-4 h-4 text-zinc-400"></i>
+              <span>Large Files (>100MB)</span>
+            </h3>
+            <button onclick="loadLargeFiles()" class="text-xs text-zinc-400 hover:text-white transition">Scan Root</button>
+          </div>
+          <div id="large-files-container" class="overflow-y-auto max-h-72 border border-white/[0.08] rounded-lg p-3 text-xs space-y-1.5">
+            <p class="text-zinc-600 font-mono">Click 'Scan Root' to search for space hogs.</p>
+          </div>
+        </div>
+
+        <!-- Storage Cleaner -->
+        <div class="linear-card p-5 space-y-3.5">
+          <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+            <i data-lucide="trash-2" class="w-4 h-4 text-zinc-400"></i>
+            <span>System Log & Temp Cleaner</span>
+          </h3>
+          <p class="text-xs text-zinc-400">Safely purges rotated journal logs, package manager caches, and stale temporary files.</p>
+          <div class="flex space-x-2.5 pt-2">
+            <button onclick="cleanStorage(true)" class="btn btn-secondary flex-1 py-2 text-xs">
+              Preview Clean
+            </button>
+            <button onclick="promptCleanStorage()" class="btn btn-danger flex-1 py-2 text-xs">
+              Execute Clean
+            </button>
+          </div>
+          <div id="clean-result-container" class="hidden p-3 rounded-lg bg-[#060709] border border-white/[0.08] text-xs text-zinc-300 font-mono"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: NETWORK & FIREWALL -->
+    <!-- ======================================================== -->
+    <div id="tab-content-network" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Listening Ports -->
+        <div class="linear-card p-5 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+              <i data-lucide="radio" class="w-4 h-4 text-zinc-400"></i>
+              <span>Open Listening Sockets (ss)</span>
+            </h3>
+            <button onclick="loadNetwork()" class="text-xs text-zinc-400 hover:text-white transition">Refresh</button>
+          </div>
+          <div class="overflow-y-auto max-h-80 border border-white/[0.08] rounded-lg">
+            <table class="linear-table">
+              <thead>
+                <tr>
+                  <th>Port</th>
+                  <th>Proto</th>
+                  <th>Address</th>
+                  <th>Process</th>
+                </tr>
+              </thead>
+              <tbody id="network-ports-body">
+                <tr><td colspan="4" class="text-center text-zinc-600 py-6 font-mono">Loading listening sockets...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Firewall Management -->
+        <div class="linear-card p-5 space-y-3.5">
+          <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+            <i data-lucide="shield" class="w-4 h-4 text-zinc-400"></i>
+            <span>Firewall Rules (UFW / Firewalld)</span>
+          </h3>
+          <div id="firewall-status-card" class="p-3 rounded-lg bg-white/[0.02] border border-white/[0.08] text-xs font-mono text-zinc-300">
+            Status: Loading...
+          </div>
+          <div class="flex items-center space-x-2 pt-1">
+            <input type="number" id="fw-port-input" placeholder="Port (e.g. 80, 443, 8080)" class="linear-input w-1/2 px-3 py-1.5 text-xs font-mono" />
+            <select id="fw-proto-select" class="linear-input px-3 py-1.5 text-xs font-mono">
+              <option value="tcp">TCP</option>
+              <option value="udp">UDP</option>
+            </select>
+            <button onclick="promptFirewallRule('allow')" class="btn btn-secondary px-3 py-1.5 text-xs">Allow</button>
+            <button onclick="promptFirewallRule('deny')" class="btn btn-danger px-3 py-1.5 text-xs">Deny</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 6: 16-CLASS FAILURE TAXONOMY & DAG -->
+    <!-- ======================================================== -->
+    <div id="tab-content-taxonomy" class="tab-content hidden space-y-6">
+      <div class="linear-card-elevated p-6 space-y-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-white">16-Class Linux Failure Taxonomy & Causality DAG Engine</h3>
+            <p class="text-xs text-zinc-400">Simulate and diagnose core Linux failure modes with Topological In-Degree=0 Root Cause Isolation.</p>
+          </div>
+        </div>
+
+        <!-- 16 Scenarios Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1" id="taxonomy-scenarios-grid">
+          <div class="p-3 bg-white/[0.02] rounded-lg text-xs text-zinc-600 text-center col-span-4 font-mono">Loading failure scenarios...</div>
+        </div>
+      </div>
+
+      <!-- Diagnostic Report & Causality DAG Visualizer -->
+      <div id="taxonomy-report-container" class="hidden linear-card p-6 space-y-5">
+        <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <h4 class="font-semibold text-sm text-white" id="diag-report-title">Diagnostic Report</h4>
+          <span id="diag-report-badge" class="badge-readonly text-[10px] font-mono px-2 py-0.5 rounded font-semibold uppercase">RESOLVED</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-3 text-xs">
+            <div>
+              <span class="text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">Symptom:</span>
+              <p class="text-zinc-200 mt-0.5 font-medium" id="diag-symptom">-</p>
+            </div>
+            <div>
+              <span class="text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">Root Cause:</span>
+              <p class="text-white font-medium mt-0.5" id="diag-root-cause">-</p>
+            </div>
+            <div>
+              <span class="text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">Rationale:</span>
+              <p class="text-zinc-400 mt-0.5 leading-relaxed" id="diag-rationale">-</p>
+            </div>
+          </div>
+
+          <!-- Mermaid Causal Graph Visualizer -->
+          <div class="space-y-2">
+            <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">Topological Causality DAG (Root: InDegree=0):</span>
+            <div id="mermaid-dag-container" class="p-4 rounded-lg bg-[#060709] border border-white/[0.08] flex items-center justify-center min-h-36 overflow-x-auto"></div>
+          </div>
+        </div>
+
+        <!-- Proposed Commands & Remediation -->
+        <div class="space-y-3 pt-2">
+          <h5 class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Proposed Remediation Commands (AST & Sandbox Verified)</h5>
+          <div id="diag-commands-container" class="space-y-2.5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 7: PACKAGE MANAGER -->
+    <!-- ======================================================== -->
+    <div id="tab-content-packages" class="tab-content hidden space-y-6">
+      <div class="linear-card-elevated p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+            <i data-lucide="package" class="w-4 h-4 text-zinc-400"></i>
+            <span>Multi-Distro Package & Environment Manager</span>
+          </h3>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-zinc-300 border border-white/10" id="pkg-distro-badge">Autodetected</span>
+        </div>
+
+        <div class="flex space-x-2 pt-1">
+          <input 
+            type="text" 
+            id="pkg-search-input" 
+            placeholder="Search package (e.g. htop, nginx, curl, tree)..." 
+            class="linear-input flex-1 px-3.5 py-2 text-xs font-mono"
+          />
+          <button 
+            type="button" 
+            onclick="searchPackage()" 
+            class="btn btn-primary px-4 py-2 text-xs">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+            <span>Search</span>
+          </button>
+        </div>
+
+        <div id="pkg-result-container" class="p-4 rounded-lg bg-[#060709] border border-white/[0.08] text-xs font-mono text-zinc-300 space-y-2">
+          <p class="text-zinc-600">Enter a package name to search repository metadata.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 8: DESKTOP TOOLS & DIRECT COMMAND RUNNER -->
+    <!-- ======================================================== -->
+    <div id="tab-content-desktop" class="tab-content hidden space-y-6">
+      <!-- Direct CLI Command Runner with Permission Check -->
+      <div class="linear-card-elevated p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white">
+              <i data-lucide="terminal" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-white">Direct CLI Command Runner</h3>
+              <p class="text-xs text-zinc-400">Execute custom commands through AST safety validation and ephemeral CoW sandboxing.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex space-x-2">
+          <input 
+            type="text" 
+            id="direct-cmd-input" 
+            placeholder="e.g. uname -a, df -h, systemctl status nginx" 
+            class="linear-input flex-1 px-3.5 py-2 text-xs font-mono"
+          />
+          <button 
+            type="button" 
+            onclick="promptDirectCommand()" 
+            class="btn btn-primary px-4 py-2 text-xs">
+            <span>Run With Permission</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Universal Downloader -->
+      <div class="linear-card p-6 space-y-4">
+        <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+          <i data-lucide="download" class="w-4 h-4 text-zinc-400"></i>
+          <span>Universal Stream Downloader</span>
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <input 
+            type="text" 
+            id="download-url-input" 
+            placeholder="https://example.com/archive.tar.gz" 
+            class="sm:col-span-2 linear-input px-3.5 py-2 text-xs font-mono"
+          />
+          <input 
+            type="text" 
+            id="download-dest-input" 
+            value="~/Downloads" 
+            placeholder="Destination directory" 
+            class="linear-input px-3.5 py-2 text-xs font-mono"
+          />
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer">
+            <input type="checkbox" id="download-auto-extract" checked class="rounded bg-black border-white/20 text-white focus:ring-0">
+            <span>Auto-extract archives (.zip, .tar.gz, .tar.xz)</span>
+          </label>
+          <button 
+            type="button" 
+            onclick="promptDownload()" 
+            class="btn btn-secondary px-4 py-2 text-xs">
+            <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i>
+            <span>Download</span>
+          </button>
+        </div>
+
+        <div id="download-result-container" class="hidden p-4 rounded-lg bg-[#060709] border border-white/[0.08] text-xs font-mono text-zinc-300 space-y-2"></div>
+      </div>
+
+      <!-- Quick Desktop Launchers -->
+      <div class="linear-card p-6 space-y-3.5">
+        <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center space-x-2">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          <span>Quick Desktop Launchers (xdg-open)</span>
+        </h3>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <button onclick="desktopAction('open_folder', {path: '~'})" class="p-3.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] flex items-center space-x-2.5 transition">
+            <i data-lucide="home" class="w-4 h-4 text-zinc-300"></i>
+            <span class="text-xs font-medium text-zinc-200">Open Home</span>
+          </button>
+          <button onclick="desktopAction('open_folder', {path: '~/Downloads'})" class="p-3.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] flex items-center space-x-2.5 transition">
+            <i data-lucide="download" class="w-4 h-4 text-zinc-300"></i>
+            <span class="text-xs font-medium text-zinc-200">Open Downloads</span>
+          </button>
+          <button onclick="desktopAction('open_folder', {path: '~/Pictures'})" class="p-3.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] flex items-center space-x-2.5 transition">
+            <i data-lucide="image" class="w-4 h-4 text-zinc-300"></i>
+            <span class="text-xs font-medium text-zinc-200">Open Pictures</span>
+          </button>
+          <button onclick="desktopAction('open_browser', {url: 'https://google.com'})" class="p-3.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] flex items-center space-x-2.5 transition">
+            <i data-lucide="globe" class="w-4 h-4 text-zinc-300"></i>
+            <span class="text-xs font-medium text-zinc-200">Open Browser</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 1: COMMAND EXECUTION PERMISSION DIALOG -->
+  <!-- ======================================================== -->
+  <div id="modal-permission" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="modal-dialog linear-card-elevated max-w-xl w-full p-6 space-y-4 border border-white/[0.18]">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-md bg-white text-black flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-semibold text-sm text-white">Command Execution Permission</h3>
+            <p class="text-[11px] text-zinc-400">Review command and impact before confirming execution.</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-permission')" class="text-zinc-500 hover:text-white text-lg font-mono">&times;</button>
+      </div>
+
+      <!-- Command Display Box -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between text-[11px] text-zinc-400">
+          <span class="font-mono uppercase font-semibold">Planned Command:</span>
+          <button id="modal-perm-copy-btn" onclick="copyModalCommand()" class="text-zinc-500 hover:text-zinc-200 flex items-center space-x-1">
+            <i data-lucide="copy" class="w-3 h-3"></i>
+            <span>Copy</span>
+          </button>
+        </div>
+        <div class="p-3 rounded-lg bg-[#060709] border border-white/[0.12] font-mono text-xs text-white break-all select-all flex items-start space-x-2">
+          <span class="text-zinc-600 select-none">$</span>
+          <span id="modal-perm-command" class="flex-1 font-semibold text-zinc-100">-</span>
+        </div>
+      </div>
+
+      <!-- Description / What it will do -->
+      <div class="p-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1">
+        <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">What this command will do:</span>
+        <p id="modal-perm-description" class="text-xs text-zinc-200 leading-relaxed font-sans">-</p>
+      </div>
+
+      <!-- Safety & Metadata Grid -->
+      <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+        <div class="p-2.5 rounded-md bg-white/[0.02] border border-white/[0.06]">
+          <span class="text-zinc-500 text-[10px] block uppercase">Safety Level</span>
+          <span id="modal-perm-safety" class="font-semibold text-emerald-400">READ_ONLY</span>
+        </div>
+        <div class="p-2.5 rounded-md bg-white/[0.02] border border-white/[0.06]">
+          <span class="text-zinc-500 text-[10px] block uppercase">Risk Score</span>
+          <span id="modal-perm-risk" class="font-semibold text-zinc-300">0.05 / 1.00</span>
+        </div>
+      </div>
+
+      <!-- Rollback Preview (if available) -->
+      <div id="modal-perm-rollback-box" class="hidden p-2.5 rounded-md bg-white/[0.02] border border-white/[0.06] space-y-1 text-xs font-mono">
+        <span class="text-[10px] text-zinc-500 uppercase font-semibold">Rollback / Undo Command:</span>
+        <div id="modal-perm-rollback" class="text-zinc-400 break-all text-[11px]">-</div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-white/[0.08]">
+        <button onclick="closeModal('modal-permission')" class="btn btn-ghost px-4 py-2 text-xs">
+          Cancel
+        </button>
+        <button id="modal-perm-dryrun-btn" class="btn btn-secondary px-4 py-2 text-xs">
+          <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
+          <span>Dry-Run Sandbox</span>
+        </button>
+        <button id="modal-perm-approve-btn" class="btn btn-primary px-5 py-2 text-xs font-semibold">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i>
+          <span>Approve & Execute</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 2: SERVICE JOURNAL LOGS VIEWER -->
+  <!-- ======================================================== -->
+  <div id="modal-logs" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="modal-dialog linear-card-elevated max-w-3xl w-full p-6 space-y-4 border border-white/[0.18]">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
+          <i data-lucide="file-text" class="w-4 h-4 text-zinc-400"></i>
+          <span id="modal-logs-title">Service Journal Logs</span>
+        </h3>
+        <button onclick="closeModal('modal-logs')" class="text-zinc-500 hover:text-white text-lg font-mono">&times;</button>
+      </div>
+      <pre id="modal-logs-content" class="p-4 bg-[#060709] border border-white/[0.08] rounded-lg text-xs font-mono text-zinc-300 overflow-y-auto max-h-96 whitespace-pre-wrap"></pre>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

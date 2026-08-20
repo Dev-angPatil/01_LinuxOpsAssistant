@@ -353,6 +353,9 @@ class OpsAssistantAgent:
         self.sandbox_probe = EphemeralSandboxProbe()
         self.safety_validator = CommandSafetyValidator()
 
+        from ops_assistant.hardware.advisor import HardwareAdvisor
+        self.hardware_advisor = HardwareAdvisor()
+
         if isinstance(llm_provider, str):
             prov_str = llm_provider.lower().strip()
             if prov_str in ["gguf", "llama_cpp", "local"]:
@@ -631,3 +634,657 @@ class OpsAssistantAgent:
             latency_ms=round(elapsed_ms, 2),
             reasoning_engine="NeuroSymbolic-Causality-XAI"
         )
+
+    def execute_agent_action(self, query: str, context: Optional[Dict[str, Any]] = None, execute: bool = True) -> Dict[str, Any]:
+        """
+        Unified Natural Language Agent Execution Engine for CLI & GUI.
+        Classifies user query and dispatches to tools or diagnostic engine.
+        Provides explicit planned commands, short descriptions, and safety guardrails.
+        """
+        from ops_assistant.nlp.intent_router import IntentRouter, IntentType
+        from ops_assistant.tools import desktop_ops, download_ops, storage_ops, process_ops, network_ops
+
+        router = getattr(self, "_router", None)
+        if router is None:
+            router = IntentRouter(llm_provider=self.llm_provider)
+            self._router = router
+
+        intent = router.classify(query)
+        args = intent.args or {}
+        result: Dict[str, Any] = {
+            "query": query,
+            "intent": intent.type.value,
+            "confidence": intent.confidence,
+            "steps": [],
+            "summary": "",
+            "command": "",
+            "command_description": "",
+            "planned_commands": [],
+            "safety_level": SafetyLevel.READ_ONLY.value,
+            "risk_score": 0.05,
+            "output": None,
+            "rollback_command": None,
+            "diagnostic_report": None,
+            "requires_permission": False,
+            "executed": execute,
+        }
+
+        if intent.type == IntentType.DESKTOP_OPEN_FOLDER:
+            path = args.get("path", "~")
+            cmd = f"xdg-open '{path}'"
+            desc = f"Opens directory '{path}' in the default desktop file manager."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Resolving path '{path}' for system file manager...")
+            if execute:
+                res = desktop_ops.open_folder(path)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Opened folder")
+            else:
+                result["summary"] = f"Ready to open folder '{path}'."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.DESKTOP_OPEN_FILE:
+            path = args.get("path", "")
+            cmd = f"xdg-open '{path}'"
+            desc = f"Opens file '{path}' using its associated desktop application."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Resolving file '{path}' for default application...")
+            if execute:
+                res = desktop_ops.open_file(path)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Opened file")
+            else:
+                result["summary"] = f"Ready to open file '{path}'."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.DESKTOP_OPEN_IMAGE:
+            path = args.get("path", "")
+            cmd = f"xdg-open '{path}'"
+            desc = f"Displays image '{path}' in the default system image viewer."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Opening image '{path}' with system viewer...")
+            if execute:
+                res = desktop_ops.open_image(path)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Opened image")
+            else:
+                result["summary"] = f"Ready to open image '{path}'."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.DESKTOP_OPEN_BROWSER:
+            url = args.get("url", "https://google.com")
+            cmd = f"xdg-open '{url}'"
+            desc = f"Opens web address '{url}' in the default internet browser."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Opening web URL '{url}' in default browser...")
+            if execute:
+                res = desktop_ops.open_browser(url)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Opened browser")
+            else:
+                result["summary"] = f"Ready to open browser at '{url}'."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.DOWNLOAD_URL:
+            url = args.get("url", "")
+            dest = args.get("dest", "~/Downloads")
+            cmd = f"curl -fsSL -O '{url}' --output-dir '{dest}'"
+            desc = f"Downloads stream from '{url}' to destination '{dest}' with auto-extraction."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.20
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20}]
+            result["steps"].append(f"Initiating stream download from '{url}' to '{dest}'...")
+            if execute:
+                res = download_ops.download_file(url, destination_dir=dest, auto_extract=True)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Download completed")
+                if res.get("file_path"):
+                    result["rollback_command"] = f"rm -f '{res['file_path']}'"
+            else:
+                result["summary"] = f"Ready to download '{url}' to '{dest}'."
+
+        elif intent.type == IntentType.FILE_MOVE:
+            src = args.get("src", "")
+            dst = args.get("dst", "")
+            cmd = f"mv '{src}' '{dst}'"
+            desc = f"Moves file or directory from '{src}' to '{dst}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["rollback_command"] = f"mv '{dst}' '{src}'"
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30, "rollback_command": f"mv '{dst}' '{src}'"}]
+            result["steps"].append(f"Moving path '{src}' to '{dst}'...")
+            if execute:
+                res = desktop_ops.move_path(src, dst)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Moved successfully")
+                result["rollback_command"] = res.get("rollback_command") or result["rollback_command"]
+            else:
+                result["summary"] = f"Ready to move '{src}' to '{dst}'."
+
+        elif intent.type == IntentType.FILE_COPY:
+            src = args.get("src", "")
+            dst = args.get("dst", "")
+            cmd = f"cp -r '{src}' '{dst}'"
+            desc = f"Copies file or directory recursively from '{src}' to '{dst}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.25
+            result["rollback_command"] = f"rm -rf '{dst}'"
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.25, "rollback_command": f"rm -rf '{dst}'"}]
+            result["steps"].append(f"Copying path '{src}' to '{dst}'...")
+            if execute:
+                res = desktop_ops.copy_path(src, dst)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Copied successfully")
+                result["rollback_command"] = res.get("rollback_command") or result["rollback_command"]
+            else:
+                result["summary"] = f"Ready to copy '{src}' to '{dst}'."
+
+        elif intent.type == IntentType.FILE_TRASH:
+            path = args.get("path", "")
+            cmd = f"gio trash '{path}'"
+            desc = f"Moves '{path}' safely to user trash directory."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.35
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.35}]
+            result["steps"].append(f"Moving '{path}' to user trash...")
+            if execute:
+                res = desktop_ops.trash_path(path)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Trashed successfully")
+                result["rollback_command"] = res.get("rollback_command")
+            else:
+                result["summary"] = f"Ready to trash '{path}'."
+
+        elif intent.type == IntentType.STORAGE_ORGANISE:
+            raw_path = args.get("path", "~/Downloads")
+            cmd = f"ops-assistant organise '{raw_path}'"
+            desc = f"Categorizes files in '{raw_path}' into Images, Documents, Videos, Audio, Archives, and Code."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30}]
+            result["steps"].append(f"Organizing directory '{raw_path}'...")
+            if execute:
+                res = storage_ops.organise_directory(raw_path, dry_run=False)
+                result["output"] = res
+                result["summary"] = f"Organised {res.get('moved_count', 0)} files in {res.get('directory', raw_path)}"
+                result["rollback_command"] = res.get("rollback_command")
+            else:
+                result["summary"] = f"Ready to organize directory '{raw_path}'."
+
+        elif intent.type == IntentType.STORAGE_CLEAN:
+            cmd = "journalctl --vacuum-size=200M && rm -rf /tmp/*"
+            desc = "Purges rotated journal logs, package manager cache, and stale temporary files."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.40
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.40}]
+            result["steps"].append("Cleaning old log files and temporary space...")
+            if execute:
+                res = storage_ops.clean_logs_and_temp(dry_run=False)
+                result["output"] = res
+                result["summary"] = f"Cleaned {res.get('cleaned_count', 0)} items, freed {res.get('freed_human', '0 MB')}"
+            else:
+                result["summary"] = "Ready to clean system logs and temporary files."
+
+        elif intent.type == IntentType.HEALTH:
+            cmd = "cat /proc/pressure/{cpu,memory,io} && uptime"
+            desc = "Queries kernel PSI pressure stall info, load averages, and memory headroom."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Capturing real-time Linux kernel telemetry and PSI metrics...")
+            snap = self.hub.get_health_snapshot()
+            result["output"] = snap.to_dict()
+            result["summary"] = f"System Health: {snap.hostname} | Kernel: {snap.kernel_release} | Pressure: {snap.pressure_status}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.PROCESS_LIST:
+            cmd = "ps aux --sort=-%cpu | head -n 15"
+            desc = "Lists top resource-consuming processes sorted by CPU and memory consumption."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Listing top CPU/Memory processes...")
+            procs = process_ops.list_top_processes(n=10)
+            result["output"] = procs
+            result["summary"] = f"Found {len(procs)} active processes in process table."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.PROCESS_KILL:
+            pid = args.get("pid")
+            name = args.get("name")
+            cmd = f"kill -15 {pid}" if pid else "killall <process>"
+            desc = f"Sends SIGTERM (signal 15) to terminate process PID {pid} ({name or 'target'})."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.HIGH_RISK.value
+            result["risk_score"] = 0.70
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.HIGH_RISK.value, "risk_score": 0.70}]
+            result["steps"].append(f"Terminating process (PID: {pid})...")
+            if execute:
+                if pid:
+                    res = process_ops.kill_process(pid)
+                    result["output"] = res
+                    result["summary"] = f"Terminated PID {pid}: exit code {res.get('returncode')}"
+                else:
+                    result["summary"] = f"No PID specified for {name}."
+            else:
+                result["summary"] = f"Ready to terminate process PID {pid}."
+
+        elif intent.type in (IntentType.FIREWALL_STATUS, IntentType.NETWORK_STATUS, IntentType.NETWORK_PORTS):
+            cmd = "ss -tulpn && ufw status"
+            desc = "Inspects listening sockets, bound ports, network interfaces, and firewall rules."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Inspecting network configuration and ports...")
+            ports = network_ops.list_listening_ports()
+            fw = network_ops.get_firewall_status()
+            result["output"] = {"ports": ports, "firewall": fw}
+            result["summary"] = f"Firewall: {fw.get('status', 'active')} | Listening ports: {len(ports)}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Hardware & Model Selection Advisory
+        elif intent.type == IntentType.HARDWARE_PROFILE:
+            cmd = "lscpu && free -h && lspci | grep -i vga"
+            desc = "Profiles system CPU cores, RAM bandwidth, GPU acceleration, and storage."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Profiling CPU, RAM headroom, GPU acceleration, and storage...")
+            prof = self.hardware_advisor.profiler.profile()
+            res = prof.to_dict()
+            result["output"] = res
+            result["summary"] = f"Hardware: {res['cpu']['model_name']} ({res['cpu']['logical_cores']} cores) | RAM: {res['memory']['total_gb']} GB | GPU: {res['gpu']['device_name']}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.HARDWARE_RECOMMEND_MODEL:
+            cmd = "ops-assistant recommend-model"
+            desc = "Evaluates hardware compute tier to determine the optimal GGUF quantization model."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Calculating hardware performance score and matching optimal GGUF model...")
+            from ops_assistant.hardware.advisor import ModelSelector
+            prof = self.hardware_advisor.profiler.profile()
+            rec = ModelSelector.recommend_model(prof)
+            result["output"] = rec
+            result["summary"] = f"Recommended Model: {rec['name']} ({rec.get('tier', 'Standard')}) — {rec['reason']}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.HARDWARE_AUTO_TUNE:
+            cmd = "ops-assistant auto-tune"
+            desc = "Configures LLM thread allocation, context windows, and GPU offloading parameters."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Analyzing hardware profile and generating capability matrix...")
+            adv = self.hardware_advisor.get_full_advisory()
+            result["output"] = adv
+            result["summary"] = f"Tuned for {adv['profile']['compute_tier']}: Selected {adv['recommended_model']['name']}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Proactive System Health
+        elif intent.type == IntentType.PROACTIVE_AUDIT:
+            cmd = "ops-assistant audit"
+            desc = "Runs autonomous multi-subsystem audit across kernel, storage, network, and security."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Running comprehensive autonomous multi-subsystem audit...")
+            from ops_assistant.tools import proactive_engine
+            res = proactive_engine.run_proactive_audit()
+            result["output"] = res
+            result["summary"] = f"System Health: {res['overall_health']} | Found {res['findings_count']} issues ({res['critical_count']} critical)"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Docker Operations
+        elif intent.type == IntentType.DOCKER_LIST:
+            cmd = "docker ps -a --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}'"
+            desc = "Inspects active and stopped Docker containers and port bindings."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Inspecting Docker daemon and active containers...")
+            from ops_assistant.tools import docker_ops
+            res = docker_ops.list_containers(all_containers=True)
+            result["output"] = res
+            result["summary"] = f"Docker: {res.get('running_count', 0)} running, {res.get('failed_count', 0)} failed ({res.get('count', 0)} total)"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.DOCKER_LOGS:
+            c = args.get("container", "")
+            cmd = f"docker logs --tail 100 '{c}'"
+            desc = f"Fetches recent standard output and error logs for container '{c}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Retrieving recent logs for container '{c}'...")
+            from ops_assistant.tools import docker_ops
+            res = docker_ops.get_container_logs(c)
+            result["output"] = res
+            result["summary"] = f"Retrieved {res.get('lines_count', 0)} log lines for container '{c}'"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.DOCKER_RESTART:
+            c = args.get("container", "")
+            cmd = f"docker restart '{c}'"
+            desc = f"Restarts container '{c}', cycling its process and re-initializing networking."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.35
+            result["rollback_command"] = f"docker restart '{c}'"
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.35, "rollback_command": f"docker restart '{c}'"}]
+            result["steps"].append(f"Restarting container '{c}'...")
+            if execute:
+                from ops_assistant.tools import docker_ops
+                res = docker_ops.restart_container(c)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Restarted container")
+                result["rollback_command"] = res.get("rollback_command") or result["rollback_command"]
+            else:
+                result["summary"] = f"Ready to restart container '{c}'."
+
+        elif intent.type == IntentType.DOCKER_PRUNE:
+            cmd = "docker system prune -f"
+            desc = "Removes all stopped containers, unused networks, and dangling images."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30}]
+            result["steps"].append("Pruning unused Docker images, volumes, and builder cache...")
+            if execute:
+                from ops_assistant.tools import docker_ops
+                res = docker_ops.prune_docker_resources(dry_run=False)
+                result["output"] = res
+                result["summary"] = res.get("message", "Docker pruned")
+            else:
+                result["summary"] = "Ready to prune unused Docker resources."
+
+        # System Maintenance & Crontab
+        elif intent.type == IntentType.CRON_LIST:
+            cmd = "crontab -l && ls -la /etc/cron.*"
+            desc = "Lists scheduled cron jobs for current user and system cron directories."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Inspecting user and system crontabs...")
+            from ops_assistant.tools import system_ops
+            res = system_ops.list_cron_jobs()
+            result["output"] = res
+            result["summary"] = f"Crontab: {res['user_jobs_count']} user jobs, {res['system_files_count']} system cron files"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.CRON_REMOVE:
+            pat = args.get("pattern", "")
+            cmd = f"crontab -l | grep -v '{pat}' | crontab -"
+            desc = f"Removes scheduled cron entries matching pattern '{pat}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.35
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.35}]
+            result["steps"].append(f"Removing cron jobs matching '{pat}'...")
+            if execute:
+                from ops_assistant.tools import system_ops
+                res = system_ops.remove_cron_job(pat)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Removed cron job")
+            else:
+                result["summary"] = f"Ready to remove cron jobs matching '{pat}'."
+
+        elif intent.type == IntentType.SYSTEM_BOOT_ANALYSIS:
+            cmd = "systemd-analyze && systemd-analyze blame | head -n 10"
+            desc = "Evaluates kernel and userspace startup duration and pinpoints slowest system services."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Analyzing system boot times and service blame breakdown...")
+            from ops_assistant.tools import system_ops
+            res = system_ops.analyze_boot_time()
+            result["output"] = res
+            slowest = res['top_slow_services'][0]['service'] if res.get('top_slow_services') else 'None'
+            result["summary"] = f"Boot Time: {res.get('overall_boot_time', 'N/A')} | Slowest service: {slowest}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SYSTEM_TRIM_SSD:
+            cmd = "fstrim -av"
+            desc = "Trims mounted SSD blocks to inform storage hardware of unallocated blocks."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.20
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20}]
+            result["steps"].append("Executing SSD TRIM on mounted filesystems...")
+            if execute:
+                from ops_assistant.tools import system_ops
+                res = system_ops.trim_ssds(dry_run=False)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Trimmed SSDs")
+            else:
+                result["summary"] = "Ready to execute SSD TRIM across mounted filesystems."
+
+        elif intent.type == IntentType.SYSTEM_PACKAGE_CLEAN:
+            cmd = "apt-get clean || dnf clean all || pacman -Sc --noconfirm || apk cache clean"
+            desc = "Deletes cached package archive files from local repository directories."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.25
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.25}]
+            result["steps"].append("Purging downloaded package cache archives...")
+            if execute:
+                from ops_assistant.tools import system_ops
+                res = system_ops.clean_package_cache(dry_run=False)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Cleaned package cache")
+            else:
+                result["summary"] = "Ready to purge downloaded package cache archives."
+
+        elif intent.type == IntentType.SYSTEM_JOURNAL_VACUUM:
+            cmd = "journalctl --vacuum-size=200M"
+            desc = "Reduces systemd journal size on disk by removing archived log entries exceeding 200MB."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30}]
+            result["steps"].append("Vacuuming systemd journal logs to reclaim space...")
+            if execute:
+                from ops_assistant.tools import system_ops
+                res = system_ops.vacuum_journal(max_size="200M", dry_run=False)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Journal vacuumed")
+            else:
+                result["summary"] = "Ready to vacuum systemd journal logs."
+
+        # Security Auditing
+        elif intent.type == IntentType.SECURITY_AUDIT:
+            cmd = "ss -tulpn && grep -i 'Failed password' /var/log/auth.log | tail -n 20"
+            desc = "Audits open listening ports, firewall posture, SSH login failures, and SUID binaries."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Running comprehensive security audit (ports, SSH, brute force, SUID)...")
+            from ops_assistant.tools import security_ops
+            res = security_ops.audit_security()
+            result["output"] = res
+            result["summary"] = f"Security Status: {res.get('overall_status')} | Firewall: {res.get('firewall', {}).get('status')} | Open Ports: {res.get('listening_ports_count')}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SECURITY_SSH_CHECK:
+            cmd = "sshd -T || cat /etc/ssh/sshd_config"
+            desc = "Analyzes SSH daemon configuration for root login, password auth, and port security."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Auditing SSH daemon configuration hardening...")
+            from ops_assistant.tools import security_ops
+            res = security_ops.inspect_ssh_security()
+            result["output"] = res
+            result["summary"] = f"SSH Security Score: {res.get('security_score')}% | Checks: {len(res.get('findings', []))}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SECURITY_BRUTEFORCE:
+            cmd = "grep -E '(Failed password|authentication failure)' /var/log/auth.log | tail -n 50"
+            desc = "Scans auth logs for repeated failed password attempts and potential brute force attacks."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Scanning auth logs and journal for failed SSH authentication attempts...")
+            from ops_assistant.tools import security_ops
+            res = security_ops.detect_ssh_bruteforce(hours=24)
+            result["output"] = res
+            result["summary"] = f"Auth Threat: {res.get('threat_level')} | {res.get('total_failed_attempts')} failed attempts"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SECURITY_SUID:
+            cmd = "find / -perm -4000 -type f 2>/dev/null"
+            desc = "Discovers binaries with SUID permission bit set that run with superuser privileges."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Auditing system binaries for SUID/SGID executable permissions...")
+            from ops_assistant.tools import security_ops
+            res = security_ops.audit_suid_binaries()
+            result["output"] = res
+            result["summary"] = f"SUID Binaries: {res.get('total_suid_count')} total ({res.get('anomalous_suid_count')} anomalies)"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Backup & Restore
+        elif intent.type == IntentType.BACKUP_CREATE:
+            path = args.get("path", "/etc")
+            dest = args.get("dest", "~/.ops_assistant/backups")
+            cmd = f"tar -czf '{dest}/backup.tar.gz' '{path}'"
+            desc = f"Creates a gzip-compressed backup archive of '{path}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.20
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20}]
+            result["steps"].append(f"Creating compressed snapshot of '{path}'...")
+            if execute:
+                from ops_assistant.tools import backup_ops
+                res = backup_ops.create_backup(path, backup_dir=dest)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Created backup")
+                result["rollback_command"] = res.get("rollback_command")
+            else:
+                result["summary"] = f"Ready to create backup snapshot of '{path}'."
+
+        elif intent.type == IntentType.BACKUP_LIST:
+            cmd = "ls -lh ~/.ops_assistant/backups"
+            desc = "Lists stored configuration backup archives with sizes and creation timestamps."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Listing stored configuration backup archives...")
+            from ops_assistant.tools import backup_ops
+            res = backup_ops.list_backups()
+            result["output"] = res
+            result["summary"] = f"Found {res.get('count', 0)} backups in {res.get('directory')}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.BACKUP_RESTORE:
+            path = args.get("path", "")
+            dest = args.get("dest", "")
+            cmd = f"tar -xzf '{path}' -C '{dest}'"
+            desc = f"Extracts and restores backup archive '{path}' to target destination '{dest}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.HIGH_RISK.value
+            result["risk_score"] = 0.70
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.HIGH_RISK.value, "risk_score": 0.70}]
+            result["steps"].append(f"Restoring backup archive '{path}' to '{dest}'...")
+            if execute:
+                from ops_assistant.tools import backup_ops
+                res = backup_ops.restore_backup(path, dest)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Restored backup")
+            else:
+                result["summary"] = f"Ready to restore backup archive '{path}' to '{dest}'."
+
+        else:
+            result["steps"].append("Analyzing multi-vector telemetry & matching 16-class failure taxonomies...")
+            distro_override = context.get("distro") if context else None
+            report = self.diagnose(query, distro_override=distro_override)
+            result["diagnostic_report"] = report.to_dict()
+            result["output"] = report.to_dict()
+            result["summary"] = f"{report.explanation.symptom} — Root cause: {report.explanation.root_cause}"
+            if report.explanation.proposed_commands:
+                first_cmd = report.explanation.proposed_commands[0]
+                result["command"] = first_cmd.command
+                result["command_description"] = first_cmd.rationale
+                result["safety_level"] = first_cmd.safety_level.value if hasattr(first_cmd.safety_level, 'value') else str(first_cmd.safety_level)
+                result["risk_score"] = first_cmd.risk_score
+                result["rollback_command"] = first_cmd.rollback_command
+                result["planned_commands"] = [
+                    {
+                        "command": c.command,
+                        "description": c.rationale,
+                        "safety_level": c.safety_level.value if hasattr(c.safety_level, 'value') else str(c.safety_level),
+                        "risk_score": c.risk_score,
+                        "rollback_command": c.rollback_command,
+                        "sandbox_verified": getattr(c, "sandbox_verified", False)
+                    }
+                    for c in report.explanation.proposed_commands
+                ]
+
+        return result
+

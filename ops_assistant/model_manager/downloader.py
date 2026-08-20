@@ -14,22 +14,9 @@ import urllib.request
 from pathlib import Path
 from typing import Callable, Optional
 
-DEFAULT_MODELS = {
-    "qwen2.5-coder-0.5b": {
-        "name": "Qwen2.5-Coder-0.5B-Instruct (Q4_K_M)",
-        "filename": "qwen2.5-coder-0.5b-instruct-q4_k_m.gguf",
-        "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf",
-        "size_bytes": 397734208,  # ~379 MB
-        "description": "Ultra-lightweight 0.5B parameter code & sysadmin model optimized for edge devices.",
-    },
-    "smollm2-360m": {
-        "name": "SmolLM2-360M-Instruct (Q4_K_M)",
-        "filename": "smollm2-360m-instruct-q4_k_m.gguf",
-        "url": "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf",
-        "size_bytes": 229343712,  # ~218 MB
-        "description": "Compact 360M parameter model for low-memory environments.",
-    }
-}
+from ops_assistant.hardware.advisor import MODEL_CATALOG
+
+DEFAULT_MODELS = MODEL_CATALOG
 
 
 def get_default_models_dir() -> Path:

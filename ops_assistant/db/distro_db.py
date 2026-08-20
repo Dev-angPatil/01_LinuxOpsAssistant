@@ -23,7 +23,7 @@ class DistroKnowledgeBase:
                 os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
 
         self.data_source_path = str(data_source_path or DEFAULT_DATA_PATH)
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._profiles_cache: Dict[str, Dict[str, Any]] = {}
         self._commands_cache: Dict[Tuple[str, str, str], str] = {}
