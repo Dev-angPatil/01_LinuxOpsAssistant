@@ -192,6 +192,17 @@ async function executeDryRunSandbox(cmd) {
 // ==========================================================================
 // TAB SWITCHING & INITIALIZATION
 // ==========================================================================
+const TAB_TITLES = {
+  'home': 'AI Ops Agent',
+  'health': 'System Health & PSI Telemetry',
+  'services': 'Services & Process Management',
+  'storage': 'Storage Analysis & Cleanup',
+  'network': 'Network & Firewall Control',
+  'taxonomy': '16-Class Failure Taxonomy',
+  'packages': 'Package Management',
+  'desktop': 'Desktop & Task Runner'
+};
+
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -201,6 +212,11 @@ function switchTab(tabId) {
 
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeBtn) activeBtn.classList.add('active');
+
+  const titleEl = document.getElementById('current-tab-title');
+  if (titleEl && TAB_TITLES[tabId]) {
+    titleEl.textContent = TAB_TITLES[tabId];
+  }
 
   // Trigger lazy loading
   if (tabId === 'services') loadServices();

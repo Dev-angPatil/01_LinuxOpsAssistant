@@ -16,6 +16,7 @@ import threading
 from pathlib import Path
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from dataclasses import asdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from ops_assistant.agent import OpsAssistantAgent
@@ -126,7 +127,7 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             snap = self.hub.get_health_snapshot()
             large_res = storage_ops.find_large_files(search_path=raw_path, threshold_mb=100, top_n=20)
             self._send_json({
-                "disks": [d.__dict__ for d in snap.disks],
+                "disks": [asdict(d) if hasattr(d, "__dataclass_fields__") else d.__dict__ for d in snap.disks],
                 "large_files": large_res.get("files", [])
             })
             return
@@ -209,7 +210,7 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
         elif path == "/api/distro":
             detector = DistroDetector()
             d_info = detector.detect()
-            self._send_json(d_info.__dict__)
+            self._send_json(d_info.to_dict() if hasattr(d_info, "to_dict") else d_info.__dict__)
             return
 
         else:
@@ -365,13 +366,14 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
                 }, status=403)
                 return
 
-            res = self.executor.execute_command(command, dry_run=dry_run)
+            res = self.executor.execute(command, dry_run=dry_run)
+            returncode = res.get("returncode", -1)
             self._send_json({
-                "success": res.returncode == 0,
-                "returncode": res.returncode,
-                "stdout": res.stdout,
-                "stderr": res.stderr,
-                "latency_ms": res.latency_ms,
+                "success": returncode == 0,
+                "returncode": returncode,
+                "stdout": res.get("stdout", ""),
+                "stderr": res.get("stderr", ""),
+                "latency_ms": res.get("elapsed_ms", 0.0),
                 "command": command,
                 "safety_level": val.level.value,
                 "risk_score": val.risk_score,
@@ -386,12 +388,13 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             if not rollback_cmd:
                 self._send_error("Rollback command required")
                 return
-            res = self.executor.rollback(rollback_cmd)
+            res = self.executor.execute(rollback_cmd)
+            returncode = res.get("returncode", -1)
             self._send_json({
-                "success": res.returncode == 0,
-                "returncode": res.returncode,
-                "stdout": res.stdout,
-                "stderr": res.stderr,
+                "success": returncode == 0,
+                "returncode": returncode,
+                "stdout": res.get("stdout", ""),
+                "stderr": res.get("stderr", ""),
                 "command": rollback_cmd
             })
             return
@@ -482,7 +485,8 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
 
     def _serve_static_file(self, filename: str, mime: str):
         target = (STATIC_DIR / filename).resolve()
-        if not str(target).startswith(str(STATIC_DIR.resolve())) or not target.exists() or not target.is_file():
+        resolved_static = STATIC_DIR.resolve()
+        if not (target == resolved_static or target.is_relative_to(resolved_static)) or not target.exists() or not target.is_file():
             self._send_error("File not found", status=404)
             return
 

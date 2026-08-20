@@ -113,23 +113,26 @@ kbd, .kbd-badge {
 
 /* Navigation Tab Styling */
 .nav-tab {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
+  gap: 0.625rem;
+  padding: 0.55rem 0.75rem;
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-muted);
-  border-radius: 6px;
+  border-radius: 7px;
   transition: all 0.15s ease;
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
+  width: 100%;
+  text-align: left;
 }
 
 .nav-tab:hover {
   color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.04);
 }
 
 .nav-tab.active {
@@ -137,6 +140,19 @@ kbd, .kbd-badge {
   background-color: var(--bg-surface-elevated);
   border-color: var(--border-default);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.nav-tab.active i, .nav-tab.active svg {
+  color: #FFFFFF;
+}
+
+.nav-tab i, .nav-tab svg {
+  color: var(--text-dim);
+  transition: color 0.15s ease;
+}
+
+.nav-tab:hover i, .nav-tab:hover svg {
+  color: var(--text-muted);
 }
 
 /* Buttons */

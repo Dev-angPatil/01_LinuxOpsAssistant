@@ -109,6 +109,10 @@ class SafeExecutor:
             self.history.append(res)
             return res
 
+    def execute_command(self, command_str: str, dry_run: bool = False) -> Dict[str, Any]:
+        """Convenience method executing a command with standard options."""
+        return self.execute(command_str, dry_run=dry_run)
+
     def rollback_last(self) -> Dict[str, Any]:
         """Executes the rollback command of the most recently executed modifying action."""
         for item in reversed(self.history):
@@ -126,4 +130,12 @@ class SafeExecutor:
             "stderr": "No rollback command found in execution history.",
             "elapsed_ms": 0.0
         }
+
+    def rollback(self, rollback_cmd: Optional[str] = None) -> Dict[str, Any]:
+        """Executes a specific rollback command or the last executed rollback action."""
+        if rollback_cmd:
+            return self.execute(rollback_cmd)
+        return self.rollback_last()
+
+
 

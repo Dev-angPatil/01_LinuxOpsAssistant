@@ -32,89 +32,113 @@
     }
   </script>
 </head>
-<body class="bg-[#08090C] text-zinc-100 min-h-screen flex flex-col font-sans antialiased selection:bg-white selection:text-black">
+<body class="bg-[#08090C] text-zinc-100 min-h-screen flex font-sans antialiased selection:bg-white selection:text-black overflow-hidden">
 
-  <!-- TOP STATUS & TELEMETRY HEADER -->
-  <header class="border-b border-white/[0.08] bg-[#0D0E13]/90 backdrop-blur sticky top-0 z-40 px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center space-x-3.5">
-      <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-mono font-bold text-sm shadow-sm">
+  <!-- LEFT SIDEBAR WITH FUNCTION TABS -->
+  <aside class="w-64 shrink-0 bg-[#0B0C10] border-r border-white/[0.08] flex flex-col h-screen sticky top-0 z-30 select-none">
+    
+    <!-- Sidebar Header & Brand -->
+    <div class="p-4 border-b border-white/[0.08] flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-mono font-bold text-sm shadow-sm shrink-0">
         <i data-lucide="terminal" class="w-4 h-4 text-black stroke-[2.5]"></i>
       </div>
-      <div>
-        <div class="flex items-center space-x-2">
-          <h1 class="font-semibold text-sm tracking-tight text-white">LinuxOps Assistant</h1>
-          <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-white/10 text-zinc-300 border border-white/10">v3.0.0</span>
+      <div class="min-w-0">
+        <div class="flex items-center space-x-1.5">
+          <h1 class="font-semibold text-sm tracking-tight text-white truncate">LinuxOps</h1>
+          <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-white/10 text-zinc-300 border border-white/10">v3.0</span>
         </div>
-        <p class="text-[11px] text-zinc-500 font-mono">AST Sandboxed &bull; Topological DAG &bull; Permission Gated</p>
+        <p class="text-[10px] text-zinc-500 font-mono truncate">AI Operations Assistant</p>
       </div>
     </div>
 
-    <!-- Live Telemetry Strip & Status -->
-    <div class="flex items-center space-x-3 text-xs">
-      <div class="hidden md:flex items-center space-x-2.5 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg font-mono text-[11px]">
-        <span class="pulse-dot" id="header-pulse"></span>
-        <span class="text-zinc-300 font-medium" id="header-hostname">localhost</span>
-        <span class="text-zinc-600">/</span>
-        <span class="text-zinc-300" id="header-distro">Linux</span>
-        <span class="text-zinc-600">/</span>
-        <span class="text-zinc-400" id="header-kernel">Kernel ...</span>
+    <!-- Navigation Tabs on the Left -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-5">
+      
+      <!-- Core Feature Section -->
+      <div class="space-y-1">
+        <div class="px-3 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider font-mono">Core Assistant</div>
+        <button onclick="switchTab('home')" id="tab-btn-home" class="nav-tab active w-full">
+          <i data-lucide="bot" class="w-4 h-4"></i>
+          <span class="flex-1 text-left font-medium">AI Ops Agent</span>
+          <kbd class="text-[9px] px-1 py-0.5">/</kbd>
+        </button>
       </div>
 
-      <div class="flex items-center space-x-2 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg">
-        <span class="text-zinc-400 text-[11px]">PSI:</span>
-        <span id="header-pressure" class="font-mono text-[11px] font-semibold text-emerald-400">NORMAL</span>
+      <!-- System Function Tabs Section -->
+      <div class="space-y-1">
+        <div class="px-3 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider font-mono">System Functions</div>
+        <button onclick="switchTab('health')" id="tab-btn-health" class="nav-tab w-full">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">Health &amp; PSI</span>
+        </button>
+        <button onclick="switchTab('services')" id="tab-btn-services" class="nav-tab w-full">
+          <i data-lucide="cpu" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">Services &amp; Procs</span>
+        </button>
+        <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-tab w-full">
+          <i data-lucide="hard-drive" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">Storage &amp; Cleanup</span>
+        </button>
+        <button onclick="switchTab('network')" id="tab-btn-network" class="nav-tab w-full">
+          <i data-lucide="network" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">Network &amp; Firewall</span>
+        </button>
+        <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-tab w-full">
+          <i data-lucide="shield-alert" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">16-Class Taxonomy</span>
+        </button>
+        <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-tab w-full">
+          <i data-lucide="package" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">Packages</span>
+        </button>
+        <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-tab w-full">
+          <i data-lucide="terminal" class="w-4 h-4"></i>
+          <span class="flex-1 text-left">Desktop &amp; Runner</span>
+        </button>
       </div>
-
-      <!-- Quick Command Prompt Shortcut Hint -->
-      <div class="hidden lg:flex items-center space-x-1.5 text-zinc-500 text-[11px]">
-        <span>Prompt:</span>
-        <kbd>/</kbd>
-      </div>
-
-      <button id="btn-refresh-health" title="Refresh Telemetry" class="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white transition">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-      </button>
     </div>
-  </header>
 
-  <!-- NAVIGATION TAB STRIP -->
-  <nav class="bg-[#0B0C10] border-b border-white/[0.06] px-6 py-2 flex items-center space-x-1 overflow-x-auto text-xs">
-    <button onclick="switchTab('home')" id="tab-btn-home" class="nav-tab active">
-      <i data-lucide="bot" class="w-3.5 h-3.5"></i>
-      <span>AI Ops Agent</span>
-    </button>
-    <button onclick="switchTab('health')" id="tab-btn-health" class="nav-tab">
-      <i data-lucide="activity" class="w-3.5 h-3.5"></i>
-      <span>Health & PSI</span>
-    </button>
-    <button onclick="switchTab('services')" id="tab-btn-services" class="nav-tab">
-      <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
-      <span>Services & Procs</span>
-    </button>
-    <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-tab">
-      <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
-      <span>Storage & Cleanup</span>
-    </button>
-    <button onclick="switchTab('network')" id="tab-btn-network" class="nav-tab">
-      <i data-lucide="network" class="w-3.5 h-3.5"></i>
-      <span>Network & Firewall</span>
-    </button>
-    <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-tab">
-      <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
-      <span>16-Class Taxonomy</span>
-    </button>
-    <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-tab">
-      <i data-lucide="package" class="w-3.5 h-3.5"></i>
-      <span>Packages</span>
-    </button>
-    <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-tab">
-      <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-      <span>Desktop & Runner</span>
-    </button>
-  </nav>
+    <!-- Sidebar Footer: Host Status & Telemetry -->
+    <div class="p-3 border-t border-white/[0.08] bg-[#090A0E]/90 space-y-2 text-xs">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2 min-w-0">
+          <span class="pulse-dot" id="header-pulse"></span>
+          <span class="text-zinc-300 font-mono text-[11px] font-medium truncate" id="header-hostname">localhost</span>
+        </div>
+        <button id="btn-refresh-health" title="Refresh Telemetry" class="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+      <div class="text-[10px] text-zinc-500 font-mono flex items-center justify-between">
+        <span id="header-distro" class="truncate">Linux</span>
+        <span class="text-zinc-600">&bull;</span>
+        <span id="header-pressure" class="font-semibold text-emerald-400">PSI: NORMAL</span>
+      </div>
+      <div class="text-[10px] text-zinc-500 font-mono truncate" id="header-kernel">Kernel ...</div>
+    </div>
+  </aside>
 
-  <!-- MAIN WORKSPACE CONTAINER -->
-  <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+  <!-- MAIN WORKSPACE (CENTER / RIGHT) -->
+  <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[#08090C]">
+    
+    <!-- Top Minimal Workspace Header -->
+    <header class="border-b border-white/[0.08] bg-[#0D0E13]/80 backdrop-blur sticky top-0 z-20 px-6 py-3 flex items-center justify-between shrink-0">
+      <div class="flex items-center space-x-2">
+        <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-mono">Workspace</span>
+        <span class="text-zinc-600">/</span>
+        <span id="current-tab-title" class="text-xs font-semibold text-white font-mono">AI Ops Agent</span>
+      </div>
+      <div class="flex items-center space-x-3 text-xs">
+        <span class="hidden sm:inline-block text-[11px] text-zinc-500 font-mono">AST Sandboxed &bull; Topological DAG &bull; Guardrails Active</span>
+        <div class="hidden md:flex items-center space-x-1.5 text-zinc-500 text-[11px] bg-white/[0.03] border border-white/[0.06] px-2 py-1 rounded">
+          <span>Prompt:</span>
+          <kbd>/</kbd>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <main class="flex-1 p-6 max-w-6xl w-full mx-auto space-y-6">
 
     <!-- ======================================================== -->
     <!-- TAB 1: AI OPS AGENT COMMAND CENTER (HOME) -->
@@ -712,6 +736,7 @@
     </div>
 
   </main>
+  </div>
 
   <!-- ======================================================== -->
   <!-- MODAL 1: COMMAND EXECUTION PERMISSION DIALOG -->

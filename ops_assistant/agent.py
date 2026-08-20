@@ -5,7 +5,7 @@ import re
 import json
 import time
 import urllib.request
-import urllib.error
+from dataclasses import asdict
 from typing import Dict, Any, List, Optional, Tuple, Union
 from ops_assistant.models import (
     DiagnosticReport, XAIExplanation, SystemHealthSnapshot, SafetyLevel, LogRecord
@@ -642,7 +642,10 @@ class OpsAssistantAgent:
         Provides explicit planned commands, short descriptions, and safety guardrails.
         """
         from ops_assistant.nlp.intent_router import IntentRouter, IntentType
-        from ops_assistant.tools import desktop_ops, download_ops, storage_ops, process_ops, network_ops
+        from ops_assistant.tools import (
+            desktop_ops, download_ops, storage_ops, process_ops, network_ops,
+            log_ops, system_ops, docker_ops, security_ops, backup_ops
+        )
 
         router = getattr(self, "_router", None)
         if router is None:
@@ -884,24 +887,22 @@ class OpsAssistantAgent:
         elif intent.type == IntentType.PROCESS_KILL:
             pid = args.get("pid")
             name = args.get("name")
-            cmd = f"kill -15 {pid}" if pid else "killall <process>"
-            desc = f"Sends SIGTERM (signal 15) to terminate process PID {pid} ({name or 'target'})."
+            target_str = f"PID {pid}" if pid else f"process '{name}'"
+            cmd = f"kill -15 {pid}" if pid else f"pkill -15 {name}"
+            desc = f"Sends SIGTERM (signal 15) to terminate {target_str}."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.HIGH_RISK.value
             result["risk_score"] = 0.70
             result["requires_permission"] = not execute
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.HIGH_RISK.value, "risk_score": 0.70}]
-            result["steps"].append(f"Terminating process (PID: {pid})...")
+            result["steps"].append(f"Terminating process ({target_str})...")
             if execute:
-                if pid:
-                    res = process_ops.kill_process(pid)
-                    result["output"] = res
-                    result["summary"] = f"Terminated PID {pid}: exit code {res.get('returncode')}"
-                else:
-                    result["summary"] = f"No PID specified for {name}."
+                res = process_ops.kill_process(pid=pid, name=name)
+                result["output"] = res
+                result["summary"] = f"Terminated {target_str} (success={res.get('success', False)})"
             else:
-                result["summary"] = f"Ready to terminate process PID {pid}."
+                result["summary"] = f"Ready to terminate {target_str}."
 
         elif intent.type in (IntentType.FIREWALL_STATUS, IntentType.NETWORK_STATUS, IntentType.NETWORK_PORTS):
             cmd = "ss -tulpn && ufw status"
@@ -1259,6 +1260,429 @@ class OpsAssistantAgent:
                 result["summary"] = res.get("message") or res.get("error", "Restored backup")
             else:
                 result["summary"] = f"Ready to restore backup archive '{path}' to '{dest}'."
+
+        # Storage Analysis & Search
+        elif intent.type == IntentType.STORAGE_ANALYSE:
+            raw_path = args.get("path", "/")
+            cmd = f"df -h '{raw_path}' && du -sh '{raw_path}'/* 2>/dev/null | sort -hr | head -10"
+            desc = f"Analyzes disk space and partition usage for '{raw_path}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Analyzing disk partitions and directory usage for '{raw_path}'...")
+            res = storage_ops.analyse_disk(raw_path)
+            result["output"] = res
+            result["summary"] = f"Analyzed {raw_path}: {len(res.get('partitions', []))} partitions, {len(res.get('top_dirs', []))} top directories."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.STORAGE_FIND_LARGE:
+            raw_path = args.get("path", "/")
+            cmd = f"find '{raw_path}' -xdev -type f -size +100M -exec ls -lh {{}} + 2>/dev/null | sort -k5 -hr | head -20"
+            desc = f"Scans '{raw_path}' for large files exceeding 100MB."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Scanning '{raw_path}' for large files (>100MB)...")
+            res = storage_ops.find_large_files(search_path=raw_path, threshold_mb=100, top_n=20)
+            result["output"] = res
+            result["summary"] = f"Found {len(res.get('files', []))} large files in {raw_path} (~{res.get('total_size_human', '0 B')} total)."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Service Management
+        elif intent.type == IntentType.SERVICE_STATUS:
+            svc = args.get("service", "")
+            cmd = f"systemctl status '{svc}' --no-pager -l"
+            desc = f"Inspects status and unit properties for service '{svc}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Checking status for service '{svc}'...")
+            res = process_ops.show_service_status(svc)
+            result["output"] = res
+            result["summary"] = f"Service '{svc}': {res.get('active_state', 'unknown')}/{res.get('sub_state', 'unknown')}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SERVICE_START:
+            svc = args.get("service", "")
+            cmd = f"sudo systemctl start '{svc}'"
+            desc = f"Starts systemd service '{svc}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo systemctl stop '{svc}'"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Starting service '{svc}'...")
+            if execute:
+                res = process_ops.start_service(svc)
+                result["output"] = res
+                result["summary"] = f"Started service '{svc}' (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to start service '{svc}'."
+
+        elif intent.type == IntentType.SERVICE_STOP:
+            svc = args.get("service", "")
+            cmd = f"sudo systemctl stop '{svc}'"
+            desc = f"Stops systemd service '{svc}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.35
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo systemctl start '{svc}'"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.35, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Stopping service '{svc}'...")
+            if execute:
+                res = process_ops.stop_service(svc)
+                result["output"] = res
+                result["summary"] = f"Stopped service '{svc}' (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to stop service '{svc}'."
+
+        elif intent.type == IntentType.SERVICE_RESTART:
+            svc = args.get("service", "")
+            cmd = f"sudo systemctl restart '{svc}'"
+            desc = f"Restarts systemd service '{svc}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo systemctl restart '{svc}'"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Restarting service '{svc}'...")
+            if execute:
+                res = process_ops.restart_service(svc)
+                result["output"] = res
+                result["summary"] = f"Restarted service '{svc}' (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to restart service '{svc}'."
+
+        elif intent.type == IntentType.SERVICE_RELOAD:
+            svc = args.get("service", "")
+            cmd = f"sudo systemctl reload '{svc}'"
+            desc = f"Reloads configuration for service '{svc}' without stopping."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.20
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20}]
+            result["steps"].append(f"Reloading configuration for service '{svc}'...")
+            if execute:
+                res = process_ops.reload_service(svc)
+                result["output"] = res
+                result["summary"] = f"Reloaded service '{svc}' (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to reload service '{svc}'."
+
+        elif intent.type == IntentType.SERVICE_ENABLE:
+            svc = args.get("service", "")
+            cmd = f"sudo systemctl enable '{svc}'"
+            desc = f"Enables systemd service '{svc}' to start on system boot."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.25
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo systemctl disable '{svc}'"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.25, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Enabling service '{svc}' on boot...")
+            if execute:
+                res = process_ops.enable_service(svc)
+                result["output"] = res
+                result["summary"] = f"Enabled service '{svc}' on boot (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to enable service '{svc}' on boot."
+
+        elif intent.type == IntentType.SERVICE_DISABLE:
+            svc = args.get("service", "")
+            cmd = f"sudo systemctl disable '{svc}'"
+            desc = f"Disables systemd service '{svc}' from starting on system boot."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.25
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo systemctl enable '{svc}'"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.25, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Disabling service '{svc}' from boot...")
+            if execute:
+                res = process_ops.disable_service(svc)
+                result["output"] = res
+                result["summary"] = f"Disabled service '{svc}' from boot (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to disable service '{svc}' from boot."
+
+        elif intent.type == IntentType.SERVICE_LOGS:
+            svc = args.get("service", "")
+            cmd = f"journalctl -u '{svc}' -n 50 --no-pager -o short-iso"
+            desc = f"Fetches recent journal logs for service '{svc}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Tailing journal logs for service '{svc}'...")
+            res = log_ops.tail_log(svc, lines=50)
+            result["output"] = res
+            result["summary"] = f"Fetched {len(res.get('lines', []))} log lines for '{svc}'."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.PROCESS_INFO:
+            pid = args.get("pid", 0)
+            cmd = f"ps -p {pid} -o pid,ppid,user,%cpu,%mem,vsz,rss,stat,etime,comm,args"
+            desc = f"Inspects detailed resource utilization and hierarchy for process PID {pid}."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Querying process information for PID {pid}...")
+            res = process_ops.get_process_info(pid)
+            result["output"] = res
+            result["summary"] = f"PID {pid} ({res.get('command', 'unknown')}): CPU {res.get('cpu', 0)}%, MEM {res.get('mem', 0)}%, State {res.get('stat', '?')}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Network Tools
+        elif intent.type == IntentType.NETWORK_PING:
+            host = args.get("host", "1.1.1.1")
+            cmd = f"ping -c 4 '{host}'"
+            desc = f"Tests network reachability and round-trip latency to '{host}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Pinging host '{host}'...")
+            res = network_ops.ping_host(host)
+            result["output"] = res
+            status_str = f"Reachable (avg RTT: {res.get('rtt_avg')})" if res.get("reachable") else f"Unreachable (loss: {res.get('packet_loss')})"
+            result["summary"] = f"Ping {host}: {status_str}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.NETWORK_DNS:
+            host = args.get("host", "google.com")
+            cmd = f"dig +short '{host}' || nslookup '{host}'"
+            desc = f"Performs DNS resolution lookup for hostname '{host}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Resolving DNS for '{host}'...")
+            res = network_ops.dns_lookup(host)
+            result["output"] = res
+            addrs = res.get("addresses", [])
+            result["summary"] = f"DNS for {host}: {', '.join(addrs) if addrs else 'No addresses resolved'}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.NETWORK_ROUTE:
+            cmd = "ip route show"
+            desc = "Displays system network routing table and default gateway."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Querying kernel routing table...")
+            res = network_ops.show_routes()
+            result["output"] = res
+            result["summary"] = f"Routing table: {len(res.get('routes', []))} active routes."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.FIREWALL_ALLOW:
+            port = str(args.get("port", ""))
+            proto = args.get("proto", "tcp")
+            cmd = f"sudo ufw allow {port}/{proto}"
+            desc = f"Allows incoming network traffic on {port}/{proto}."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo ufw delete allow {port}/{proto}"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Configuring firewall to allow {port}/{proto}...")
+            if execute:
+                res = network_ops.allow_port(port, proto=proto)
+                result["output"] = res
+                result["summary"] = f"Allowed port {port}/{proto} (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to allow port {port}/{proto} in firewall."
+
+        elif intent.type == IntentType.FIREWALL_DENY:
+            port = str(args.get("port", ""))
+            proto = args.get("proto", "tcp")
+            cmd = f"sudo ufw deny {port}/{proto}"
+            desc = f"Blocks incoming network traffic on {port}/{proto}."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"sudo ufw delete deny {port}/{proto}"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Configuring firewall to block {port}/{proto}...")
+            if execute:
+                res = network_ops.deny_port(port, proto=proto)
+                result["output"] = res
+                result["summary"] = f"Blocked port {port}/{proto} (success={res.get('success', False)})"
+            else:
+                result["summary"] = f"Ready to block port {port}/{proto} in firewall."
+
+        # Crontab Automation
+        elif intent.type == IntentType.CRON_ADD:
+            schedule = args.get("schedule", "0 2 * * *")
+            command = args.get("command", "")
+            cmd = f"(crontab -l 2>/dev/null; echo '{schedule} {command}') | crontab -"
+            desc = f"Adds scheduled cron job: '{schedule} {command}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.40
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"crontab -l | grep -vF '{command}' | crontab -"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.40, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Adding cron job '{schedule} {command}'...")
+            if execute:
+                res = system_ops.add_cron_job(schedule, command)
+                result["output"] = res
+                result["summary"] = res.get("message") or res.get("error", "Added cron job")
+            else:
+                result["summary"] = f"Ready to add cron job '{schedule} {command}'."
+
+        # System Inspection & Power
+        elif intent.type == IntentType.SYSTEM_INFO:
+            cmd = "uname -a && cat /etc/os-release"
+            desc = "Displays host OS distribution, kernel version, and architecture."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            d_info = DistroDetector().detect()
+            snap = self.hub.get_health_snapshot()
+            result["output"] = {"distro": d_info.to_dict(), "kernel": snap.kernel_release, "hostname": snap.hostname}
+            d_name = getattr(d_info, "display_name", None) or getattr(d_info, "distro_name", "Linux")
+            result["summary"] = f"{d_name} | Kernel {snap.kernel_release} on {snap.hostname}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SYSTEM_UPTIME:
+            cmd = "uptime"
+            desc = "Shows system uptime duration and 1/5/15 minute load averages."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Checking system uptime and load...")
+            snap = self.hub.get_health_snapshot()
+            hours = round(snap.uptime_seconds / 3600, 1)
+            result["output"] = {"uptime_seconds": snap.uptime_seconds, "uptime_hours": hours, "load": asdict(snap.load)}
+            result["summary"] = f"Uptime: {hours} hours | Load: {snap.load.load_1m}, {snap.load.load_5m}, {snap.load.load_15m}"
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.SYSTEM_REBOOT:
+            cmd = "sudo reboot"
+            desc = "Reboots the operating system."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.HIGH_RISK.value
+            result["risk_score"] = 0.85
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.HIGH_RISK.value, "risk_score": 0.85}]
+            result["steps"].append("Preparing system reboot...")
+            if execute:
+                result["summary"] = "System reboot requested (requires elevated execution)."
+            else:
+                result["summary"] = "Ready to reboot system (requires confirmation)."
+
+        # User Management
+        elif intent.type == IntentType.USER_LIST:
+            cmd = "cat /etc/passwd"
+            desc = "Lists local system users from /etc/passwd."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Querying local system users...")
+            res = log_ops.list_all_users()
+            result["output"] = res
+            result["summary"] = f"Found {len(res.get('users', []))} system users in /etc/passwd."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.USER_WHO:
+            cmd = "who"
+            desc = "Displays currently logged-in user sessions and active TTYs."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Querying active user sessions...")
+            res = log_ops.who_is_logged_in()
+            result["output"] = res
+            result["summary"] = f"Logged-in sessions: {len(res.get('sessions', []))} active."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Logs & Diagnostics
+        elif intent.type == IntentType.LOGS_SHOW:
+            target = args.get("path") or args.get("service") or "syslog"
+            cmd = f"journalctl -u '{target}' -n 50 --no-pager"
+            desc = f"Tails recent log entries for '{target}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Tailing logs for '{target}'...")
+            res = log_ops.tail_log(target, lines=50)
+            result["output"] = res
+            result["summary"] = f"Tailed {len(res.get('lines', []))} lines from {res.get('source', target)}."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.LOGS_ERRORS:
+            cmd = "journalctl -p err --since='1h ago' -n 50 --no-pager"
+            desc = "Surfaces recent error and critical priority log messages."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Scanning journal for error and critical log records...")
+            res = log_ops.show_errors(since="1h")
+            result["output"] = res
+            result["summary"] = f"Found {res.get('count', 0)} error-level log entries in the past hour."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        elif intent.type == IntentType.LOGS_KERNEL:
+            cmd = "dmesg -T --level=err,warn -x"
+            desc = "Queries kernel ring buffer for hardware and driver errors."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append("Querying kernel ring buffer (dmesg)...")
+            res = log_ops.show_kernel_errors(lines=50)
+            result["output"] = res
+            result["summary"] = f"Found {res.get('count', 0)} kernel error/warning messages."
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+
+        # Package Operations
+        elif intent.type in (IntentType.PACKAGE_INSTALL, IntentType.PACKAGE_REMOVE, IntentType.PACKAGE_UPDATE, IntentType.PACKAGE_SEARCH):
+            pkg = args.get("package", "")
+            d_info = DistroDetector().detect()
+            pkg_mgr = d_info.package_manager
+            act = "install" if intent.type == IntentType.PACKAGE_INSTALL else ("remove" if intent.type == IntentType.PACKAGE_REMOVE else ("update" if intent.type == IntentType.PACKAGE_UPDATE else "search"))
+            cmd = f"sudo {pkg_mgr} {act} {pkg}".strip()
+            desc = f"Executes package manager {act} action for '{pkg}'."
+            is_modifying = intent.type != IntentType.PACKAGE_SEARCH
+            safety = SafetyLevel.MODIFYING.value if is_modifying else SafetyLevel.READ_ONLY.value
+            risk = 0.35 if is_modifying else 0.05
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = safety
+            result["risk_score"] = risk
+            result["requires_permission"] = is_modifying and not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": safety, "risk_score": risk}]
+            result["steps"].append(f"Preparing package {act} for '{pkg}' via {pkg_mgr}...")
+            result["summary"] = f"Package {act} command for {pkg_mgr}: '{cmd}'."
+
 
         else:
             result["steps"].append("Analyzing multi-vector telemetry & matching 16-class failure taxonomies...")

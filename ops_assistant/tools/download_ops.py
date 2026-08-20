@@ -49,22 +49,27 @@ def extract_archive(archive_path: str, extract_dir: Optional[str] = None) -> Dic
     extracted_files = []
 
     try:
+        resolved_out = out_dir.resolve()
         if zipfile.is_zipfile(p):
             with zipfile.ZipFile(p, 'r') as zf:
                 for member in zf.infolist():
                     target_path = (out_dir / member.filename).resolve()
-                    if not str(target_path).startswith(str(out_dir.resolve())):
+                    if not (target_path == resolved_out or target_path.is_relative_to(resolved_out)):
                         raise ValueError(f'Zip slip detected in path: {member.filename}')
                 zf.extractall(out_dir)
                 extracted_files = zf.namelist()
         elif tarfile.is_tarfile(p):
             with tarfile.open(p, 'r:*') as tf:
-                for member in tf.getmembers():
+                members = tf.getmembers()
+                for member in members:
                     target_path = (out_dir / member.name).resolve()
-                    if not str(target_path).startswith(str(out_dir.resolve())):
+                    if not (target_path == resolved_out or target_path.is_relative_to(resolved_out)):
                         raise ValueError(f'Tar slip detected in path: {member.name}')
-                tf.extractall(out_dir)
-                extracted_files = [m.name for m in tf.getmembers()]
+                if hasattr(tarfile, "data_filter"):
+                    tf.extractall(out_dir, filter="data")
+                else:
+                    tf.extractall(out_dir)
+                extracted_files = [m.name for m in members]
         else:
             return {
                 'success': False,

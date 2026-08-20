@@ -16,6 +16,27 @@ from ops_assistant.models import SafetyLevel
 
 
 @dataclass
+class SafetyValidationResult:
+    """Structured result of safety validation on a shell command."""
+    command: str
+    level: SafetyLevel
+    risk_score: float
+    matched_rule: str
+    is_destructive: bool
+    suggested_rollback: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "command": self.command,
+            "level": self.level.value,
+            "risk_score": self.risk_score,
+            "matched_rule": self.matched_rule,
+            "is_destructive": self.is_destructive,
+            "suggested_rollback": self.suggested_rollback
+        }
+
+
+@dataclass
 class CommandASTNode:
     """Represents a parsed AST node in a compound shell pipeline."""
     raw: str
@@ -672,3 +693,20 @@ class CommandSafetyValidator:
         """Returns True if the command is classified as DESTRUCTIVE."""
         lvl, _, _ = self.evaluate_safety(command_str)
         return lvl == SafetyLevel.DESTRUCTIVE
+
+    @classmethod
+    def validate(cls, command_str: str) -> SafetyValidationResult:
+        """Classmethod validating a command and returning a structured SafetyValidationResult."""
+        instance = cls()
+        lvl, score, reason = instance.evaluate_safety(command_str)
+        from ops_assistant.explainer.xai import XAIExplainer
+        rollback, _ = XAIExplainer().generate_rollback_command(command_str)
+        return SafetyValidationResult(
+            command=command_str,
+            level=lvl,
+            risk_score=score,
+            matched_rule=reason,
+            is_destructive=(lvl == SafetyLevel.DESTRUCTIVE),
+            suggested_rollback=rollback
+        )
+

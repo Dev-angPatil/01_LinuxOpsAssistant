@@ -500,7 +500,8 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.SYSTEM_JOURNAL_VACUUM, [
-        (r"\b(?:vacuum|shrink|clean)\s+(?:up\s+)?(?:the\s+)?(?:systemd\s+)?(?:journal|journalctl|logs?)\b", None),
+        (r"\b(?:vacuum|shrink)\s+(?:up\s+)?(?:the\s+)?(?:systemd\s+)?(?:journal|journalctl|logs?)\b", None),
+        (r"\b(?:clean|vacuum|shrink)\s+(?:up\s+)?(?:the\s+)?systemd\s+(?:journal|logs?)\b", None),
         (r"\bjournalctl\s+--vacuum\b", None),
     ]),
 
@@ -596,9 +597,10 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.PROCESS_KILL, [
-        (r"\b(kill|stop|terminate|end) (process |proc )?(?P<name>[\w\-\.]+)?\s*(?P<pid>\d+)?\b", _extract_pid),
-        (r"\b(kill|stop|terminate) (pid |process )?(?P<pid>\d+)\b", _extract_pid),
-        (r"\b(stop|kill) (?P<name>[\w\-\.]+)\b", _extract_pid),
+        (r"\b(kill|stop|terminate|end) (?:process|proc)\s+(?P<name>[\w\-\.]+)?\s*(?P<pid>\d+)?\b", _extract_pid),
+        (r"\b(kill|stop|terminate) (?:pid|process|proc)\s+(?P<pid>\d+)\b", _extract_pid),
+        (r"\bkill\s+(?P<pid>\d+)\b", _extract_pid),
+        (r"\bkill\s+(?P<name>[\w\-\.]+)\b", _extract_pid),
     ]),
 
     (IntentType.PROCESS_INFO, [
@@ -617,17 +619,17 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.SERVICE_START, [
-        (r"\bstart (the |)(?P<svc>[\w\-\.@]+) (service|unit|daemon)?\b", _extract_service),
+        (r"\bstart (the |)(?P<svc>[\w\-\.@]+)( (service|unit|daemon))?\b", _extract_service),
         (r"\bbring up (?P<svc>[\w\-\.@]+)\b", _extract_service),
     ]),
 
     (IntentType.SERVICE_STOP, [
-        (r"\bstop (the |)(?P<svc>[\w\-\.@]+) (service|unit|daemon)?\b", _extract_service),
+        (r"\bstop (the |)(?P<svc>[\w\-\.@]+)( (service|unit|daemon))?\b", _extract_service),
         (r"\bshut down (?P<svc>[\w\-\.@]+)\b", _extract_service),
     ]),
 
     (IntentType.SERVICE_RESTART, [
-        (r"\b(restart|reboot|bounce) (the |)(?P<svc>[\w\-\.@]+) (service|unit|daemon)?\b", _extract_service),
+        (r"\b(restart|reboot|bounce) (the |)(?P<svc>[\w\-\.@]+)( (service|unit|daemon))?\b", _extract_service),
         (r"\b(restart|reload) (?P<svc>[\w\-\.@]+)\b", _extract_service),
     ]),
 

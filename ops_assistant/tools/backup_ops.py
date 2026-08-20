@@ -135,11 +135,15 @@ def restore_backup(
     try:
         with tarfile.open(p, "r:gz") as tar:
             # Prevent zip/tar slip attacks
+            resolved_dst = dst.resolve()
             for member in tar.getmembers():
                 target_path = (dst / member.name).resolve()
-                if not str(target_path).startswith(str(dst.resolve())):
+                if not (target_path == resolved_dst or target_path.is_relative_to(resolved_dst)):
                     raise ValueError(f"Tar slip detected in archive: {member.name}")
-            tar.extractall(dst)
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(dst, filter="data")
+            else:
+                tar.extractall(dst)
 
         return {
             "success": True,

@@ -27,7 +27,7 @@ class ProactiveHealthAuditor:
         # 1. Telemetry Snapshot & Kernel Pressure
         snap = self.hub.get_health_snapshot()
 
-        if snap.pressure_status == "CRITICAL":
+        if snap.pressure_status in ("CRITICAL", "PSI_CRITICAL_STALL") or "CRITICAL" in str(snap.pressure_status):
             findings.append({
                 "subsystem": "Kernel PSI Pressure",
                 "severity": "CRITICAL",
@@ -36,7 +36,7 @@ class ProactiveHealthAuditor:
                 "remediation": "sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches",
                 "risk_score": 0.40
             })
-        elif snap.pressure_status == "MODERATE":
+        elif snap.pressure_status in ("MODERATE", "PSI_MODERATE_STALL") or "MODERATE" in str(snap.pressure_status):
             findings.append({
                 "subsystem": "Kernel PSI Pressure",
                 "severity": "WARNING",

@@ -5,31 +5,35 @@ import sys
 import tempfile
 import unittest
 import subprocess
+from pathlib import Path
+
+PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+
 
 class TestCLI(unittest.TestCase):
     def test_cli_help(self):
-        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--help"], capture_output=True, text=True, cwd="/home/deu/Coding Repos/SSM/01_LinuxOpsAssistant")
+        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--help"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
         self.assertIn("Linux Operations Assistant", res.stdout)
 
     def test_cli_inspect_health(self):
-        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--inspect-health"], capture_output=True, text=True, cwd="/home/deu/Coding Repos/SSM/01_LinuxOpsAssistant")
+        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--inspect-health"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
         self.assertIn("Linux Health Snapshot", res.stdout)
 
     def test_cli_diagnose_query(self):
-        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "Why is NGINX failing to start?"], capture_output=True, text=True, cwd="/home/deu/Coding Repos/SSM/01_LinuxOpsAssistant")
+        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "Why is NGINX failing to start?"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
         self.assertIn("XAI Diagnosis", res.stdout)
 
     def test_cli_benchmark(self):
-        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--benchmark"], capture_output=True, text=True, cwd="/home/deu/Coding Repos/SSM/01_LinuxOpsAssistant")
+        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--benchmark"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
         self.assertIn("SUMMARY:", res.stdout)
         self.assertIn("Accuracy:", res.stdout)
 
     def test_cli_demo(self):
-        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--demo"], capture_output=True, text=True, cwd="/home/deu/Coding Repos/SSM/01_LinuxOpsAssistant")
+        res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--demo"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
         self.assertIn("Scenario 1:", res.stdout)
         self.assertIn("Demo completed successfully", res.stdout)
@@ -43,7 +47,7 @@ class TestCLI(unittest.TestCase):
                 [sys.executable, "-m", "ops_assistant.cli", "Out of memory in worker", "--export-json", json_file, "--export-md", md_file],
                 capture_output=True,
                 text=True,
-                cwd="/home/deu/Coding Repos/SSM/01_LinuxOpsAssistant"
+                cwd=PROJECT_ROOT
             )
             self.assertEqual(res.returncode, 0)
             self.assertTrue(os.path.exists(json_file))

@@ -85,14 +85,15 @@ _TYPE_MAP: Dict[str, str] = {
 # Public API
 # ---------------------------------------------------------------------------
 
-def analyse_disk() -> Dict[str, Any]:
+def analyse_disk(path: Optional[str] = None) -> Dict[str, Any]:
     """
-    Return a structured disk usage summary from df + du on top-level dirs.
+    Return a structured disk usage summary from df + du on top-level dirs or given path.
     """
     result: Dict[str, Any] = {"partitions": [], "top_dirs": [], "errors": []}
 
+    target = [path] if path and os.path.exists(path) else []
     # df -h output
-    rc, stdout, stderr = _run(["df", "-h", "--output=source,fstype,size,used,avail,pcent,target"])
+    rc, stdout, stderr = _run(["df", "-h", "--output=source,fstype,size,used,avail,pcent,target"] + target)
     if rc == 0:
         lines = stdout.strip().splitlines()
         for line in lines[1:]:  # skip header
@@ -115,8 +116,8 @@ def analyse_disk() -> Dict[str, Any]:
     else:
         result["errors"].append(f"df error: {stderr}")
 
-    # du -sh on common large dirs
-    candidate_dirs = ["/home", "/var", "/opt", "/tmp", "/usr"]
+    # du -sh on common large dirs or target path
+    candidate_dirs = [path] if path and os.path.isdir(path) else ["/home", "/var", "/opt", "/tmp", "/usr"]
     for d in candidate_dirs:
         if os.path.isdir(d):
             rc2, out2, _ = _run(["du", "-sh", d], timeout=10)
@@ -297,16 +298,20 @@ def organise_directory(
 
     plan: Dict[str, Any] = {
         "target_path": str(base),
+        "directory": str(base),
         "moves": moves,
         "skipped": skipped,
         "categories": sorted({m["category"] for m in moves}),
         "total_files": len(moves),
+        "moved_count": 0,
         "dry_run": dry_run,
         "executed": False,
         "errors": [],
+        "rollback_command": None,
     }
 
     if not dry_run:
+        moved_ok = 0
         for move in moves:
             src = Path(move["source"])
             dst = Path(move["destination"])
@@ -314,10 +319,33 @@ def organise_directory(
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(dst))
                 move["status"] = "moved"
+                moved_ok += 1
             except OSError as e:
                 move["status"] = "error"
                 move["error"] = str(e)
                 plan["errors"].append(str(e))
         plan["executed"] = True
+        plan["moved_count"] = moved_ok
+        if moves:
+            plan["rollback_command"] = f"# Revert moves under {base}"
+    else:
+        plan["moved_count"] = len(moves)
 
     return plan
+
+
+def clean_logs_and_temp(dry_run: bool = True) -> Dict[str, Any]:
+    """
+    Clean rotated log files and temporary space.
+    Wraps clean_logs with normalized summary keys.
+    """
+    plan = clean_logs(dry_run=dry_run)
+    cleaned_count = sum(1 for a in plan.get("actions", []) if a.get("status") == "deleted") if not dry_run else plan.get("count", 0)
+    return {
+        **plan,
+        "cleaned_count": cleaned_count,
+        "freed_human": plan.get("freed_estimate", "0 B"),
+        "success": True,
+        "message": f"Successfully cleaned {cleaned_count} items, freed {plan.get('freed_estimate', '0 B')}" if not dry_run else f"Found {plan.get('count', 0)} cleanable items (~{plan.get('freed_estimate', '0 B')} reclaimable)"
+    }
+

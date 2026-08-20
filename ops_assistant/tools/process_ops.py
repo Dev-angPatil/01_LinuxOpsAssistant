@@ -70,6 +70,13 @@ def list_processes(sort_by: str = "cpu", top_n: int = 20) -> Dict[str, Any]:
     return {"processes": processes, "sort_by": sort_by, "error": None}
 
 
+def list_top_processes(n: int = 10, sort_by: str = "cpu") -> List[Dict[str, Any]]:
+    """Return a simple list of top N process dicts."""
+    res = list_processes(sort_by=sort_by, top_n=n)
+    return res.get("processes", [])
+
+
+
 def kill_process(
     pid: Optional[int] = None,
     name: Optional[str] = None,

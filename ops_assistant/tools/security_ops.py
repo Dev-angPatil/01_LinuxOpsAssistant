@@ -178,16 +178,26 @@ def audit_suid_binaries() -> Dict[str, Any]:
     anomalies = []
 
     search_dirs = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
+    seen_dirs = set()
+    seen_paths = set()
     for sdir in search_dirs:
         if os.path.exists(sdir):
+            real_dir = os.path.realpath(sdir)
+            if real_dir in seen_dirs:
+                continue
+            seen_dirs.add(real_dir)
             try:
                 for entry in os.listdir(sdir):
                     full_p = os.path.join(sdir, entry)
+                    real_p = os.path.realpath(full_p)
+                    if real_p in seen_paths:
+                        continue
+                    seen_paths.add(real_p)
                     try:
                         st = os.stat(full_p, follow_symlinks=False)
                         if st.st_mode & 0o4000 or st.st_mode & 0o2000:
                             found_suid.append(full_p)
-                            if full_p not in standard_suid:
+                            if full_p not in standard_suid and real_p not in standard_suid:
                                 anomalies.append(full_p)
                     except (OSError, PermissionError):
                         pass
