@@ -1,0 +1,14 @@
+[Unit]
+Description=AI-Powered Linux Operations Assistant GUI Server
+Documentation=https://github.com/Dev-angPatil/01_LinuxOpsAssistant
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ops-assistant --gui --no-browser --port 8888
+Restart=on-failure
+RestartSec=5s
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

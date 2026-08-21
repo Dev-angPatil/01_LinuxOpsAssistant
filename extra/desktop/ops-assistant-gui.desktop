@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=AI Linux Ops Assistant
+GenericName=Linux Operations & Diagnostics Dashboard
+Comment=Autonomous AI-powered Linux diagnostics, real-time PSI telemetry, and system operations
+Exec=ops-assistant --gui
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Monitor;Utility;Settings;
+Keywords=linux;system;monitor;diagnostics;ai;ops;admin;performance;psi;
+StartupNotify=true

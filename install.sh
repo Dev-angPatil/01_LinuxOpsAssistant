@@ -6,17 +6,27 @@
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Dev-angPatil/01_LinuxOpsAssistant/main/install.sh | bash
 #   or locally:
-#   chmod +x install.sh && ./install.sh
+#   chmod +x install.sh && ./install.sh [OPTIONS]
+#
+# Options:
+#   -y, --yes, --non-interactive  Run unattended installation accepting recommendations
+#   --model <key>                 Select model directly (e.g. deterministic, qwen2.5-coder-0.5b)
+#   --deterministic               Configure for deterministic fast-path mode (0 MB)
+#   --ollama [model]              Configure for local Ollama backend (default: llama3:8b)
+#   --distro <id>                 Set target distribution profile override (ubuntu, rhel, arch, alpine, opensuse)
+#   --no-model                    Skip model downloading during installation
+#   -h, --help                    Display this help message
 # ==============================================================================
 
 set -eo pipefail
+export LC_ALL=C
 
 # ------------------------------------------------------------------------------
-# 0. Terminal TTY & Color Setup
+# 0. Terminal TTY, Colors & Command-Line Option Parsing
 # ------------------------------------------------------------------------------
-# If running via 'curl | bash', stdin is a pipe. Reconnect stdin to /dev/tty for interactive prompts.
+# If running via 'curl | bash', stdin is a pipe. Reconnect stdin to /dev/tty for interactive prompts if available.
 if [ ! -t 0 ] && [ -e /dev/tty ]; then
-    exec < /dev/tty
+    exec < /dev/tty 2>/dev/null || true
 fi
 
 # Detect color support
@@ -50,8 +60,74 @@ REPO_URL="https://github.com/Dev-angPatil/01_LinuxOpsAssistant.git"
 DEFAULT_INSTALL_DIR="$HOME/.local/share/ops-assistant"
 BIN_DIR="$HOME/.local/bin"
 
+# Parse CLI options
+NON_INTERACTIVE=false
+CLI_MODEL=""
+CLI_DISTRO=""
+CLI_OLLAMA_MODEL=""
+SKIP_MODEL_DOWNLOAD=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -y|--yes|--non-interactive)
+            NON_INTERACTIVE=true
+            shift
+            ;;
+        --model)
+            CLI_MODEL="$2"
+            shift 2
+            ;;
+        --deterministic)
+            CLI_MODEL="deterministic"
+            shift
+            ;;
+        --ollama)
+            CLI_MODEL="ollama"
+            if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^-- ]]; then
+                CLI_OLLAMA_MODEL="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        --distro)
+            CLI_DISTRO="$2"
+            shift 2
+            ;;
+        --no-model)
+            SKIP_MODEL_DOWNLOAD=true
+            shift
+            ;;
+        -h|--help)
+            echo "AI-Powered Linux Operations Assistant Installer"
+            echo ""
+            echo "Usage: ./install.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -y, --yes, --non-interactive  Run unattended installation accepting recommendations"
+            echo "  --model <key>                 Select model directly (e.g. deterministic, qwen2.5-coder-0.5b)"
+            echo "  --deterministic               Configure for deterministic fast-path mode (0 MB)"
+            echo "  --ollama [model]              Configure for local Ollama backend (default: llama3:8b)"
+            echo "  --distro <id>                 Set target distro override (ubuntu, rhel, arch, alpine, opensuse)"
+            echo "  --no-model                    Skip model downloading during installation"
+            echo "  -h, --help                    Display this help message"
+            exit 0
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Non-interactive environment fallback
+if [ "${CI:-}" = "true" ] || [ "${DEBIAN_FRONTEND:-}" = "noninteractive" ]; then
+    NON_INTERACTIVE=true
+fi
+
 print_banner() {
-    clear 2>/dev/null || true
+    if [ "$NON_INTERACTIVE" = false ] && [ -t 1 ]; then
+        clear 2>/dev/null || true
+    fi
     echo -e "${CYAN}==============================================================================${RESET}"
     echo -e "${BOLD}${WHITE}       AI-POWERED LINUX OPERATIONS ASSISTANT (${GREEN}ops-assistant${WHITE})${RESET}"
     echo -e "       ${DIM}Autonomous • Explainable (XAI) • Hardware-Aware • Air-Gapped${RESET}"
@@ -59,23 +135,20 @@ print_banner() {
     echo ""
 }
 
-log_info() {
-    echo -e "${CYAN}[*]${RESET} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[✓]${RESET} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[!]${RESET} $1"
-}
-
-log_error() {
-    echo -e "${RED}[✗]${RESET} $1"
-}
+log_info() { echo -e "${CYAN}[*]${RESET} $1"; }
+log_success() { echo -e "${GREEN}[✓]${RESET} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${RESET} $1"; }
+log_error() { echo -e "${RED}[✗]${RESET} $1"; }
 
 print_banner
+
+# Detect privilege escalation helper (sudo vs direct root)
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+        SUDO="sudo"
+    fi
+fi
 
 # ------------------------------------------------------------------------------
 # 1. Distro & OS Detection
@@ -92,7 +165,6 @@ DISTRO_ID="generic"
 DISTRO_NAME="Generic Linux"
 DISTRO_VERSION=""
 PKG_MGR=""
-INSTALL_CMD=""
 
 if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
@@ -114,22 +186,16 @@ fi
 # Detect Package Manager
 if command -v apt-get >/dev/null 2>&1; then
     PKG_MGR="apt"
-    INSTALL_CMD="sudo apt-get update && sudo apt-get install -y"
 elif command -v dnf >/dev/null 2>&1; then
     PKG_MGR="dnf"
-    INSTALL_CMD="sudo dnf install -y"
 elif command -v yum >/dev/null 2>&1; then
     PKG_MGR="yum"
-    INSTALL_CMD="sudo yum install -y"
 elif command -v pacman >/dev/null 2>&1; then
     PKG_MGR="pacman"
-    INSTALL_CMD="sudo pacman -Sy --noconfirm"
 elif command -v apk >/dev/null 2>&1; then
     PKG_MGR="apk"
-    INSTALL_CMD="sudo apk add"
 elif command -v zypper >/dev/null 2>&1; then
     PKG_MGR="zypper"
-    INSTALL_CMD="sudo zypper install -y"
 fi
 
 # Detect Init System
@@ -158,13 +224,23 @@ if grep -q -w "avx2" /proc/cpuinfo 2>/dev/null; then HAS_AVX2="Yes"; fi
 HAS_AVX512="No"
 if grep -q -E "avx512f|avx512" /proc/cpuinfo 2>/dev/null; then HAS_AVX512="Yes"; fi
 
-# RAM (in MB and GB)
-TOTAL_RAM_KB="$(grep -m1 MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}' || echo 0)"
-TOTAL_RAM_MB=$(( TOTAL_RAM_KB / 1024 ))
+# RAM (in MB and GB) with safe fallbacks
+TOTAL_RAM_KB="$(grep -m1 MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}' || true)"
+TOTAL_RAM_KB="${TOTAL_RAM_KB:-0}"
+if [ "$TOTAL_RAM_KB" -gt 0 ] 2>/dev/null; then
+    TOTAL_RAM_MB=$(( TOTAL_RAM_KB / 1024 ))
+else
+    TOTAL_RAM_MB=1024
+fi
 TOTAL_RAM_GB=$(awk "BEGIN {printf \"%.1f\", $TOTAL_RAM_MB / 1024}")
 
-AVAIL_RAM_KB="$(grep -m1 MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}' || echo 0)"
-AVAIL_RAM_MB=$(( AVAIL_RAM_KB / 1024 ))
+AVAIL_RAM_KB="$(grep -m1 MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}' || true)"
+AVAIL_RAM_KB="${AVAIL_RAM_KB:-$TOTAL_RAM_KB}"
+if [ "$AVAIL_RAM_KB" -gt 0 ] 2>/dev/null; then
+    AVAIL_RAM_MB=$(( AVAIL_RAM_KB / 1024 ))
+else
+    AVAIL_RAM_MB=$TOTAL_RAM_MB
+fi
 AVAIL_RAM_GB=$(awk "BEGIN {printf \"%.1f\", $AVAIL_RAM_MB / 1024}")
 
 # GPU & VRAM
@@ -177,7 +253,7 @@ if command -v nvidia-smi >/dev/null 2>&1; then
     NV_VRAM="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -n1 || echo 0)"
     if [ -n "$NV_NAME" ]; then
         GPU_NAME="NVIDIA $NV_NAME"
-        GPU_VRAM_MB=$NV_VRAM
+        GPU_VRAM_MB=${NV_VRAM:-0}
         GPU_TYPE="NVIDIA CUDA"
     fi
 elif command -v rocm-smi >/dev/null 2>&1; then
@@ -191,8 +267,9 @@ elif command -v lspci >/dev/null 2>&1; then
 fi
 GPU_VRAM_GB=$(awk "BEGIN {printf \"%.1f\", $GPU_VRAM_MB / 1024}")
 
-# Storage
-FREE_DISK_GB="$(df -BG . 2>/dev/null | awk 'NR==2 {print $4}' | tr -d 'G' || echo 10)"
+# Storage (POSIX df -k compatible across GNU, Busybox/Alpine, musl)
+FREE_DISK_GB="$(df -k . 2>/dev/null | awk 'NR==2 {printf "%.0f", $4 / 1048576}' || echo 10)"
+FREE_DISK_GB="${FREE_DISK_GB:-10}"
 
 # ------------------------------------------------------------------------------
 # 3. Display Host Telemetry & Distro Confirmation
@@ -200,7 +277,7 @@ FREE_DISK_GB="$(df -BG . 2>/dev/null | awk 'NR==2 {print $4}' | tr -d 'G' || ech
 echo ""
 echo -e "${BOLD}${MAGENTA}┌───[ System & Hardware Diagnostics Profile ]─────────────────────────────────┐${RESET}"
 printf "${MAGENTA}│${RESET}  ${BOLD}%-18s${RESET} : ${GREEN}%-54s${RESET}${MAGENTA}│${RESET}\n" "Linux Distribution" "$DISTRO_NAME ($DISTRO_ID)"
-printf "${MAGENTA}│${RESET}  ${BOLD}%-18s${RESET} : ${WHITE}%-54s${RESET}${MAGENTA}│${RESET}\n" "Init & Pkg Manager" "$INIT_SYSTEM | $PKG_MGR"
+printf "${MAGENTA}│${RESET}  ${BOLD}%-18s${RESET} : ${WHITE}%-54s${RESET}${MAGENTA}│${RESET}\n" "Init & Pkg Manager" "$INIT_SYSTEM | ${PKG_MGR:-none}"
 printf "${MAGENTA}│${RESET}  ${BOLD}%-18s${RESET} : ${WHITE}%-54s${RESET}${MAGENTA}│${RESET}\n" "CPU Architecture" "$CPU_MODEL ($CPU_CORES cores, $CPU_ARCH, AVX2=$HAS_AVX2)"
 printf "${MAGENTA}│${RESET}  ${BOLD}%-18s${RESET} : ${YELLOW}%-54s${RESET}${MAGENTA}│${RESET}\n" "System Memory" "${TOTAL_RAM_GB} GB Total (${AVAIL_RAM_GB} GB Available)"
 printf "${MAGENTA}│${RESET}  ${BOLD}%-18s${RESET} : ${CYAN}%-54s${RESET}${MAGENTA}│${RESET}\n" "GPU & VRAM" "$GPU_NAME (VRAM: ${GPU_VRAM_GB} GB | $GPU_TYPE)"
@@ -209,19 +286,24 @@ echo -e "${BOLD}${MAGENTA}└─────────────────
 echo ""
 
 # Confirm Distro Selection
-echo -e "${BOLD}Target Distribution Profile:${RESET} [${GREEN}$DISTRO_ID${RESET}]"
-echo -e "Press ${BOLD}[Enter]${RESET} to keep [${GREEN}$DISTRO_ID${RESET}], or select an override:"
-echo -e "  ${DIM}1) debian/ubuntu  2) rhel/rocky/fedora  3) arch  4) alpine  5) opensuse${RESET}"
-read -r -p "Select [Enter = $DISTRO_ID]: " DISTRO_CHOICE
+TARGET_DISTRO="$DISTRO_ID"
+if [ -n "$CLI_DISTRO" ]; then
+    TARGET_DISTRO="$CLI_DISTRO"
+elif [ "$NON_INTERACTIVE" = false ]; then
+    echo -e "${BOLD}Target Distribution Profile:${RESET} [${GREEN}$DISTRO_ID${RESET}]"
+    echo -e "Press ${BOLD}[Enter]${RESET} to keep [${GREEN}$DISTRO_ID${RESET}], or select an override:"
+    echo -e "  ${DIM}1) debian/ubuntu  2) rhel/rocky/fedora  3) arch  4) alpine  5) opensuse${RESET}"
+    read -r -p "Select [Enter = $DISTRO_ID]: " DISTRO_CHOICE || DISTRO_CHOICE=""
 
-case "$DISTRO_CHOICE" in
-    1) TARGET_DISTRO="ubuntu" ;;
-    2) TARGET_DISTRO="rhel" ;;
-    3) TARGET_DISTRO="arch" ;;
-    4) TARGET_DISTRO="alpine" ;;
-    5) TARGET_DISTRO="opensuse" ;;
-    *) TARGET_DISTRO="$DISTRO_ID" ;;
-esac
+    case "$DISTRO_CHOICE" in
+        1) TARGET_DISTRO="ubuntu" ;;
+        2) TARGET_DISTRO="rhel" ;;
+        3) TARGET_DISTRO="arch" ;;
+        4) TARGET_DISTRO="alpine" ;;
+        5) TARGET_DISTRO="opensuse" ;;
+        *) TARGET_DISTRO="$DISTRO_ID" ;;
+    esac
+fi
 log_success "Active distro profile set to: ${BOLD}$TARGET_DISTRO${RESET}"
 
 # ------------------------------------------------------------------------------
@@ -235,42 +317,50 @@ if ! command -v python3 >/dev/null 2>&1; then MISSING_PKGS+=("python3"); fi
 if ! command -v git >/dev/null 2>&1; then MISSING_PKGS+=("git"); fi
 if ! command -v curl >/dev/null 2>&1; then MISSING_PKGS+=("curl"); fi
 
-# Check python version >= 3.9
+# Check python version >= 3.9 and venv module support
 if command -v python3 >/dev/null 2>&1; then
-    PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    PY_MAJOR="$(echo "$PY_VER" | cut -d. -f1)"
-    PY_MINOR="$(echo "$PY_VER" | cut -d. -f2)"
-    if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 9 ]; }; then
+    if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' >/dev/null 2>&1; then
+        PY_VER="$(python3 -c 'import sys; print("%d.%d" % (sys.version_info.major, sys.version_info.minor))' 2>/dev/null || echo "unknown")"
         log_warn "Python version $PY_VER is older than 3.9. An updated Python 3 is required."
         MISSING_PKGS+=("python3")
+    fi
+    if ! python3 -c 'import venv' >/dev/null 2>&1; then
+        log_warn "Python venv module is missing (required on Debian/Ubuntu systems)."
+        MISSING_PKGS+=("python3-venv")
     fi
 fi
 
 if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
     log_warn "Missing required packages: ${MISSING_PKGS[*]}"
     if [ -n "$PKG_MGR" ]; then
-        echo -e "${YELLOW}Would you like to auto-install dependencies using '$PKG_MGR'? [Y/n]${RESET}"
-        read -r -p "> " DO_INSTALL
+        DO_INSTALL="y"
+        if [ "$NON_INTERACTIVE" = false ]; then
+            echo -e "${YELLOW}Would you like to auto-install dependencies using '$PKG_MGR'? [Y/n]${RESET}"
+            read -r -p "> " USER_DO_INSTALL || USER_DO_INSTALL="y"
+            if [ -n "$USER_DO_INSTALL" ]; then DO_INSTALL="$USER_DO_INSTALL"; fi
+        fi
+
         if [[ "$DO_INSTALL" =~ ^[Nn]$ ]]; then
             log_error "Cannot continue without required dependencies. Please install ${MISSING_PKGS[*]} and re-run."
             exit 1
         fi
         
+        log_info "Installing prerequisites via $PKG_MGR..."
         case "$PKG_MGR" in
             apt)
-                sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-venv git curl
+                $SUDO apt-get update && $SUDO apt-get install -y python3 python3-pip python3-venv git curl
                 ;;
             dnf|yum)
-                sudo "$PKG_MGR" install -y python3 python3-pip git curl
+                $SUDO "$PKG_MGR" install -y python3 python3-pip git curl
                 ;;
             pacman)
-                sudo pacman -Sy --noconfirm python python-pip git curl
+                $SUDO pacman -Sy --noconfirm python python-pip git curl
                 ;;
             apk)
-                sudo apk add python3 py3-pip git curl bash
+                $SUDO apk add python3 py3-pip git curl bash
                 ;;
             zypper)
-                sudo zypper install -y python3 python3-pip git curl
+                $SUDO zypper install -y python3 python3-pip git curl
                 ;;
         esac
     else
@@ -280,13 +370,16 @@ if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
 fi
 
 # Determine source code location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || pwd)"
 CURRENT_DIR="$(pwd)"
+
 if [ -f "$CURRENT_DIR/ops_assistant/__init__.py" ] && [ -f "$CURRENT_DIR/requirements.txt" ]; then
-    # Already inside repository directory
     INSTALL_DIR="$CURRENT_DIR"
-    log_info "Detected existing repository at: $INSTALL_DIR"
+    log_info "Detected existing repository at current directory: $INSTALL_DIR"
+elif [ -f "$SCRIPT_DIR/ops_assistant/__init__.py" ] && [ -f "$SCRIPT_DIR/requirements.txt" ]; then
+    INSTALL_DIR="$SCRIPT_DIR"
+    log_info "Detected existing repository at script location: $INSTALL_DIR"
 else
-    # Install / Clone to target directory
     INSTALL_DIR="$DEFAULT_INSTALL_DIR"
     if [ -d "$INSTALL_DIR/.git" ]; then
         log_info "Updating existing repository at $INSTALL_DIR..."
@@ -294,32 +387,7 @@ else
     else
         log_info "Cloning repository into $INSTALL_DIR..."
         mkdir -p "$(dirname "$INSTALL_DIR")"
-        
-        CLONE_URL="$REPO_URL"
-        if [ -n "${GITHUB_TOKEN:-${GH_TOKEN:-}}" ]; then
-            AUTH_TOKEN="${GITHUB_TOKEN:-$GH_TOKEN}"
-            CLONE_URL="https://${AUTH_TOKEN}@github.com/Dev-angPatil/01_LinuxOpsAssistant.git"
-        fi
-        
-        if ! git clone "$CLONE_URL" "$INSTALL_DIR" 2>/dev/null; then
-            # Fallback 1: Try SSH if user has GitHub SSH keys configured
-            SSH_URL="git@github.com:Dev-angPatil/01_LinuxOpsAssistant.git"
-            log_warn "HTTPS clone failed. Trying SSH authentication ($SSH_URL)..."
-            if ! git clone "$SSH_URL" "$INSTALL_DIR" 2>/dev/null; then
-                # Fallback 2: Interactive Token Prompt for Private Repositories
-                echo ""
-                log_warn "Repository access denied (Repository may be Private)."
-                echo -e "${YELLOW}Enter a GitHub Personal Access Token (PAT) with read access, or press Enter to abort:${RESET}"
-                read -r -s -p "GitHub Token (input hidden): " USER_GH_TOKEN
-                echo ""
-                if [ -n "$USER_GH_TOKEN" ]; then
-                    git clone "https://${USER_GH_TOKEN}@github.com/Dev-angPatil/01_LinuxOpsAssistant.git" "$INSTALL_DIR"
-                else
-                    log_error "Authentication failed. Unable to clone private repository."
-                    exit 1
-                fi
-            fi
-        fi
+        git clone "$REPO_URL" "$INSTALL_DIR"
     fi
 fi
 
@@ -339,7 +407,7 @@ if [ ! -f "$VENV_PIP" ]; then
     curl -sS https://bootstrap.pypa.io/get-pip.py | "$VENV_PY"
 fi
 
-log_info "Installing Python dependencies..."
+log_info "Installing Python core dependencies..."
 "$VENV_PIP" install --quiet --upgrade pip
 "$VENV_PIP" install --quiet -e "$INSTALL_DIR" 2>/dev/null || "$VENV_PIP" install --quiet -r "$INSTALL_DIR/requirements.txt"
 export PYTHONPATH="$INSTALL_DIR:${PYTHONPATH:-}"
@@ -380,95 +448,83 @@ elif [ "$TOTAL_RAM_MB" -ge 1000 ]; then
     REC_REASON="Low-memory embedded node ($TOTAL_RAM_GB GB). Compact footprint."
 fi
 
-# Print Model Comparison and Capabilities Matrix Table
-echo ""
-echo -e "${BOLD}${CYAN}================================================================================================${RESET}"
-echo -e "${BOLD}${WHITE}                   OPEN-SOURCE MODEL CATALOG & HARDWARE REQUIREMENTS OVERVIEW                    ${RESET}"
-echo -e "${DIM}               Select an AI model tailored to your workload or use Deterministic-Only mode              ${RESET}"
-echo -e "${BOLD}${CYAN}================================================================================================${RESET}"
-echo ""
-printf " ${BOLD}%-3s %-32s %-16s %-12s %-28s${RESET}\n" "No." "Model / Engine" "Disk Size" "Req. RAM" "Unlocked Features & Capabilities"
-echo -e "${DIM}────────────────────────────────────────────────────────────────────────────────────────────────${RESET}"
-
-# Row 1: Deterministic
-D_REC=""
-if [ "$REC_KEY" = "deterministic" ]; then D_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "1." "${GREEN}Deterministic-Only Engine${RESET}$D_REC" "0 MB (None)" "<50 MB" "Sub-50ms, 16 Core Taxonomies, XAI, CoW Sandbox"
-
-# Row 2: SmolLM2-360M
-S_REC=""
-if [ "$REC_KEY" = "smollm2-360m" ]; then S_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "2." "SmolLM2-360M-Instruct$S_REC" "218 MB" "800 MB" "Ultra-lightweight edge triage & micro-VM queries"
-
-# Row 3: Qwen 0.5B
-Q0_REC=""
-if [ "$REC_KEY" = "qwen2.5-coder-0.5b" ]; then Q0_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "3." "Qwen2.5-Coder-0.5B$Q0_REC" "379 MB" "1.2 GB" "Fast command syntax parsing & log triage"
-
-# Row 4: Qwen 1.5B
-Q1_REC=""
-if [ "$REC_KEY" = "qwen2.5-coder-1.5b" ]; then Q1_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "4." "Qwen2.5-Coder-1.5B$Q1_REC" "986 MB" "2.5 GB" "Balanced speed/precision, awk/sed/grep synthesis"
-
-# Row 5: Llama 3.2 3B
-L3_REC=""
-if [ "$REC_KEY" = "llama-3.2-3b" ]; then L3_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "5." "Llama-3.2-3B-Instruct$L3_REC" "1.92 GB" "4.5 GB" "Multi-step incident reasoning & structured JSON"
-
-# Row 6: Qwen 7B
-Q7_REC=""
-if [ "$REC_KEY" = "qwen2.5-coder-7b" ]; then Q7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "6." "Qwen2.5-Coder-7B-Instruct$Q7_REC" "4.36 GB" "8.5 GB" "Deep Linux internals, SELinux, bash scripting"
-
-# Row 7: Mistral 7B
-M7_REC=""
-if [ "$REC_KEY" = "mistral-7b-instruct" ]; then M7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "7." "Mistral-7B-Instruct-v0.3$M7_REC" "4.07 GB" "8.0 GB" "Multi-daemon log correlation & interactive REPL"
-
-# Row 8: DeepSeek R1 7B
-D7_REC=""
-if [ "$REC_KEY" = "deepseek-r1-distill-qwen-7b" ]; then D7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "8." "DeepSeek-R1-Distill-7B$D7_REC" "4.58 GB" "9.0 GB" "Chain-of-Thought (CoT) root cause formal proofs"
-
-# Row 9: Local Ollama
-printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" \
-  "9." "${BLUE}Local Ollama Instance${RESET}" "Self-hosted" "Custom" "Connects to existing http://localhost:11434"
-
-echo -e "${DIM}────────────────────────────────────────────────────────────────────────────────────────────────${RESET}"
-echo -e " ${BOLD}Host Detection:${RESET} ${YELLOW}${TOTAL_RAM_GB} GB RAM${RESET} | ${CYAN}${GPU_NAME}${RESET} | ${WHITE}${FREE_DISK_GB} GB Disk Free${RESET}"
-echo -e " ${BOLD}System Recommendation:${RESET} ${GREEN}${REC_NAME}${RESET} (${REC_REASON})"
-echo ""
-
-echo -e "${BOLD}Select your preferred AI Engine / Model [1-9]:${RESET}"
-echo -e "  ${DIM}• Press [Enter] to accept the recommended model (${GREEN}${REC_KEY}${DIM})${RESET}"
-read -r -p "Enter choice [1-9] (default = recommended): " MODEL_CHOICE
-
 CHOSEN_MODEL=""
 PROVIDER="gguf"
 
-if [ -z "$MODEL_CHOICE" ]; then
+if [ -n "$CLI_MODEL" ]; then
+    CHOSEN_MODEL="$CLI_MODEL"
+    if [ "$CHOSEN_MODEL" = "deterministic" ]; then
+        PROVIDER="deterministic"
+    elif [ "$CHOSEN_MODEL" = "ollama" ]; then
+        PROVIDER="ollama"
+    fi
+elif [ "$NON_INTERACTIVE" = true ]; then
     CHOSEN_MODEL="$REC_KEY"
+    if [ "$CHOSEN_MODEL" = "deterministic" ]; then
+        PROVIDER="deterministic"
+    fi
 else
-    case "$MODEL_CHOICE" in
-        1) CHOSEN_MODEL="deterministic"; PROVIDER="deterministic" ;;
-        2) CHOSEN_MODEL="smollm2-360m" ;;
-        3) CHOSEN_MODEL="qwen2.5-coder-0.5b" ;;
-        4) CHOSEN_MODEL="qwen2.5-coder-1.5b" ;;
-        5) CHOSEN_MODEL="llama-3.2-3b" ;;
-        6) CHOSEN_MODEL="qwen2.5-coder-7b" ;;
-        7) CHOSEN_MODEL="mistral-7b-instruct" ;;
-        8) CHOSEN_MODEL="deepseek-r1-distill-qwen-7b" ;;
-        9) CHOSEN_MODEL="ollama"; PROVIDER="ollama" ;;
-        *) log_warn "Invalid selection. Defaulting to recommended model: $REC_KEY"; CHOSEN_MODEL="$REC_KEY" ;;
-    esac
+    # Print Model Comparison Table
+    echo ""
+    echo -e "${BOLD}${CYAN}================================================================================================${RESET}"
+    echo -e "${BOLD}${WHITE}                   OPEN-SOURCE MODEL CATALOG & HARDWARE REQUIREMENTS OVERVIEW                    ${RESET}"
+    echo -e "${DIM}               Select an AI model tailored to your workload or use Deterministic-Only mode              ${RESET}"
+    echo -e "${BOLD}${CYAN}================================================================================================${RESET}"
+    echo ""
+    printf " ${BOLD}%-3s %-32s %-16s %-12s %-28s${RESET}\n" "No." "Model / Engine" "Disk Size" "Req. RAM" "Unlocked Features & Capabilities"
+    echo -e "${DIM}────────────────────────────────────────────────────────────────────────────────────────────────${RESET}"
+
+    D_REC=""; if [ "$REC_KEY" = "deterministic" ]; then D_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "1." "${GREEN}Deterministic-Only Engine${RESET}$D_REC" "0 MB (None)" "<50 MB" "Sub-50ms, 16 Core Taxonomies, XAI, CoW Sandbox"
+
+    S_REC=""; if [ "$REC_KEY" = "smollm2-360m" ]; then S_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "2." "SmolLM2-360M-Instruct$S_REC" "218 MB" "800 MB" "Ultra-lightweight edge triage & micro-VM queries"
+
+    Q0_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-0.5b" ]; then Q0_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "3." "Qwen2.5-Coder-0.5B$Q0_REC" "379 MB" "1.2 GB" "Fast command syntax parsing & log triage"
+
+    Q1_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-1.5b" ]; then Q1_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "4." "Qwen2.5-Coder-1.5B$Q1_REC" "986 MB" "2.5 GB" "Balanced speed/precision, awk/sed/grep synthesis"
+
+    L3_REC=""; if [ "$REC_KEY" = "llama-3.2-3b" ]; then L3_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "5." "Llama-3.2-3B-Instruct$L3_REC" "1.92 GB" "4.5 GB" "Multi-step incident reasoning & structured JSON"
+
+    Q7_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-7b" ]; then Q7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "6." "Qwen2.5-Coder-7B-Instruct$Q7_REC" "4.36 GB" "8.5 GB" "Deep Linux internals, SELinux, bash scripting"
+
+    M7_REC=""; if [ "$REC_KEY" = "mistral-7b-instruct" ]; then M7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "7." "Mistral-7B-Instruct-v0.3$M7_REC" "4.07 GB" "8.0 GB" "Multi-daemon log correlation & interactive REPL"
+
+    D7_REC=""; if [ "$REC_KEY" = "deepseek-r1-distill-qwen-7b" ]; then D7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "8." "DeepSeek-R1-Distill-7B$D7_REC" "4.58 GB" "9.0 GB" "Chain-of-Thought (CoT) root cause formal proofs"
+
+    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "9." "${BLUE}Local Ollama Instance${RESET}" "Self-hosted" "Custom" "Connects to existing http://localhost:11434"
+
+    echo -e "${DIM}────────────────────────────────────────────────────────────────────────────────────────────────${RESET}"
+    echo -e " ${BOLD}Host Detection:${RESET} ${YELLOW}${TOTAL_RAM_GB} GB RAM${RESET} | ${CYAN}${GPU_NAME}${RESET} | ${WHITE}${FREE_DISK_GB} GB Disk Free${RESET}"
+    echo -e " ${BOLD}System Recommendation:${RESET} ${GREEN}${REC_NAME}${RESET} (${REC_REASON})"
+    echo ""
+
+    echo -e "${BOLD}Select your preferred AI Engine / Model [1-9]:${RESET}"
+    echo -e "  ${DIM}• Press [Enter] to accept the recommended model (${GREEN}${REC_KEY}${DIM})${RESET}"
+    read -r -p "Enter choice [1-9] (default = recommended): " MODEL_CHOICE || MODEL_CHOICE=""
+
+    if [ -z "$MODEL_CHOICE" ]; then
+        CHOSEN_MODEL="$REC_KEY"
+    else
+        case "$MODEL_CHOICE" in
+            1) CHOSEN_MODEL="deterministic"; PROVIDER="deterministic" ;;
+            2) CHOSEN_MODEL="smollm2-360m" ;;
+            3) CHOSEN_MODEL="qwen2.5-coder-0.5b" ;;
+            4) CHOSEN_MODEL="qwen2.5-coder-1.5b" ;;
+            5) CHOSEN_MODEL="llama-3.2-3b" ;;
+            6) CHOSEN_MODEL="qwen2.5-coder-7b" ;;
+            7) CHOSEN_MODEL="mistral-7b-instruct" ;;
+            8) CHOSEN_MODEL="deepseek-r1-distill-qwen-7b" ;;
+            9) CHOSEN_MODEL="ollama"; PROVIDER="ollama" ;;
+            *) log_warn "Invalid selection. Defaulting to recommended model: $REC_KEY"; CHOSEN_MODEL="$REC_KEY" ;;
+        esac
+    fi
 fi
 
 if [ "$CHOSEN_MODEL" = "deterministic" ]; then
@@ -482,17 +538,23 @@ echo ""
 if [ "$PROVIDER" = "deterministic" ]; then
     log_success "Configuring Deterministic-Only Engine (0 MB download, sub-50ms latency, zero RAM overhead)."
     "$VENV_PY" -c "
-from ops_assistant.config import set_setup_completed
+from ops_assistant.config import set_setup_completed, get_config, ConfigManager
 set_setup_completed(provider='deterministic')
+cfg = get_config()
+if '$TARGET_DISTRO':
+    cfg['distro_override'] = '$TARGET_DISTRO'
+ConfigManager().save(cfg)
 print('✓ Deterministic engine configured in config.json')
 "
 elif [ "$PROVIDER" = "ollama" ]; then
     log_info "Configuring Local Ollama provider..."
-    OLLAMA_MODEL="llama3:8b"
-    echo -e "Enter Ollama model name (default: ${GREEN}$OLLAMA_MODEL${RESET}):"
-    read -r -p "> " USER_OLLAMA_MODEL
-    if [ -n "$USER_OLLAMA_MODEL" ]; then
-        OLLAMA_MODEL="$USER_OLLAMA_MODEL"
+    OLLAMA_MODEL="${CLI_OLLAMA_MODEL:-llama3:8b}"
+    if [ "$NON_INTERACTIVE" = false ] && [ -z "$CLI_OLLAMA_MODEL" ]; then
+        echo -e "Enter Ollama model name (default: ${GREEN}$OLLAMA_MODEL${RESET}):"
+        read -r -p "> " USER_OLLAMA_MODEL || USER_OLLAMA_MODEL=""
+        if [ -n "$USER_OLLAMA_MODEL" ]; then
+            OLLAMA_MODEL="$USER_OLLAMA_MODEL"
+        fi
     fi
     "$VENV_PY" -c "
 from ops_assistant.config import set_setup_completed, get_config, ConfigManager
@@ -500,19 +562,28 @@ cfg = get_config()
 cfg['provider'] = 'ollama'
 cfg['ollama_model'] = '$OLLAMA_MODEL'
 cfg['setup_completed'] = True
+if '$TARGET_DISTRO':
+    cfg['distro_override'] = '$TARGET_DISTRO'
 ConfigManager().save(cfg)
 print('✓ Configured Ollama with model: $OLLAMA_MODEL')
 "
 else
     # GGUF Model Download & Setup
     log_info "Selected model: ${BOLD}$CHOSEN_MODEL${RESET}"
-    log_info "Checking / downloading model weights..."
     
-    # Run the Python downloader inside the venv
-    "$VENV_PY" -c "
+    # Optional GGUF runtime dependency installation
+    log_info "Verifying llama-cpp-python runtime for local GGUF inference..."
+    if ! "$VENV_PY" -c "import llama_cpp" >/dev/null 2>&1; then
+        log_info "Installing llama-cpp-python wheel in virtual environment..."
+        "$VENV_PIP" install --quiet llama-cpp-python || log_warn "llama-cpp-python binary wheel not available for this architecture. System will use fast-path deterministic fallback if inference library cannot be compiled."
+    fi
+
+    if [ "$SKIP_MODEL_DOWNLOAD" = false ]; then
+        log_info "Checking / downloading model weights..."
+        "$VENV_PY" -c "
 import sys
 from ops_assistant.model_manager.downloader import ModelDownloader
-from ops_assistant.config import set_setup_completed
+from ops_assistant.config import set_setup_completed, get_config, ConfigManager
 from ops_assistant.hardware.advisor import MODEL_CATALOG, HardwareAdvisor
 
 mkey = '$CHOSEN_MODEL'
@@ -548,12 +619,18 @@ set_setup_completed(
     ctx_size=caps.recommended_ctx_size,
     gpu_layers=caps.recommended_gpu_layers
 )
+
+cfg = get_config()
+if '$TARGET_DISTRO':
+    cfg['distro_override'] = '$TARGET_DISTRO'
+ConfigManager().save(cfg)
 print('✓ Setup configuration persisted.')
 "
+    fi
 fi
 
 # ------------------------------------------------------------------------------
-# 7. Create Global CLI Launcher Wrapper
+# 7. Create Global CLI Launcher Wrapper & Shell Integrations
 # ------------------------------------------------------------------------------
 log_info "Creating global CLI executable..."
 
@@ -571,12 +648,57 @@ chmod +x "$WRAPPER_FILE"
 log_success "Executable wrapper created at: $WRAPPER_FILE"
 
 # If root / sudo writable, create symlink in /usr/local/bin
+SYMLINK_CREATED=false
 if [ -w /usr/local/bin ]; then
-    ln -sf "$WRAPPER_FILE" /usr/local/bin/ops-assistant 2>/dev/null || true
-    log_success "Global symlink created in /usr/local/bin/ops-assistant"
-elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-    sudo ln -sf "$WRAPPER_FILE" /usr/local/bin/ops-assistant 2>/dev/null || true
-    log_success "Global symlink created in /usr/local/bin/ops-assistant (via sudo)"
+    mkdir -p /usr/local/bin
+    if ln -sf "$WRAPPER_FILE" /usr/local/bin/ops-assistant 2>/dev/null; then
+        SYMLINK_CREATED=true
+        log_success "Global symlink created in /usr/local/bin/ops-assistant"
+    fi
+elif [ -n "$SUDO" ]; then
+    $SUDO mkdir -p /usr/local/bin 2>/dev/null || true
+    if $SUDO ln -sf "$WRAPPER_FILE" /usr/local/bin/ops-assistant 2>/dev/null; then
+        SYMLINK_CREATED=true
+        log_success "Global symlink created in /usr/local/bin/ops-assistant (via sudo)"
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# 7b. Install Shell Autocompletions (Bash & Zsh)
+# ------------------------------------------------------------------------------
+log_info "Installing shell autocompletion scripts..."
+
+# Bash completion
+if [ -f "$INSTALL_DIR/extra/completions/ops-assistant.bash" ]; then
+    BASH_COMP_DIR="$HOME/.local/share/bash-completion/completions"
+    mkdir -p "$BASH_COMP_DIR"
+    cp "$INSTALL_DIR/extra/completions/ops-assistant.bash" "$BASH_COMP_DIR/ops-assistant"
+    log_success "Installed Bash completions into $BASH_COMP_DIR/ops-assistant"
+fi
+
+# Zsh completion
+if [ -f "$INSTALL_DIR/extra/completions/ops-assistant.zsh" ]; then
+    ZSH_COMP_DIR="$HOME/.zsh/completions"
+    mkdir -p "$ZSH_COMP_DIR"
+    cp "$INSTALL_DIR/extra/completions/ops-assistant.zsh" "$ZSH_COMP_DIR/_ops_assistant"
+    log_success "Installed Zsh completions into $ZSH_COMP_DIR/_ops_assistant"
+fi
+
+# ------------------------------------------------------------------------------
+# 7c. Install Desktop Launcher & Systemd Unit (If Applicable)
+# ------------------------------------------------------------------------------
+if [ -f "$INSTALL_DIR/extra/desktop/ops-assistant-gui.desktop" ]; then
+    DESKTOP_APPS_DIR="$HOME/.local/share/applications"
+    mkdir -p "$DESKTOP_APPS_DIR"
+    cp "$INSTALL_DIR/extra/desktop/ops-assistant-gui.desktop" "$DESKTOP_APPS_DIR/ops-assistant-gui.desktop"
+    log_success "Installed Desktop application launcher: $DESKTOP_APPS_DIR/ops-assistant-gui.desktop"
+fi
+
+if [ -f "$INSTALL_DIR/extra/systemd/ops-assistant-gui.service" ] && [ "$INIT_SYSTEM" = "systemd" ]; then
+    SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+    mkdir -p "$SYSTEMD_USER_DIR"
+    cp "$INSTALL_DIR/extra/systemd/ops-assistant-gui.service" "$SYSTEMD_USER_DIR/ops-assistant-gui.service"
+    log_success "Installed Systemd user service template: $SYSTEMD_USER_DIR/ops-assistant-gui.service"
 fi
 
 # Verify if ~/.local/bin is in PATH
@@ -588,11 +710,15 @@ esac
 
 if [ "$PATH_EXPORT_NEEDED" = true ]; then
     log_warn "$BIN_DIR is not currently in your PATH."
-    # Add to shell profile
+    # Detect active shell correctly (prioritize active shell environment over ~/.bashrc)
     SHELL_PROFILE=""
-    if [ -n "$BASH_VERSION" ] || [ -f "$HOME/.bashrc" ]; then
+    if [ -n "${ZSH_VERSION:-}" ] || [[ "${SHELL:-}" =~ zsh$ ]]; then
+        SHELL_PROFILE="$HOME/.zshrc"
+    elif [ -n "${BASH_VERSION:-}" ] || [[ "${SHELL:-}" =~ bash$ ]]; then
         SHELL_PROFILE="$HOME/.bashrc"
-    elif [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
+    elif [ -f "$HOME/.bashrc" ]; then
+        SHELL_PROFILE="$HOME/.bashrc"
+    elif [ -f "$HOME/.zshrc" ]; then
         SHELL_PROFILE="$HOME/.zshrc"
     elif [ -f "$HOME/.profile" ]; then
         SHELL_PROFILE="$HOME/.profile"
@@ -629,6 +755,7 @@ echo -e "  ${GREEN}ops-assistant --inspect-health${RESET}                     # 
 echo -e "  ${GREEN}ops-assistant --diagnose-failed${RESET}                    # Scan & diagnose crashed services"
 echo -e "  ${GREEN}ops-assistant --gui${RESET}                                # Launch Web Dashboard GUI"
 echo -e "  ${GREEN}ops-assistant --setup${RESET}                              # Re-run hardware & model wizard"
+echo -e "  ${RED}./uninstall.sh${RESET}                                     # Clean uninstaller utility"
 echo ""
 echo -e "${BOLD}Enjoy autonomous, explainable Linux operations!${RESET}"
 echo ""
