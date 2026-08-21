@@ -371,9 +371,26 @@ class OpsAssistantAgent:
             elif prov_str in ["ollama", "remote"]:
                 self.llm_provider = OllamaProvider()
             elif prov_str == "auto":
-                gguf_p = LlamaCppProvider(model_path=model_path)
-                avail, _ = gguf_p.is_available()
-                self.llm_provider = gguf_p if avail else None
+                try:
+                    from ops_assistant.config import get_config
+                    cfg = get_config()
+                    cfg_prov = cfg.get("provider", "auto")
+                except Exception:
+                    cfg_prov = "auto"
+                    cfg = {}
+
+                if cfg_prov == "deterministic":
+                    self.llm_provider = None
+                elif cfg_prov == "ollama":
+                    self.llm_provider = OllamaProvider(
+                        endpoint=cfg.get("ollama_endpoint", "http://localhost:11434/api/generate"),
+                        model=cfg.get("ollama_model", "llama3:8b")
+                    )
+                else:
+                    target_model_path = model_path or cfg.get("active_model_path")
+                    gguf_p = LlamaCppProvider(model_path=target_model_path)
+                    avail, _ = gguf_p.is_available()
+                    self.llm_provider = gguf_p if avail else None
             else:
                 self.llm_provider = None
         else:
