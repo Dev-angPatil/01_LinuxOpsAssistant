@@ -50,42 +50,56 @@ The **AI-Powered Linux Operations Assistant** (`ops-assistant`) is an autonomous
 - Python 3.9+
 - Standard user or `sudo` access for elevated log inspection
 
-### Installation
+### ⚡ Automated 1-Line Installation (Recommended)
+
+Run the autonomous installer directly in your terminal to automatically detect your Linux distribution, profile hardware (CPU, RAM, GPU/VRAM), install dependencies in an isolated virtual environment, choose your open-source AI model, and link the global `ops-assistant` command:
+
 ```bash
-# Clone repository
+curl -fsSL https://raw.githubusercontent.com/Dev-angPatil/01_LinuxOpsAssistant/main/install.sh | bash
+```
+
+### 🛠️ Manual Installation
+
+```bash
+# 1. Clone repository
 git clone https://github.com/Dev-angPatil/01_LinuxOpsAssistant.git
 cd 01_LinuxOpsAssistant
 
-# Install optional UI enhancements (Rich terminal rendering)
+# 2. Run automated installer locally
+chmod +x install.sh && ./install.sh
+
+# Or install manually via pip
 pip install -r requirements.txt
 ```
 
 ### CLI Command Reference
 
+Once installed, you can use the global `ops-assistant` command (or `python3 -m ops_assistant.cli`):
+
 ```bash
-# 1. Run First-Time Hardware Setup & Model Configuration Wizard
-python3 -m ops_assistant.cli --setup
+# 1. One-Shot Natural Language Diagnostic Query
+ops-assistant "Why is NGINX failing to bind to port 80?"
 
-# 2. Run Automated Benchmark across 16 Failure Scenarios
-python3 -m ops_assistant.cli --benchmark
+# 2. Interactive Conversational Sysadmin REPL
+ops-assistant -i
 
-# 3. Run Interactive Failure Demo Walkthrough
-python3 -m ops_assistant.cli --demo
+# 3. Inspect Real-Time Linux Health, Distro Profile & Kernel PSI Pressure
+ops-assistant --inspect-health
 
-# 4. Inspect Real-Time Linux Health, Distro Profile & Kernel PSI Pressure
-python3 -m ops_assistant.cli --inspect-health
+# 4. Scan and Diagnose Failed System Services
+ops-assistant --diagnose-failed
 
-# 5. Scan and Diagnose Failed System Services
-python3 -m ops_assistant.cli --diagnose-failed
+# 5. Run Hardware Setup & Model Configuration Wizard
+ops-assistant --setup
 
-# 6. One-Shot Diagnostic Query with Distro Override & JSON/Markdown Export
-python3 -m ops_assistant.cli "Why is NGINX failing to bind to port 80?" --distro alpine --export-json report.json --export-md report.md
+# 6. Launch Interactive Web GUI Dashboard
+ops-assistant --gui
 
-# 7. Interactive Conversational Sysadmin REPL with Interactive Command Execution
-python3 -m ops_assistant.cli -i
+# 7. Run Automated Benchmark across 16 Failure Scenarios
+ops-assistant --benchmark
 
-# 8. Launch Interactive Web GUI Dashboard
-python3 -m ops_assistant.cli --gui
+# 8. Run Interactive Failure Demo Walkthrough
+ops-assistant --demo
 ```
 
 ---

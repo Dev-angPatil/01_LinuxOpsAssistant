@@ -445,13 +445,39 @@ def run_setup_wizard(
 
     elif choice == "2":
         models = list(MODEL_CATALOG.items())
-        print("\n--- Available GGUF Model Catalog ---")
-        for idx, (k, info) in enumerate(models, 1):
-            size_mb = info["size_bytes"] / (1024 * 1024)
-            print(f"  [{idx}] {info['name']} (~{size_mb:.0f} MB, RAM req: {info['ram_required_mb']:.0f} MB)")
+        if HAS_RICH and console:
+            cat_table = Table(title="Open-Source Model Catalog — Hardware Requirements & Features", show_header=True, header_style="bold magenta")
+            cat_table.add_column("No.", style="bold cyan", width=4)
+            cat_table.add_column("Model Name", style="bold green", width=32)
+            cat_table.add_column("Size", style="yellow", width=10)
+            cat_table.add_column("RAM / VRAM", style="white", width=18)
+            cat_table.add_column("Unlocked Features & Description", style="dim")
+
+            for idx, (k, info) in enumerate(models, 1):
+                size_mb = info["size_bytes"] / (1024 * 1024)
+                vram_str = f" / {info.get('vram_recommended_mb', 0):.0f}MB VRAM" if info.get('vram_recommended_mb', 0) > 0 else ""
+                cat_table.add_row(
+                    str(idx),
+                    info["name"],
+                    f"{size_mb:.0f} MB",
+                    f"{info['ram_required_mb']:.0f} MB RAM{vram_str}",
+                    info.get("description", "")
+                )
+            console.print(cat_table)
+        else:
+            print("\n" + "=" * 90)
+            print("  OPEN-SOURCE MODEL CATALOG — HARDWARE REQUIREMENTS & FEATURES")
+            print("=" * 90)
+            for idx, (k, info) in enumerate(models, 1):
+                size_mb = info["size_bytes"] / (1024 * 1024)
+                vram_str = f" / {info.get('vram_recommended_mb', 0):.0f}MB VRAM" if info.get('vram_recommended_mb', 0) > 0 else ""
+                print(f"  [{idx}] {info['name']}")
+                print(f"      Size: {size_mb:.0f} MB | Req RAM: {info['ram_required_mb']:.0f} MB{vram_str} | Min Cores: {info.get('min_cores', 1)}")
+                print(f"      Features: {info.get('description', '')}")
+                print("-" * 90)
 
         try:
-            sel = _input(f"Select model number [1-{len(models)}]: ").strip()
+            sel = _input(f"\nSelect model number [1-{len(models)}]: ").strip()
             sel_idx = int(sel) - 1
             if 0 <= sel_idx < len(models):
                 chosen_key, chosen_info = models[sel_idx]

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ops-assistant"
+version = "1.0.0"
+description = "AI-Powered Linux Operations Assistant"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "rich>=13.0.0",
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+ops-assistant = "ops_assistant.cli:main"
