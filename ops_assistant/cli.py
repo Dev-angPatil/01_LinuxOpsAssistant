@@ -6,7 +6,7 @@ import sys
 import json
 import time
 import argparse
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable, Tuple, Union
 
 # Detect NO_COLOR environment variable (https://no-color.org)
 NO_COLOR = bool(os.environ.get("NO_COLOR"))
@@ -2026,6 +2026,98 @@ def run_repl(agent: OpsAssistantAgent, executor: SafeExecutor, distro_override: 
                     for u in result["users"]:
                         if u["shell"] not in ("/bin/false", "/usr/sbin/nologin"):
                             print(f"  {u['username']:20} (uid {u['uid']:5}) {u['home']}")
+
+            # -----------------------------------------------------------------
+            # Hardware & AI Advisory
+            # -----------------------------------------------------------------
+            elif intent.type in (IntentType.HARDWARE_PROFILE, IntentType.HARDWARE_RECOMMEND_MODEL):
+                render_hardware_profile()
+
+            elif intent.type == IntentType.HARDWARE_AUTO_TUNE:
+                auto_tune_system()
+
+            # -----------------------------------------------------------------
+            # Proactive Audit & Security
+            # -----------------------------------------------------------------
+            elif intent.type == IntentType.PROACTIVE_AUDIT:
+                render_proactive_audit()
+
+            elif intent.type == IntentType.SECURITY_AUDIT:
+                render_security_audit()
+
+            elif intent.type in (IntentType.SECURITY_SSH_CHECK, IntentType.SECURITY_BRUTEFORCE, IntentType.SECURITY_SUID):
+                act_res = agent.execute_agent_action(query, execute=True)
+                _cprint(f"[bold green]✓ {act_res.get('summary', 'Security check completed.')}[/bold green]",
+                        f"✓ {act_res.get('summary', 'Security check completed.')}")
+                if act_res.get("output") and isinstance(act_res["output"], dict):
+                    for k, v in act_res["output"].items():
+                        if k not in ("error", "success") and not isinstance(v, (dict, list)):
+                            print(f"  {k:25}: {v}")
+
+            # -----------------------------------------------------------------
+            # Docker & Containers
+            # -----------------------------------------------------------------
+            elif intent.type == IntentType.DOCKER_LIST:
+                render_docker_status()
+
+            elif intent.type in (IntentType.DOCKER_LOGS, IntentType.DOCKER_RESTART, IntentType.DOCKER_PRUNE):
+                act_plan = agent.execute_agent_action(query, execute=False)
+                cmd_to_run = act_plan.get("command", "")
+                if act_plan.get("requires_permission") and cmd_to_run:
+                    if _confirm(f"Execute '{cmd_to_run}'?"):
+                        act_res = agent.execute_agent_action(query, execute=True)
+                        _cprint(f"[green]✓ {act_res.get('summary', 'Executed successfully.')}[/green]",
+                                f"✓ {act_res.get('summary', 'Executed successfully.')}")
+                    else:
+                        print("Cancelled.")
+                else:
+                    act_res = agent.execute_agent_action(query, execute=True)
+                    _cprint(f"[green]✓ {act_res.get('summary', 'Done.')}[/green]",
+                            f"✓ {act_res.get('summary', 'Done.')}")
+
+            # -----------------------------------------------------------------
+            # Backup & Restore
+            # -----------------------------------------------------------------
+            elif intent.type == IntentType.BACKUP_LIST:
+                act_res = agent.execute_agent_action(query, execute=True)
+                _cprint(f"[green]✓ {act_res.get('summary')}[/green]", f"✓ {act_res.get('summary')}")
+                backups = act_res.get("output", {}).get("backups", [])
+                if backups:
+                    for b in backups:
+                        print(f"  {b.get('filename'):35} {b.get('size_human', ''):>10}  {b.get('created_human', '')}")
+
+            elif intent.type in (IntentType.BACKUP_CREATE, IntentType.BACKUP_RESTORE):
+                act_plan = agent.execute_agent_action(query, execute=False)
+                cmd_to_run = act_plan.get("command", "")
+                if act_plan.get("requires_permission") and cmd_to_run:
+                    if _confirm(f"Execute '{cmd_to_run}'?"):
+                        act_res = agent.execute_agent_action(query, execute=True)
+                        _cprint(f"[green]✓ {act_res.get('summary', 'Backup operation completed.')}[/green]",
+                                f"✓ {act_res.get('summary', 'Backup operation completed.')}")
+                    else:
+                        print("Cancelled.")
+                else:
+                    act_res = agent.execute_agent_action(query, execute=True)
+                    _cprint(f"[green]✓ {act_res.get('summary')}[/green]", f"✓ {act_res.get('summary')}")
+
+            # -----------------------------------------------------------------
+            # System Maintenance (Boot, SSD TRIM, Package Clean, Journal Vacuum, Cron Remove)
+            # -----------------------------------------------------------------
+            elif intent.type in (IntentType.SYSTEM_BOOT_ANALYSIS, IntentType.SYSTEM_TRIM_SSD,
+                                 IntentType.SYSTEM_PACKAGE_CLEAN, IntentType.SYSTEM_JOURNAL_VACUUM,
+                                 IntentType.CRON_REMOVE):
+                act_plan = agent.execute_agent_action(query, execute=False)
+                cmd_to_run = act_plan.get("command", "")
+                if act_plan.get("requires_permission") and cmd_to_run:
+                    if _confirm(f"Execute '{cmd_to_run}'?"):
+                        act_res = agent.execute_agent_action(query, execute=True)
+                        _cprint(f"[green]✓ {act_res.get('summary', 'System maintenance action completed.')}[/green]",
+                                f"✓ {act_res.get('summary', 'System maintenance action completed.')}")
+                    else:
+                        print("Cancelled.")
+                else:
+                    act_res = agent.execute_agent_action(query, execute=True)
+                    _cprint(f"[green]✓ {act_res.get('summary')}[/green]", f"✓ {act_res.get('summary')}")
 
             # -----------------------------------------------------------------
             # Shell passthrough

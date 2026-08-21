@@ -1,718 +1,976 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="cyan">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Linux Operations Assistant — Cockpit v3.0</title>
-  
-  <!-- Tailwind CSS & Lucide Icons via CDN -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linux Operations Assistant // Luxury Space Editorial</title>
+  <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for real-time telemetry graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-  
-  <!-- Linear-Inspired Obsidian Cyberpunk Stylesheet -->
-  <link rel="stylesheet" href="/static/styles.css" />
-
+  <!-- Mermaid.js for Causal DAG rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css?v=6.0">
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            brand: {
-              cyan: '#06b6d4',
-              emerald: '#10b981',
-              purple: '#a855f7',
-              amber: '#f59e0b',
-            }
+          fontFamily: {
+            editorial: ['Playfair Display', 'Italiana', 'Georgia', 'serif'],
+            serifLuxury: ['Italiana', 'Cinzel', 'serif'],
+            cinzel: ['Cinzel', 'serif'],
+            syne: ['Syne', 'sans-serif'],
+            tech: ['Space Grotesk', 'sans-serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
           }
         }
       }
     }
   </script>
 </head>
-<body class="bg-[#06070a] text-zinc-100 h-screen flex flex-col font-sans antialiased selection:bg-cyan-500 selection:text-black overflow-hidden">
+<body class="bg-[#070709] text-white min-h-screen flex flex-col font-tech antialiased selection:bg-white selection:text-black overflow-x-hidden">
 
   <!-- ======================================================== -->
-  <!-- TOP STATUS & TELEMETRY HEADER                            -->
+  <!-- TOP FULL-WIDTH HORIZONTAL NAVBAR -->
   <!-- ======================================================== -->
-  <header class="h-14 border-b border-white/[0.08] bg-[#090b10]/95 backdrop-blur-xl sticky top-0 z-40 px-4 flex items-center justify-between shrink-0">
+  <header class="sticky top-0 z-50 w-full px-6 sm:px-10 py-3.5 border-b border-white/10 bg-black/80 backdrop-blur-2xl flex items-center justify-between pointer-events-auto shadow-[0_10px_35px_rgba(0,0,0,0.7)] mb-4">
     
-    <!-- Left: Sidebar Toggle & Brand -->
-    <div class="flex items-center space-x-3">
-      <button id="btn-toggle-sidebar" onclick="HistorySidebar.toggle()" title="Toggle Chat History (Ctrl+B)" class="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition border border-white/[0.06]">
-        <i data-lucide="panel-left" class="w-4 h-4"></i>
-      </button>
-
-      <div class="flex items-center space-x-2.5">
-        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 text-black flex items-center justify-center font-mono font-bold text-xs shadow-md shadow-cyan-500/20">
-          <i data-lucide="terminal" class="w-3.5 h-3.5 text-white stroke-[2.5]"></i>
-        </div>
-        <div class="flex items-center space-x-2">
-          <h1 class="font-bold text-sm tracking-tight text-white">LinuxOps<span class="text-cyan-400">.AI</span></h1>
-          <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">v3.0</span>
-        </div>
+    <!-- Left: Big LinuxOps Branding on Top-Left -->
+    <div class="flex items-center space-x-3.5">
+      <div class="w-11 h-11 rounded-full bg-white/10 border border-white/25 backdrop-blur-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(0,210,255,0.3)]">
+        <i data-lucide="cpu" class="w-6 h-6 text-cyan-300"></i>
+      </div>
+      <div class="font-editorial italic text-2xl sm:text-3xl tracking-wide text-white font-normal">
+        Linux<span class="not-italic font-sans font-light text-slate-300">Ops</span>
       </div>
     </div>
 
-    <!-- Center: Live Sparklines & Telemetry Strip -->
-    <div class="hidden md:flex items-center space-x-3 text-xs">
-      <!-- Live Interactive CPU & RAM Sparklines -->
-      <div class="flex items-center space-x-2 bg-white/[0.03] border border-white/[0.06] px-2 py-0.5 rounded-lg font-mono text-[11px]">
-        <button onclick="switchTab('health'); showToast('Viewing CPU & PSI Telemetry', 'info', 1500);" title="Click to view CPU & PSI details" class="flex items-center space-x-1.5 hover:bg-cyan-500/10 hover:border-cyan-500/30 px-2 py-1 rounded-md transition cursor-pointer border border-transparent">
-          <span class="text-zinc-400 text-[10px] font-bold">CPU</span>
-          <canvas id="sparkline-cpu" width="44" height="16" class="inline-block"></canvas>
-          <span id="spark-cpu-val" class="text-cyan-400 font-bold text-[10px]">0%</span>
-        </button>
-        <span class="text-zinc-700">|</span>
-        <button onclick="switchTab('health'); showToast('Viewing Memory & Swap Telemetry', 'info', 1500);" title="Click to view RAM & Memory details" class="flex items-center space-x-1.5 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-2 py-1 rounded-md transition cursor-pointer border border-transparent">
-          <span class="text-zinc-400 text-[10px] font-bold">RAM</span>
-          <canvas id="sparkline-ram" width="44" height="16" class="inline-block"></canvas>
-          <span id="spark-ram-val" class="text-emerald-400 font-bold text-[10px]">0%</span>
-        </button>
-      </div>
+    <!-- Center: Horizontal Full-Width Capsule Navigation -->
+    <nav class="nav-capsule px-3.5 py-1.5 flex items-center space-x-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.6)]">
+      <button onclick="switchTab('home')" id="tab-btn-home" class="nav-capsule-tab active text-sm sm:text-base px-4 py-2">
+        <span>Home</span>
+      </button>
+      <button onclick="switchTab('health')" id="tab-btn-health" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
+        <span>Health &amp; PSI</span>
+      </button>
+      <button onclick="switchTab('services')" id="tab-btn-services" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
+        <span>Services</span>
+      </button>
+      <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
+        <span>Storage</span>
+      </button>
+      <button onclick="switchTab('network')" id="tab-btn-network" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
+        <span>Network</span>
+      </button>
+      <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-capsule-tab hidden md:inline-flex text-sm sm:text-base px-4 py-2">
+        <span>Taxonomy</span>
+      </button>
+      <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-capsule-tab hidden lg:inline-flex text-sm sm:text-base px-4 py-2">
+        <span>Packages</span>
+      </button>
+      <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-capsule-tab hidden lg:inline-flex text-sm sm:text-base px-4 py-2">
+        <span>Runner</span>
+      </button>
+      
+      <!-- Primary Action Button in Nav Pill -->
+      <button onclick="focusCommandDeck()" class="btn-editorial-primary ml-1.5 !py-2 !px-4 text-xs sm:text-sm font-tech">
+        <span>AI Launch ↗</span>
+      </button>
+    </nav>
 
-      <!-- Host & Distro info -->
-      <div class="hidden lg:flex items-center space-x-2 bg-white/[0.03] border border-white/[0.06] px-3 py-1 rounded-lg font-mono text-[11px]">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="text-zinc-300 font-medium" id="header-hostname">localhost</span>
-        <span class="text-zinc-600">/</span>
-        <span class="text-zinc-400" id="header-distro">Linux</span>
-        <span class="text-zinc-600">/</span>
-        <span class="text-zinc-400 text-[10px]" id="header-kernel">Kernel ...</span>
-      </div>
-
-      <div class="flex items-center space-x-2 bg-white/[0.03] border border-white/[0.06] px-2.5 py-1 rounded-lg">
-        <span class="text-zinc-500 text-[10px] uppercase">PSI:</span>
-        <span id="header-pressure" class="font-mono text-[11px] font-bold text-emerald-400">NORMAL</span>
-      </div>
-    </div>
-
-    <!-- Right: Theme Picker, Audio FX, Command Palette & Refresh -->
-    <div class="flex items-center space-x-2">
-      <!-- Theme Accent Selector -->
-      <div class="relative flex items-center bg-white/[0.03] border border-white/[0.08] rounded-lg px-2 py-1">
-        <span class="text-[10px] text-zinc-500 mr-1.5 select-none">Theme:</span>
-        <select id="theme-selector" onchange="ThemeManager.setTheme(this.value)" class="bg-transparent text-[11px] font-medium text-cyan-400 outline-none cursor-pointer">
-          <option value="cyan" class="bg-zinc-900 text-cyan-400">💠 Neon Cyan</option>
-          <option value="emerald" class="bg-zinc-900 text-emerald-400">🟢 Matrix Emerald</option>
-          <option value="purple" class="bg-zinc-900 text-purple-400">🟣 Tokyo Purple</option>
-          <option value="amber" class="bg-zinc-900 text-amber-400">🟠 Sunset Amber</option>
-        </select>
-      </div>
-
-      <!-- Audio FX Toggle -->
-      <button id="btn-sound-toggle" onclick="SoundFX.toggle()" title="Toggle Audio FX Feedback" class="p-1.5 bg-white/[0.03] hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition border border-white/[0.06]">
-        <i data-lucide="volume-2" id="sound-icon" class="w-3.5 h-3.5 text-cyan-400"></i>
+    <!-- Right: Action Controls (History Drawer + Voice TTS + SFX) -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <!-- History Drawer Toggle Button -->
+      <button 
+        id="btn-toggle-history" 
+        onclick="toggleHistoryDrawer()" 
+        title="Mission History & Past Inquiries (Ctrl+H)" 
+        class="flex items-center space-x-2 px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/35 backdrop-blur-xl text-slate-200 hover:text-white transition-all shadow-[0_4px_16px_rgba(0,0,0,0.4)] group cursor-pointer">
+        <i data-lucide="history" class="w-4.5 h-4.5 text-cyan-300 group-hover:rotate-[-20deg] transition-transform duration-300"></i>
+        <span class="text-xs sm:text-sm font-sans font-medium hidden sm:inline">History</span>
+        <span id="history-badge-count" class="hidden text-[10px] font-mono bg-cyan-400/20 text-cyan-300 px-1.5 py-0.5 rounded-full border border-cyan-400/30">0</span>
       </button>
 
-      <!-- Command Palette Quick Launcher -->
-      <button onclick="CommandPalette.open()" title="Quick Command Palette (Ctrl+K)" class="hidden sm:flex items-center space-x-1 bg-white/[0.04] hover:bg-white/10 border border-white/[0.08] px-2.5 py-1 rounded-lg text-zinc-400 hover:text-white transition text-xs font-mono">
-        <i data-lucide="search" class="w-3 h-3 text-zinc-500"></i>
-        <kbd class="text-[10px] bg-white/10 px-1 py-0.2 rounded border border-white/10">Ctrl+K</kbd>
+      <div class="h-5 w-[1px] bg-white/15 mx-0.5 hidden sm:block"></div>
+
+      <!-- AI Voice Speech Synthesis Toggle -->
+      <button id="btn-toggle-tts" onclick="toggleVoiceSpeech()" title="Toggle AI Spoken Voice Feedback" class="p-2.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 backdrop-blur-xl transition text-slate-300 hover:text-white">
+        <i data-lucide="volume-1" class="w-4.5 h-4.5"></i>
       </button>
 
-      <!-- Refresh Health -->
-      <button id="btn-refresh-health" title="Refresh Telemetry" class="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition border border-white/[0.06]">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+      <!-- SFX Toggle -->
+      <button id="btn-toggle-sfx" onclick="toggleSFX()" title="Toggle Web Audio Synthesizer" class="p-2.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 backdrop-blur-xl transition text-slate-300 hover:text-white">
+        <i data-lucide="volume-2" class="w-4.5 h-4.5"></i>
       </button>
     </div>
   </header>
 
   <!-- ======================================================== -->
-  <!-- 3-COLUMN COCKPIT APP SHELL                               -->
+  <!-- MAIN WORKSPACE CONTAINER -->
   <!-- ======================================================== -->
-  <div class="app-shell">
+  <main class="flex-1 w-full mx-auto px-4 sm:px-8 pb-16 space-y-12">
 
-    <!-- ── COLUMN 1: LEFT COLLAPSIBLE HISTORY SIDEBAR ── -->
-    <aside id="sidebar-history" class="sidebar-history">
-      <!-- Sidebar Header -->
-      <div class="p-3 border-b border-white/[0.06] flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <i data-lucide="message-square" class="w-4 h-4 text-cyan-400"></i>
-          <span class="text-xs font-semibold uppercase tracking-wider text-zinc-300">Recent Chats</span>
-        </div>
-        <button onclick="HistorySidebar.newChat()" title="New Chat (Ctrl+N)" class="p-1 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 rounded transition flex items-center space-x-1 text-[11px] font-medium">
-          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-          <span>New</span>
-        </button>
-      </div>
-
-      <!-- History Search Filter -->
-      <div class="p-2.5 border-b border-white/[0.04]">
-        <div class="relative flex items-center">
-          <i data-lucide="search" class="w-3 h-3 text-zinc-500 absolute left-2.5"></i>
-          <input type="text" id="history-search-input" placeholder="Filter chats..." oninput="HistorySidebar.filter(this.value)" class="w-full bg-[#07080c] border border-white/[0.08] rounded-md pl-8 pr-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 outline-none focus:border-cyan-500" />
-        </div>
-      </div>
-
-      <!-- History Session List Container -->
-      <div id="history-sessions-list" class="flex-1 p-2 overflow-y-auto space-y-1">
-        <!-- Injected dynamically by HistorySidebar -->
-      </div>
-
-      <!-- Sidebar Footer -->
-      <div class="p-3 border-t border-white/[0.06] flex items-center justify-between text-xs">
-        <button onclick="HistorySidebar.clearAll()" class="text-[11px] text-zinc-500 hover:text-rose-400 transition flex items-center space-x-1">
-          <i data-lucide="trash-2" class="w-3 h-3"></i>
-          <span>Clear History</span>
-        </button>
-        <button onclick="HistorySidebar.toggle()" class="text-zinc-500 hover:text-zinc-300 transition text-[11px]">
-          &laquo; Collapse
-        </button>
-      </div>
-    </aside>
-
-    <!-- ── COLUMN 2: CENTER MAIN WORKSPACE ── -->
-    <main id="workspace-center" class="workspace-center">
-
-      <!-- ======================================================== -->
-      <!-- TAB 1: AI OPS AGENT COMMAND CENTER (HOME)               -->
-      <!-- ======================================================== -->
-      <div id="tab-content-home" class="tab-content space-y-4 max-w-5xl mx-auto pb-52">
-
-        <!-- Dynamic Mascot Widget with Typewriter Speech Bubble -->
-        <div id="mascot-widget" class="mascot-widget-wrapper">
-          <button id="mascot-avatar-btn" class="mascot-avatar-btn" onclick="MascotManager.cycle()" title="Click to cycle mascot avatar (L / Tux / Cyber / Matrix)">
-            <img id="mascot-avatar-img" src="/static/assets/mascot_l.jpg" alt="AI Mascot Avatar" class="mascot-avatar-img" />
-          </button>
+    <!-- ======================================================== -->
+    <!-- TAB 1: HERO & AI OPS DECK (HOME) - BALANCED 2-COLUMN COCKPIT -->
+    <!-- ======================================================== -->
+    <div id="tab-content-home" class="tab-content">
+      
+      <div id="home-cockpit-grid" class="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-stretch h-[calc(100vh-140px)] min-h-[760px] transition-all duration-300">
+        
+        <!-- ======================================================== -->
+        <!-- LEFT/MAIN ARENA: HERO, SEARCH DECK & ZERO-G ORB -->
+        <!-- ======================================================== -->
+        <section id="home-main-arena" class="lg:col-span-7 xl:col-span-7 flex flex-col items-center text-center space-y-5 h-full overflow-y-auto px-3 py-1 custom-scrollbar transition-all duration-300">
           
-          <div class="mascot-speech-bubble">
-            <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
-              <div class="flex items-center space-x-2">
-                <div id="mascot-mood-pill" class="mascot-mood-pill bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
-                  <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                  <span id="mascot-mood-text">L • OBSERVING</span>
-                </div>
-                <!-- Interactive CPU & RAM quick buttons on AI assistant page -->
-                <button onclick="switchTab('health'); showToast('Opening CPU Telemetry...', 'info', 1200);" title="Click to view CPU & PSI details" class="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/20 text-cyan-400 font-mono text-[10px] cursor-pointer transition">
-                  <i data-lucide="cpu" class="w-3 h-3"></i>
-                  <span>CPU: <strong id="home-cpu-pct">0%</strong></span>
-                </button>
-                <button onclick="switchTab('health'); showToast('Opening RAM Telemetry...', 'info', 1200);" title="Click to view RAM & Memory details" class="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] cursor-pointer transition">
-                  <i data-lucide="activity" class="w-3 h-3"></i>
-                  <span>RAM: <strong id="home-ram-pct">0%</strong></span>
+          <!-- Status Pill Badge -->
+          <div class="inline-flex items-center space-x-2.5 px-5 py-2 rounded-full bg-white/[0.06] border border-white/20 backdrop-blur-xl text-xs sm:text-sm text-slate-200 shadow-[0_0_25px_rgba(255,255,255,0.08)] shrink-0">
+            <span class="px-2.5 py-0.5 rounded-full bg-white text-black font-bold text-xs uppercase tracking-wider">Online</span>
+            <span class="text-slate-200 font-sans font-medium">Autonomous Linux Operations Engine • Real-Time AST &amp; Kernel PSI</span>
+          </div>
+
+          <!-- Grand Editorial Headline -->
+          <h1 class="font-editorial italic font-normal text-4xl sm:text-5xl xl:text-6xl text-white tracking-tight leading-[1.08] drop-shadow-[0_12px_40px_rgba(0,0,0,0.9)] select-none shrink-0">
+            Venture Past the Kernel<br>
+            <span class="font-editorial not-italic font-normal text-slate-100">Across the Universe</span>
+          </h1>
+
+          <!-- Subtitle -->
+          <p class="max-w-2xl mx-auto text-sm sm:text-base text-slate-300 font-sans-airy font-normal leading-relaxed text-center shrink-0">
+            Discover Linux autonomy in ways once unimaginable. Deterministic AST validation and real-time causality DAGs bring deep orchestration within reach.
+          </p>
+
+          <!-- Main Interactive Prompt Capsule with Two Separate Large Buttons -->
+          <div class="w-full max-w-2xl mx-auto space-y-4 pt-1 shrink-0">
+            <form id="agent-prompt-form" class="space-y-3.5">
+              <div class="relative flex items-center w-full">
+                <div class="absolute left-5 text-slate-400 font-mono text-sm sm:text-base font-bold select-none pointer-events-none z-10">AI://&gt;</div>
+                <input 
+                  type="text" 
+                  id="agent-prompt-input" 
+                  placeholder="Ask a diagnostic query, control services, or speak with voice..." 
+                  class="editorial-input w-full text-sm sm:text-base text-white placeholder-slate-500 font-mono shadow-[0_16px_50px_rgba(0,0,0,0.6)]"
+                  autocomplete="off"
+                  oninput="toggleClearPromptBtn(this.value)"
+                />
+                
+                <!-- Clear Prompt Input Button -->
+                <button 
+                  type="button" 
+                  id="btn-clear-prompt" 
+                  onclick="clearPromptInput()" 
+                  title="Clear Query" 
+                  class="hidden absolute right-4 text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 z-20 transition">
+                  <i data-lucide="x" class="w-4.5 h-4.5"></i>
                 </button>
               </div>
-              <span class="text-[9px] text-zinc-600 font-mono cursor-pointer hover:text-zinc-400" onclick="MascotManager.cycle()">Click avatar to switch ⇄</span>
-            </div>
-            <p id="mascot-speech-text" class="text-xs text-zinc-300 font-sans leading-relaxed"></p>
-          </div>
-        </div>
 
-        <!-- Reasoning Panel Transcript Feed -->
-        <div id="cc-transcript" class="cc-transcript-panel space-y-4">
-          <div class="cc-empty-state">
-            <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-cyan-500/10">
-              <i data-lucide="sparkles" class="w-6 h-6 text-cyan-400"></i>
+              <!-- TWO PROMINENT, LARGER BUTTONS: TEXT SUBMIT & VOICE COMMAND -->
+              <div class="flex items-center justify-center gap-3.5 pt-1">
+                <button 
+                  type="submit" 
+                  id="btn-submit-prompt" 
+                  class="btn-editorial-primary !py-3.5 !px-7 text-sm sm:text-base font-tech font-bold flex items-center space-x-2.5 shadow-[0_8px_24px_rgba(255,255,255,0.2)]">
+                  <i data-lucide="send" class="w-4.5 h-4.5"></i>
+                  <span>Send Query ↗</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  id="btn-voice-mic" 
+                  onclick="toggleVoiceActivation()" 
+                  title="Voice Command (Alt+V / Click to Speak)" 
+                  class="btn-editorial-secondary !py-3.5 !px-7 text-sm sm:text-base font-tech font-bold flex items-center space-x-2.5 voice-mic-btn border-cyan-400/30 text-cyan-200 hover:border-cyan-400 shadow-[0_0_20px_rgba(0,210,255,0.15)]">
+                  <i data-lucide="mic" class="w-4.5 h-4.5 text-cyan-300"></i>
+                  <span id="btn-voice-label">Voice Command 🎙</span>
+                </button>
+              </div>
+            </form>
+
+            <!-- Voice Activation Live Waveform & Transcript HUD -->
+            <div id="voice-hud-container" class="hidden flex items-center justify-between px-6 py-3 rounded-full voice-transcript-badge text-sm font-mono shadow-[0_0_30px_rgba(0,210,255,0.25)]">
+              <div class="flex items-center space-x-3.5 overflow-hidden">
+                <div class="voice-wave-container shrink-0">
+                  <span class="voice-bar voice-bar-1"></span>
+                  <span class="voice-bar voice-bar-2"></span>
+                  <span class="voice-bar voice-bar-3"></span>
+                  <span class="voice-bar voice-bar-4"></span>
+                  <span class="voice-bar voice-bar-5"></span>
+                </div>
+                <span id="voice-hud-status" class="text-cyan-300 font-bold shrink-0">Listening...</span>
+                <span id="voice-hud-interim" class="text-slate-200 italic truncate">Speak your sysadmin command...</span>
+              </div>
+              <div class="flex items-center space-x-2.5 shrink-0 pl-2">
+                <button type="button" onclick="stopVoiceActivation(true)" class="px-3 py-1 rounded-full bg-cyan-400/20 text-cyan-200 hover:bg-cyan-400/30 text-xs font-sans font-semibold">Done ↵</button>
+                <button type="button" onclick="stopVoiceActivation(false)" class="text-slate-400 hover:text-white text-xs">&times; Cancel</button>
+              </div>
             </div>
-            <p class="text-sm font-semibold text-zinc-200 mb-1">Linux Operations Copilot Ready</p>
-            <p class="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
-              Enter any query below or tap the microphone to speak. Every operation produces an Explainable AI <strong class="text-cyan-400">Understanding &rarr; Plan &rarr; Result</strong> trace with safety guardrails.
+
+            <!-- Preset Pills -->
+            <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs sm:text-sm">
+              <button type="button" onclick="quickPrompt('Why is port 80 blocked in firewall?')" class="editorial-pill">
+                ⚡ Port 80 Blocked
+              </button>
+              <button type="button" onclick="quickPrompt('Show system health and pressure')" class="editorial-pill">
+                ⚡ Neural PSI Telemetry
+              </button>
+              <button type="button" onclick="quickPrompt('Why is NGINX failing to bind?')" class="editorial-pill">
+                ⚡ Diagnose NGINX
+              </button>
+              <button type="button" onclick="quickPrompt('Organize my Downloads folder')" class="editorial-pill">
+                📁 Organize ~/Downloads
+              </button>
+              <button type="button" onclick="quickPrompt('Find large files over 100MB')" class="editorial-pill">
+                🔍 Scan Disk Hogs
+              </button>
+              <button type="button" onclick="quickPrompt('Audit SSH security configuration')" class="editorial-pill">
+                🛡️ SSH Cyber Audit
+              </button>
+            </div>
+          </div>
+
+          <!-- ZERO-G IRIDESCENT LIQUID GLASS ORB & FLOATING METRIC CARDS -->
+          <div class="relative w-full max-w-lg mx-auto mt-2 min-h-[290px] flex items-center justify-center shrink-0">
+            
+            <!-- Background Iridescent Glass Orb -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+              <img 
+                src="/static/orb.jpg" 
+                alt="Zero-G Iridescent Liquid Glass Sphere" 
+                class="w-[230px] sm:w-[270px] h-[230px] sm:h-[270px] object-contain rounded-full zero-g-orb opacity-90"
+              />
+            </div>
+
+            <!-- Suspended Floating Glass Telemetry Cards -->
+            <div class="relative z-10 w-full grid grid-cols-2 gap-4 max-w-md mx-auto px-3">
+              
+              <!-- Floating Card 1: Telemetry Latency / CPU -->
+              <div class="avant-card-elevated p-4 text-left space-y-1.5 backdrop-blur-3xl">
+                <div class="flex items-center space-x-1.5 text-slate-400">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-cyan-300"></i>
+                  <span class="text-[11px] font-sans font-semibold uppercase tracking-wider">CPU Metric</span>
+                </div>
+                <div class="font-editorial italic text-2xl text-cyan-300 font-normal" id="hero-cpu-stat">
+                  0.0%
+                </div>
+                <p class="text-[11px] text-slate-300 font-sans leading-tight">
+                  SSE Core Utilization
+                </p>
+              </div>
+
+              <!-- Floating Card 2: Kernel Pressure / Host Status -->
+              <div class="avant-card-elevated p-4 text-left space-y-1.5 backdrop-blur-3xl">
+                <div class="flex items-center space-x-1.5 text-slate-400">
+                  <i data-lucide="globe" class="w-3.5 h-3.5 text-emerald-300"></i>
+                  <span class="text-[11px] font-sans font-semibold uppercase tracking-wider">Kernel PSI</span>
+                </div>
+                <div class="font-editorial italic text-2xl text-emerald-300 font-normal" id="hero-psi-stat">
+                  NORMAL
+                </div>
+                <p class="text-[11px] text-slate-300 font-sans leading-tight">
+                  Stall Pressure Matrix
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom Aerospace Subsystems Bar -->
+          <div class="pt-1 space-y-1.5 shrink-0">
+            <p class="text-xs text-slate-400 font-sans tracking-widest uppercase font-medium">
+              Subsystems
             </p>
+            <div class="flex flex-wrap items-center justify-center gap-6 font-editorial italic text-base sm:text-lg text-slate-300 opacity-90">
+              <span class="hover:text-white transition">Systemd</span>
+              <span class="hover:text-white transition">eBPF</span>
+              <span class="hover:text-white transition">Kernel PSI</span>
+              <span class="hover:text-white transition">Nftables</span>
+              <span class="hover:text-white transition">XDG</span>
+              <span class="hover:text-white transition">Arch</span>
+            </div>
           </div>
-        </div>
+
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- RIGHT PANEL: FULL-HEIGHT LIVE WORKING & EXECUTION OUTPUT -->
+        <!-- ======================================================== -->
+        <aside id="home-output-aside" class="lg:col-span-5 xl:col-span-5 h-full flex flex-col transition-all duration-300">
+          
+          <!-- Expanded Card View -->
+          <div id="output-expanded-card" class="avant-card-elevated p-6 space-y-4 h-full flex flex-col">
+            
+            <!-- Header with Live Indicator, Collapse Action, and Purge Stream -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-3.5 shrink-0">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-9 h-9 rounded-full bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shadow-[0_0_14px_rgba(0,210,255,0.25)]">
+                  <i data-lucide="terminal" class="w-4.5 h-4.5 text-cyan-300"></i>
+                </div>
+                <div>
+                  <h3 class="font-editorial italic text-lg sm:text-xl text-white">Live Working &amp; Output</h3>
+                  <p class="text-xs text-cyan-300 font-sans" id="working-stream-status">Engine Ready</p>
+                </div>
+              </div>
+              
+              <div class="flex items-center space-x-1.5">
+                <button onclick="clearAgentFeed()" title="Purge Execution Stream" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="toggleLiveOutputCollapse()" title="Shrink / Collapse Live Output (Ctrl+J)" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white group">
+                  <i data-lucide="minimize-2" class="w-4 h-4 text-slate-400 group-hover:text-cyan-300 transition"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Scrollable Active Feed Container filling vertical space -->
+            <div id="agent-feed-container" class="space-y-4 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+              <!-- Initial Placeholder -->
+              <div class="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2.5 font-sans-airy">
+                <div class="flex items-center space-x-2 text-white font-editorial italic text-sm sm:text-base">
+                  <i data-lucide="sparkles" class="w-4.5 h-4.5 text-cyan-300 not-italic"></i>
+                  <span>Active Tactical Stream</span>
+                </div>
+                <p class="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                  Queries submitted from the search bar will display real-time AST validation, topological DAGs, command planning, and live execution outputs here.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Collapsed Vertical Ribbon View -->
+          <div id="output-collapsed-card" onclick="toggleLiveOutputCollapse()" title="Click to Expand Live Working & Output (Ctrl+J)" class="hidden avant-card-elevated p-3 h-full flex flex-col items-center justify-between cursor-pointer hover:border-cyan-400/40 hover:bg-white/[0.08] transition-all group select-none">
+            <div class="flex flex-col items-center space-y-3 pt-2">
+              <button type="button" class="w-8 h-8 rounded-full bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 group-hover:scale-110 transition shadow-[0_0_12px_rgba(0,210,255,0.3)]">
+                <i data-lucide="maximize-2" class="w-4 h-4 text-cyan-300"></i>
+              </button>
+              <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+            </div>
+
+            <div class="writing-mode-vertical py-6 flex items-center space-x-2 text-xs font-mono text-slate-300 group-hover:text-cyan-300 uppercase tracking-widest">
+              <span>Live Tactical Stream</span>
+            </div>
+
+            <div class="pb-2 text-cyan-300 group-hover:translate-x-[-2px] transition">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+        </aside>
 
       </div>
 
-      <!-- ======================================================== -->
-      <!-- TAB 2: SYSTEM HEALTH & PSI TELEMETRY -->
-      <!-- ======================================================== -->
-      <div id="tab-content-health" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-          <div class="linear-card p-4 space-y-1.5">
-            <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">CPU Utilization</span>
-            <div class="flex items-baseline justify-between">
-              <span id="health-cpu-pct" class="text-2xl font-bold font-mono text-white">0.0%</span>
-              <span id="health-cpu-cores" class="text-xs text-zinc-500 font-mono">1 Core</span>
-            </div>
-            <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
-          </div>
+    </div>
 
-          <div class="linear-card p-4 space-y-1.5">
-            <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Memory (RAM)</span>
-            <div class="flex items-baseline justify-between">
-              <span id="health-ram-pct" class="text-2xl font-bold font-mono text-white">0.0%</span>
-              <span id="health-ram-avail" class="text-xs text-zinc-500 font-mono">0 / 0 MB</span>
-            </div>
-            <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-swap-info">Swap: 0% used</p>
-          </div>
-
-          <div class="linear-card p-4 space-y-1.5">
-            <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Load Average</span>
-            <div class="flex items-baseline justify-between">
-              <span id="health-load-1m" class="text-2xl font-bold font-mono text-white">0.00</span>
-              <span id="health-load-5m" class="text-xs text-zinc-500 font-mono">5m: 0.00 | 15m: 0.00</span>
-            </div>
-            <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-procs-count">0 running / 0 procs</p>
-          </div>
-
-          <div class="linear-card p-4 space-y-1.5">
-            <span class="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">Kernel PSI Pressure</span>
-            <div class="flex items-baseline justify-between">
-              <span id="health-psi-badge" class="text-2xl font-bold font-mono text-emerald-400">NORMAL</span>
-              <span id="health-zombie-count" class="text-xs text-zinc-500 font-mono">0 Zombies</span>
-            </div>
-            <p class="text-[10px] text-zinc-500 font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
-          </div>
+    <!-- ======================================================== -->
+    <!-- TAB 2: SYSTEM HEALTH & PSI TELEMETRY -->
+    <!-- ======================================================== -->
+    <div id="tab-content-health" class="tab-content hidden space-y-10">
+      
+      <!-- 4 Core Metric Editorial Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">CPU UTILIZATION</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-cpu-pct">0.0%</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="linear-card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
-                <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i>
-                <span>CPU Utilization &amp; I/O Wait Trend</span>
-              </h3>
-              <span class="text-[10px] font-mono text-zinc-500">1Hz SSE Stream</span>
-            </div>
-            <div class="h-56 relative"><canvas id="chart-cpu"></canvas></div>
-          </div>
-
-          <div class="linear-card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
-                <i data-lucide="database" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>RAM &amp; Swap Consumption Trend</span>
-              </h3>
-              <span class="text-[10px] font-mono text-zinc-500">Live Buffer</span>
-            </div>
-            <div class="h-56 relative"><canvas id="chart-memory"></canvas></div>
-          </div>
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">MEMORY (RAM)</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-ram-pct">0.0%</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-swap-info">Swap: 0% used</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
-              <i data-lucide="gauge" class="w-3.5 h-3.5 text-cyan-400"></i>
-              <span>Kernel Pressure Stall Information (PSI)</span>
-            </h3>
-            <div id="psi-table-container" class="text-xs text-zinc-400 space-y-2"><p class="text-zinc-600 font-mono">Loading PSI metrics...</p></div>
-          </div>
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">LOAD AVERAGE</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-load-1m">0.00</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-load-5m">5m: 0.00 | 15m: 0.00</p>
+        </div>
 
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-medium text-xs text-zinc-300 uppercase tracking-wider flex items-center space-x-2">
-              <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-cyan-400"></i>
-              <span>Filesystem Partitions &amp; Mounts</span>
-            </h3>
-            <div id="disks-table-container" class="text-xs text-zinc-400 space-y-2"><p class="text-zinc-600 font-mono">Loading partition telemetry...</p></div>
-          </div>
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">KERNEL PSI STALL</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-psi-badge">NORMAL</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
         </div>
       </div>
 
-      <!-- ======================================================== -->
-      <!-- TAB 3: SERVICES & PROCESS MANAGER -->
-      <!-- ======================================================== -->
-      <div id="tab-content-services" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="linear-card p-5 space-y-3.5">
-            <div class="flex items-center justify-between">
-              <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-                <i data-lucide="settings" class="w-4 h-4 text-cyan-400"></i>
-                <span>System Services</span>
-              </h3>
-              <input type="text" id="service-search-input" placeholder="Search service..." class="linear-input text-xs px-2.5 py-1" />
-            </div>
-            <div id="services-list-container" class="space-y-1.5 max-h-96 overflow-y-auto text-xs"><p class="text-zinc-500 font-mono">Loading services...</p></div>
+      <!-- Real-Time Telemetry Graphs -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="avant-card-elevated p-8 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="cpu" class="w-5 h-5 text-slate-300 not-italic"></i>
+              <span>CPU &amp; I/O Wait Telemetry Stream</span>
+            </h3>
+            <span class="text-xs font-mono text-slate-400">1Hz SSE Live</span>
           </div>
-
-          <div class="linear-card p-5 space-y-3.5">
-            <div class="flex items-center justify-between">
-              <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-                <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
-                <span>Top Resource Processes</span>
-              </h3>
-              <select id="process-sort-select" class="linear-input text-xs px-2 py-1">
-                <option value="cpu">Sort by CPU %</option>
-                <option value="mem">Sort by Memory %</option>
-              </select>
-            </div>
-            <div id="processes-table-container" class="overflow-x-auto text-xs max-h-96 overflow-y-auto"><p class="text-zinc-500 font-mono">Loading processes...</p></div>
+          <div class="h-64 relative">
+            <canvas id="chart-cpu"></canvas>
           </div>
         </div>
-      </div>
 
-      <!-- ======================================================== -->
-      <!-- TAB 4: STORAGE & LOG CLEANUP -->
-      <!-- ======================================================== -->
-      <div id="tab-content-storage" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-              <i data-lucide="search" class="w-4 h-4 text-cyan-400"></i>
-              <span>Find Space Hogs</span>
+        <div class="avant-card-elevated p-8 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="database" class="w-5 h-5 text-slate-300 not-italic"></i>
+              <span>RAM &amp; Swap Consumption Buffer</span>
             </h3>
-            <div class="space-y-2">
-              <input type="text" id="storage-dir-input" value="/var/log" class="linear-input w-full text-xs" />
-              <button onclick="findLargeFiles()" class="btn btn-secondary w-full text-xs py-2">Scan Directory</button>
-            </div>
-            <div id="storage-large-files-container" class="space-y-1 max-h-60 overflow-y-auto text-xs font-mono"></div>
+            <span class="text-xs font-mono text-slate-400">Live Buffer</span>
           </div>
-
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-              <i data-lucide="archive" class="w-4 h-4 text-emerald-400"></i>
-              <span>Backup Manager</span>
-            </h3>
-            <div class="space-y-2">
-              <input type="text" id="backup-path-input" placeholder="/etc/nginx" class="linear-input w-full text-xs" />
-              <button onclick="createSystemBackup()" class="btn btn-primary w-full text-xs py-2">Create Backup</button>
-            </div>
-            <div id="backup-list-container" class="space-y-1 max-h-60 overflow-y-auto text-xs font-mono"></div>
-          </div>
-
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-              <i data-lucide="trash-2" class="w-4 h-4 text-amber-400"></i>
-              <span>Cleanup Runner</span>
-            </h3>
-            <div class="space-y-2">
-              <button onclick="runStorageCleanup('journal')" class="btn btn-secondary w-full text-xs py-2">Vacuum Journal</button>
-              <button onclick="runStorageCleanup('apt')" class="btn btn-secondary w-full text-xs py-2">Clean Package Cache</button>
-              <button onclick="runStorageCleanup('trim')" class="btn btn-secondary w-full text-xs py-2">Trim SSDs (fstrim)</button>
-            </div>
-            <div id="storage-cleanup-output" class="text-xs font-mono p-3 bg-[#060709] rounded-lg min-h-[80px]"></div>
+          <div class="h-64 relative">
+            <canvas id="chart-memory"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- ======================================================== -->
-      <!-- TAB 5: NETWORK & FIREWALL -->
-      <!-- ======================================================== -->
-      <div id="tab-content-network" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-              <i data-lucide="network" class="w-4 h-4 text-cyan-400"></i>
-              <span>Listening Ports &amp; Sockets</span>
-            </h3>
-            <div id="network-ports-container" class="max-h-96 overflow-y-auto text-xs font-mono"></div>
-          </div>
-          <div class="linear-card p-5 space-y-3">
-            <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-              <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i>
-              <span>Firewall Rules (UFW / iptables)</span>
-            </h3>
-            <div id="network-firewall-container" class="max-h-96 overflow-y-auto text-xs font-mono"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ======================================================== -->
-      <!-- TAB 6: 16-CLASS FAILURE TAXONOMY -->
-      <!-- ======================================================== -->
-      <div id="tab-content-taxonomy" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="linear-card p-5 space-y-3">
-          <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-            <i data-lucide="shield-alert" class="w-4 h-4 text-cyan-400"></i>
-            <span>16-Class Failure Taxonomy Playground</span>
+      <!-- PSI & Filesystem Tables Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="avant-card p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="gauge" class="w-5 h-5 text-slate-300 not-italic"></i>
+            <span>Kernel Pressure Stall Matrix (/proc/pressure/*)</span>
           </h3>
-          <div id="taxonomy-scenarios-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs"></div>
+          <div id="psi-table-container" class="text-sm text-slate-300 space-y-3 font-sans">
+            <p class="text-slate-500 font-mono">Loading kernel PSI metrics...</p>
+          </div>
         </div>
-      </div>
 
-      <!-- ======================================================== -->
-      <!-- TAB 7: PACKAGE MANAGER -->
-      <!-- ======================================================== -->
-      <div id="tab-content-packages" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="linear-card p-5 space-y-3">
-          <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-            <i data-lucide="package" class="w-4 h-4 text-cyan-400"></i>
-            <span>Package Management</span>
+        <div class="avant-card p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="hard-drive" class="w-5 h-5 text-slate-300 not-italic"></i>
+            <span>Filesystem Partitions &amp; Sectors</span>
           </h3>
-          <div class="flex gap-2">
-            <input type="text" id="package-name-input" placeholder="Package name (e.g. htop, curl)..." class="linear-input flex-1 text-xs" />
-            <button onclick="managePackage('install')" class="btn btn-primary text-xs px-4">Install</button>
-            <button onclick="managePackage('remove')" class="btn btn-ghost text-xs px-4">Remove</button>
+          <div id="disks-table-container" class="text-sm text-slate-300 space-y-3 font-sans">
+            <p class="text-slate-500 font-mono">Loading filesystem partition telemetry...</p>
           </div>
-          <div id="package-action-output" class="text-xs font-mono p-4 bg-[#060709] rounded-lg min-h-[100px]"></div>
-        </div>
-      </div>
-
-      <!-- ======================================================== -->
-      <!-- TAB 8: DESKTOP & RUNNER -->
-      <!-- ======================================================== -->
-      <div id="tab-content-desktop" class="tab-content hidden space-y-6 max-w-6xl mx-auto">
-        <div class="linear-card p-5 space-y-3">
-          <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-            <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i>
-            <span>Desktop &amp; App Runner</span>
-          </h3>
-          <div class="flex gap-3">
-            <button onclick="desktopAction('browser', {})" class="btn btn-secondary text-xs px-4 py-2.5 flex items-center gap-2">
-              <i data-lucide="globe" class="w-4 h-4 text-cyan-400"></i>
-              <span>Launch Browser</span>
-            </button>
-            <button onclick="desktopAction('terminal', {})" class="btn btn-secondary text-xs px-4 py-2.5 flex items-center gap-2">
-              <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
-              <span>Open Terminal</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-    </main>
-
-    <!-- ── COLUMN 3: RIGHT FIXED VERTICAL NAVIGATION ── -->
-    <nav id="sidebar-nav" class="sidebar-nav-fixed">
-      <div>
-        <div class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2 font-mono">
-          System Modules
-        </div>
-        
-        <div class="space-y-1">
-          <button onclick="switchTab('home')" id="tab-btn-home" class="nav-vertical-btn active">
-            <i data-lucide="bot" class="w-4 h-4 text-cyan-400 shrink-0"></i>
-            <span class="truncate">AI Ops Agent</span>
-          </button>
-
-          <button onclick="switchTab('health')" id="tab-btn-health" class="nav-vertical-btn">
-            <i data-lucide="activity" class="w-4 h-4 text-emerald-400 shrink-0"></i>
-            <span class="truncate">Health &amp; PSI</span>
-          </button>
-
-          <button onclick="switchTab('services')" id="tab-btn-services" class="nav-vertical-btn">
-            <i data-lucide="cpu" class="w-4 h-4 text-blue-400 shrink-0"></i>
-            <span class="truncate">Services &amp; Procs</span>
-          </button>
-
-          <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-vertical-btn">
-            <i data-lucide="hard-drive" class="w-4 h-4 text-amber-400 shrink-0"></i>
-            <span class="truncate">Storage &amp; Cleanup</span>
-          </button>
-
-          <button onclick="switchTab('network')" id="tab-btn-network" class="nav-vertical-btn">
-            <i data-lucide="network" class="w-4 h-4 text-cyan-400 shrink-0"></i>
-            <span class="truncate">Network &amp; Firewall</span>
-          </button>
-
-          <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-vertical-btn">
-            <i data-lucide="shield-alert" class="w-4 h-4 text-rose-400 shrink-0"></i>
-            <span class="truncate">16-Class Taxonomy</span>
-          </button>
-
-          <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-vertical-btn">
-            <i data-lucide="package" class="w-4 h-4 text-purple-400 shrink-0"></i>
-            <span class="truncate">Packages</span>
-          </button>
-
-          <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-vertical-btn">
-            <i data-lucide="terminal" class="w-4 h-4 text-zinc-300 shrink-0"></i>
-            <span class="truncate">Desktop &amp; Runner</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Right Nav Footer info -->
-      <div class="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[10px] font-mono text-zinc-500 space-y-1">
-        <div class="flex items-center justify-between">
-          <span>Air-Gapped:</span>
-          <span class="text-emerald-400 font-bold">YES</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span>Sandboxing:</span>
-          <span class="text-cyan-400 font-bold">AST+CoW</span>
-        </div>
-      </div>
-    </nav>
-
-  </div>
-
-  <!-- ======================================================== -->
-  <!-- COMMAND CENTER FIXED DOCK (CENTER COLUMN)                -->
-  <!-- ======================================================== -->
-  <div id="cc-command-bar" class="cc-command-bar" role="complementary" aria-label="Command input">
-    <div class="max-w-4xl mx-auto">
-
-      <!-- Top Row: Enlarged Segmented Mode Switcher + Guardrail status -->
-      <div class="flex items-center justify-between mb-2">
-        <div class="cc-mode-seg-lg" role="group" aria-label="Input mode">
-          <button id="cc-btn-text" class="cc-mode-seg-btn-lg active" onclick="CommandCenter.setMode('text')">
-            <i data-lucide="type" class="w-3.5 h-3.5"></i>
-            <span>Text Mode</span>
-          </button>
-          <button id="cc-btn-voice" class="cc-mode-seg-btn-lg" onclick="CommandCenter.setMode('voice')">
-            <i data-lucide="mic" class="w-3.5 h-3.5"></i>
-            <span>Voice Mode</span>
-          </button>
-        </div>
-
-        <div class="flex items-center space-x-2 text-[11px] text-zinc-500 font-mono">
-          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse"></span>
-          <span>Safety Guardrails Active</span>
-          <button onclick="CommandCenter.clearTranscript()" class="ml-2 text-zinc-500 hover:text-zinc-300 transition text-[10px]">Clear Feed</button>
-        </div>
-      </div>
-
-      <!-- Voice Fallback Notice -->
-      <div id="cc-voice-fallback" class="cc-voice-fallback-banner hidden">
-        <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
-        <span id="cc-voice-fallback-msg">Voice input unavailable.</span>
-      </div>
-
-      <!-- ── TEXT MODE PANEL (ENLARGED) ── -->
-      <div id="cc-text-panel" class="flex items-end gap-2.5">
-        <div class="flex-1 relative">
-          <textarea
-            id="cc-text-input"
-            rows="1"
-            placeholder="Restart nginx, check memory leaks, inspect PSI pressure..."
-            class="cc-text-input-lg"
-            autocomplete="off"
-            spellcheck="false"
-          ></textarea>
-        </div>
-        <button id="cc-send-btn" class="cc-send-btn-lg" title="Send Command (Enter)">
-          <i data-lucide="send" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <!-- ── VOICE MODE PANEL (ENLARGED) ── -->
-      <div id="cc-voice-panel" class="hidden">
-        <div id="cc-voice-preview" class="cc-voice-preview-box hidden"></div>
-        <div class="flex items-center justify-center gap-4 py-1.5">
-          <div class="flex flex-col items-center gap-1.5">
-            <button id="cc-mic-btn" class="cc-mic-btn-lg cc-mic-idle" title="Tap to speak" aria-label="Toggle voice recording">
-              <canvas id="cc-waveform-canvas" width="56" height="56" class="cc-waveform-canvas hidden"></canvas>
-              <i data-lucide="mic" class="cc-mic-icon w-6 h-6 relative z-10"></i>
-            </button>
-            <span id="cc-mic-label" class="text-[11px] text-zinc-400 font-mono select-none">Tap to speak</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── BOTTOM 4-CATEGORY CAPABILITY BAR ── -->
-      <div id="cc-capability-bar" class="capability-bar-container">
-        <!-- Category Tabs -->
-        <div class="capability-category-tabs">
-          <button id="cap-tab-explore" class="capability-cat-btn active" onclick="CapabilityManager.switchCategory('explore')">
-            <span>🧭 Navigate &amp; Explore</span>
-          </button>
-          <button id="cap-tab-optimize" class="capability-cat-btn" onclick="CapabilityManager.switchCategory('optimize')">
-            <span>⚡ Optimize &amp; Cache</span>
-          </button>
-          <button id="cap-tab-monitor" class="capability-cat-btn" onclick="CapabilityManager.switchCategory('monitor')">
-            <span>📈 Monitor Performance</span>
-          </button>
-          <button id="cap-tab-launch" class="capability-cat-btn" onclick="CapabilityManager.switchCategory('launch')">
-            <span>🚀 Launch &amp; Desktop</span>
-          </button>
-        </div>
-
-        <!-- Capability Action Chips Grid -->
-        <div id="capability-chips-grid" class="capability-chips-grid">
-          <!-- Populated dynamically by CapabilityManager -->
         </div>
       </div>
 
     </div>
-  </div>
 
-  <!-- ======================================================== -->
-  <!-- MODAL: SPOTLIGHT COMMAND PALETTE (CTRL+K)                -->
-  <!-- ======================================================== -->
-  <div id="modal-command-palette" class="palette-backdrop hidden" onclick="if(event.target===this) CommandPalette.close()">
-    <div class="palette-dialog">
-      <div class="flex items-center px-4 border-b border-white/[0.08]">
-        <i data-lucide="search" class="w-4 h-4 text-cyan-400 mr-2"></i>
-        <input type="text" id="palette-search-input" placeholder="Type a command, jump to tab, or run quick fix..." oninput="CommandPalette.filter(this.value)" class="palette-input" />
-        <kbd class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-400 font-mono">ESC</kbd>
-      </div>
-      <div id="palette-results" class="max-h-80 overflow-y-auto py-2">
-        <!-- Injected dynamically by CommandPalette -->
-      </div>
-      <div class="px-4 py-2 bg-[#0a0c12] border-t border-white/[0.06] flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-        <span>↑↓ Navigate &bull; ↵ Select</span>
-        <span>LinuxOps Quick Palette</span>
+    <!-- ======================================================== -->
+    <!-- TAB 3: SERVICES & PROCESS MANAGER -->
+    <!-- ======================================================== -->
+    <div id="tab-content-services" class="tab-content hidden space-y-10">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- System Services Controller -->
+        <div class="avant-card-elevated p-8 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="settings" class="w-5 h-5 text-slate-300 not-italic"></i>
+              <span>System Services (Systemd / OpenRC)</span>
+            </h3>
+            <button onclick="loadServices()" class="btn-editorial-ghost text-sm flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <input 
+              type="text" 
+              id="service-search-input" 
+              placeholder="Filter service units (e.g. nginx, ssh, docker)..." 
+              oninput="filterServices()"
+              class="editorial-input w-full px-5 py-3 text-sm font-mono"
+            />
+          </div>
+
+          <div class="overflow-y-auto max-h-96 border border-white/10 rounded-2xl bg-black/40">
+            <table class="linear-table">
+              <thead>
+                <tr>
+                  <th>Unit</th>
+                  <th>State</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="services-table-body">
+                <tr><td colspan="3" class="text-center text-slate-500 py-8 font-mono">Loading service units...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Interactive Process Manager -->
+        <div class="avant-card-elevated p-8 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="activity" class="w-5 h-5 text-slate-300 not-italic"></i>
+              <span>Active Process Matrix</span>
+            </h3>
+            <button onclick="loadProcesses()" class="btn-editorial-ghost text-sm flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div class="overflow-y-auto max-h-96 border border-white/10 rounded-2xl bg-black/40">
+            <table class="linear-table">
+              <thead>
+                <tr>
+                  <th>PID</th>
+                  <th>User</th>
+                  <th>CPU%</th>
+                  <th>MEM%</th>
+                  <th>Command</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="processes-table-body">
+                <tr><td colspan="6" class="text-center text-slate-500 py-8 font-mono">Loading active processes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- ======================================================== -->
-  <!-- MODAL: COMMAND EXECUTION PERMISSION DIALOG               -->
-  <!-- ======================================================== -->
-  <div id="modal-permission" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="modal-dialog linear-card-elevated max-w-xl w-full p-6 space-y-4 border border-white/[0.18]">
-      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-md bg-cyan-500 text-black flex items-center justify-center font-bold">
-            <i data-lucide="shield-check" class="w-4 h-4 text-black"></i>
+    <!-- ======================================================== -->
+    <!-- TAB 4: STORAGE & CLEANUP -->
+    <!-- ======================================================== -->
+    <div id="tab-content-storage" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
+            <i data-lucide="folder-archive" class="w-6 h-6"></i>
           </div>
           <div>
-            <h3 class="font-semibold text-sm text-white">Command Execution Permission</h3>
-            <p class="text-[11px] text-zinc-400">Review command and safety impact before confirming.</p>
+            <h3 class="font-editorial italic text-xl sm:text-2xl text-white">Smart Directory Organizer</h3>
+            <p class="text-sm text-slate-300 font-sans mt-0.5">Auto-organizes chaotic directories into categorized nodes with dry-run verification.</p>
           </div>
         </div>
-        <button onclick="closeModal('modal-permission')" class="text-zinc-500 hover:text-white text-lg font-mono">&times;</button>
+
+        <div class="flex flex-col sm:flex-row gap-4 pt-2">
+          <input 
+            type="text" 
+            id="organize-path-input" 
+            value="~/Downloads" 
+            placeholder="Target directory path..." 
+            class="editorial-input flex-1 px-5 py-3 text-sm font-mono"
+          />
+          <button 
+            type="button" 
+            onclick="previewOrganize()" 
+            class="btn-editorial-secondary px-6 py-3 text-sm">
+            <i data-lucide="eye" class="w-4 h-4"></i>
+            <span>Preview Dry-Run</span>
+          </button>
+          <button 
+            type="button" 
+            onclick="promptOrganizeNow()" 
+            class="btn-editorial-primary px-6 py-3 text-sm font-tech">
+            <i data-lucide="folder-check" class="w-4 h-4"></i>
+            <span>Organize Matrix</span>
+          </button>
+        </div>
+
+        <div id="organize-result-container" class="hidden p-6 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-white space-y-3"></div>
       </div>
 
-      <div class="space-y-1.5">
-        <div class="flex items-center justify-between text-[11px] text-zinc-400">
-          <span class="font-mono uppercase font-semibold">Planned Command:</span>
-          <button onclick="copyModalCommand()" class="text-zinc-500 hover:text-zinc-200 flex items-center space-x-1">
-            <i data-lucide="copy" class="w-3 h-3"></i>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="avant-card p-8 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="search" class="w-5 h-5 text-slate-300 not-italic"></i>
+              <span>Large Storage Anomalies (&gt;100MB)</span>
+            </h3>
+            <button onclick="loadLargeFiles()" class="btn-editorial-secondary px-4 py-1.5 text-xs sm:text-sm">Scan Root</button>
+          </div>
+          <div id="large-files-container" class="overflow-y-auto max-h-72 border border-white/10 rounded-2xl p-5 text-sm space-y-2.5 bg-black/40">
+            <p class="text-slate-500 font-mono">Click 'Scan Root' to search for space hogs.</p>
+          </div>
+        </div>
+
+        <div class="avant-card p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="trash-2" class="w-5 h-5 text-slate-300 not-italic"></i>
+            <span>System Log &amp; Cache Purger</span>
+          </h3>
+          <p class="text-sm text-slate-300 leading-relaxed font-sans">Safely purges rotated journal logs, package caches, and temporary files.</p>
+          <div class="flex space-x-4 pt-2">
+            <button onclick="cleanStorage(true)" class="btn-editorial-secondary flex-1 py-3 text-sm">
+              Preview Purge
+            </button>
+            <button onclick="promptCleanStorage()" class="btn-editorial-primary flex-1 py-3 text-sm">
+              Execute Purge
+            </button>
+          </div>
+          <div id="clean-result-container" class="hidden p-5 rounded-2xl bg-black/50 border border-white/10 text-sm text-white font-mono"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: NETWORK & FIREWALL -->
+    <!-- ======================================================== -->
+    <div id="tab-content-network" class="tab-content hidden space-y-10">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="avant-card-elevated p-8 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="radio" class="w-5 h-5 text-slate-300 not-italic"></i>
+              <span>Listening Sockets (SS Telemetry)</span>
+            </h3>
+            <button onclick="loadNetwork()" class="btn-editorial-ghost text-sm">Refresh</button>
+          </div>
+          <div class="overflow-y-auto max-h-80 border border-white/10 rounded-2xl bg-black/40">
+            <table class="linear-table">
+              <thead>
+                <tr>
+                  <th>Port</th>
+                  <th>Proto</th>
+                  <th>Address</th>
+                  <th>Process</th>
+                </tr>
+              </thead>
+              <tbody id="network-ports-body">
+                <tr><td colspan="4" class="text-center text-slate-500 py-8 font-mono">Loading listening sockets...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="avant-card-elevated p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="shield" class="w-5 h-5 text-slate-300 not-italic"></i>
+            <span>Cyber Firewall Matrix (UFW / Nftables)</span>
+          </h3>
+          <div id="firewall-status-card" class="p-5 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-slate-300">
+            Status: Loading...
+          </div>
+          <div class="flex items-center space-x-3 pt-2">
+            <input type="number" id="fw-port-input" placeholder="Port (e.g. 80, 443, 8080)" class="editorial-input w-1/2 px-5 py-3 text-sm font-mono" />
+            <select id="fw-proto-select" class="editorial-input px-5 py-3 text-sm font-mono">
+              <option value="tcp">TCP</option>
+              <option value="udp">UDP</option>
+            </select>
+            <button onclick="promptFirewallRule('allow')" class="btn-editorial-secondary px-5 py-3 text-sm">Allow</button>
+            <button onclick="promptFirewallRule('deny')" class="btn-editorial-primary px-5 py-3 text-sm">Deny</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 6: 16-CLASS FAILURE TAXONOMY & DAG -->
+    <!-- ======================================================== -->
+    <div id="tab-content-taxonomy" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
+            <i data-lucide="shield-alert" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="font-editorial italic text-xl sm:text-2xl text-white">16-Class Linux Failure Taxonomy &amp; Topological DAG</h3>
+            <p class="text-sm text-slate-300 font-sans mt-0.5">Simulate and diagnose Linux failures with Topological In-Degree=0 Root Cause Isolation.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2" id="taxonomy-scenarios-grid">
+          <div class="p-6 bg-white/[0.02] rounded-2xl text-sm text-slate-500 text-center col-span-4 font-mono">Loading failure scenarios...</div>
+        </div>
+      </div>
+
+      <div id="taxonomy-report-container" class="hidden avant-card-elevated p-8 sm:p-10 space-y-8">
+        <div class="flex items-center justify-between border-b border-white/10 pb-5">
+          <h4 class="font-editorial italic text-lg sm:text-xl text-white" id="diag-report-title">Diagnostic Report</h4>
+          <span id="diag-report-badge" class="badge-readonly text-xs font-mono px-4 py-1.5 rounded-full uppercase font-bold">RESOLVED</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="space-y-5 text-sm font-sans">
+            <div>
+              <span class="text-slate-400 text-xs uppercase tracking-wider font-bold">Symptom:</span>
+              <p class="text-white mt-1.5 font-semibold text-base" id="diag-symptom">-</p>
+            </div>
+            <div>
+              <span class="text-white text-xs uppercase tracking-wider font-bold">Root Cause:</span>
+              <p class="text-white font-editorial italic text-xl sm:text-2xl mt-1.5" id="diag-root-cause">-</p>
+            </div>
+            <div>
+              <span class="text-slate-400 text-xs uppercase tracking-wider font-bold">Rationale:</span>
+              <p class="text-slate-300 mt-1.5 leading-relaxed text-sm leading-7" id="diag-rationale">-</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <span class="text-xs text-slate-400 uppercase tracking-wider font-bold">Topological Causality DAG (Root: InDegree=0):</span>
+            <div id="mermaid-dag-container" class="p-6 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center min-h-40 overflow-x-auto"></div>
+          </div>
+        </div>
+
+        <div class="space-y-4 pt-3">
+          <h5 class="text-xs text-slate-400 uppercase tracking-wider font-bold">Proposed Remediation Commands:</h5>
+          <div id="diag-commands-container" class="space-y-4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 7: PACKAGE MANAGER -->
+    <!-- ======================================================== -->
+    <div id="tab-content-packages" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center justify-between">
+          <h3 class="font-editorial italic text-xl sm:text-2xl text-white flex items-center space-x-3">
+            <i data-lucide="package" class="w-6 h-6 text-slate-300 not-italic"></i>
+            <span>Multi-Distro Package &amp; Environment Nexus</span>
+          </h3>
+          <span class="text-xs font-mono px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/20 font-bold" id="pkg-distro-badge">ARCH LINUX (PACMAN)</span>
+        </div>
+
+        <div class="flex space-x-4 pt-2">
+          <input 
+            type="text" 
+            id="pkg-search-input" 
+            placeholder="Search package (e.g. htop, nginx, curl, tree)..." 
+            class="editorial-input flex-1 px-5 py-3 text-sm font-mono"
+          />
+          <button 
+            type="button" 
+            onclick="searchPackage()" 
+            class="btn-editorial-primary px-6 py-3 text-sm">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>Query Repo</span>
+          </button>
+        </div>
+
+        <div id="pkg-result-container" class="p-6 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-white space-y-3">
+          <p class="text-slate-500">Enter a package name to search repository metadata.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 8: RUNNER & DIRECT EXECUTION -->
+    <!-- ======================================================== -->
+    <div id="tab-content-desktop" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
+            <i data-lucide="terminal" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="font-editorial italic text-xl sm:text-2xl text-white">Direct CLI Command Runner</h3>
+            <p class="text-sm text-slate-300 font-sans mt-0.5">Execute commands through deterministic AST safety validation and ephemeral CoW sandboxing.</p>
+          </div>
+        </div>
+
+        <div class="flex space-x-4">
+          <input 
+            type="text" 
+            id="direct-cmd-input" 
+            placeholder="e.g. uname -a, df -h, systemctl status nginx" 
+            class="editorial-input flex-1 px-5 py-3 text-sm font-mono"
+          />
+          <button 
+            type="button" 
+            onclick="promptDirectCommand()" 
+            class="btn-editorial-primary px-6 py-3 text-sm font-tech font-bold">
+            <span>Execute Gate</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="avant-card p-8 sm:p-10 space-y-6">
+        <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-3">
+          <i data-lucide="download" class="w-5 h-5 text-slate-300 not-italic"></i>
+          <span>Universal Stream Downloader</span>
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <input 
+            type="text" 
+            id="download-url-input" 
+            placeholder="https://example.com/archive.tar.gz" 
+            class="sm:col-span-2 editorial-input px-5 py-3 text-sm font-mono"
+          />
+          <input 
+            type="text" 
+            id="download-dest-input" 
+            value="~/Downloads" 
+            placeholder="Destination directory" 
+            class="editorial-input px-5 py-3 text-sm font-mono"
+          />
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
+            <input type="checkbox" id="download-auto-extract" checked class="rounded bg-black border-white/20 text-white focus:ring-0">
+            <span>Auto-extract archives (.zip, .tar.gz, .tar.xz)</span>
+          </label>
+          <button 
+            type="button" 
+            onclick="promptDownload()" 
+            class="btn-editorial-secondary px-6 py-3 text-sm">
+            <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
+            <span>Download</span>
+          </button>
+        </div>
+
+        <div id="download-result-container" class="hidden p-5 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-white space-y-3"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: COMMAND EXECUTION PERMISSION DIALOG -->
+  <!-- ======================================================== -->
+  <div id="modal-permission" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="modal-dialog avant-card-elevated max-w-2xl w-full p-8 space-y-6 border border-white/20 shadow-[0_0_60px_rgba(0,0,0,0.9)]">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/10 pb-5">
+        <div class="flex items-center space-x-3.5">
+          <div class="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+            <i data-lucide="shield-check" class="w-6 h-6 text-black"></i>
+          </div>
+          <div>
+            <h3 class="font-editorial italic text-xl text-white">Execution Authorization Gate</h3>
+            <p class="text-xs text-slate-300 font-sans mt-0.5">Inspect AST risk parameters prior to executing mutating changes.</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-permission')" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+
+      <!-- Command Vector Box -->
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="uppercase tracking-wider font-bold">Command Vector:</span>
+          <button id="modal-perm-copy-btn" onclick="copyModalCommand()" class="text-white hover:text-slate-300 flex items-center space-x-1.5">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
             <span>Copy</span>
           </button>
         </div>
-        <div class="p-3 rounded-lg bg-[#060709] border border-white/[0.12] font-mono text-xs text-white break-all flex items-start space-x-2">
-          <span class="text-cyan-500 select-none">$</span>
-          <span id="modal-perm-command" class="flex-1 font-semibold text-zinc-100">-</span>
+        <div class="p-5 rounded-2xl bg-black/80 border border-white/15 font-mono text-sm text-white break-all select-all flex items-start space-x-3">
+          <span class="text-slate-500 select-none">$</span>
+          <span id="modal-perm-command" class="flex-1 font-semibold text-white">-</span>
         </div>
       </div>
 
-      <div class="p-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1">
-        <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">What this command will do:</span>
-        <p id="modal-perm-description" class="text-xs text-zinc-200 leading-relaxed font-sans">-</p>
+      <!-- Impact Description -->
+      <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 font-sans">
+        <span class="text-xs text-slate-400 uppercase tracking-wider font-bold block">Impact Vector &amp; Rationale:</span>
+        <p id="modal-perm-description" class="text-sm sm:text-base text-slate-200 leading-relaxed">-</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
-        <div class="p-2.5 rounded-md bg-white/[0.02] border border-white/[0.06]">
-          <span class="text-zinc-500 text-[10px] block uppercase">Safety Level</span>
-          <span id="modal-perm-safety" class="font-semibold text-emerald-400">READ_ONLY</span>
+      <!-- Metadata Grid -->
+      <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+        <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10">
+          <span class="text-slate-400 text-xs block uppercase font-sans font-bold mb-1">Safety Level</span>
+          <span id="modal-perm-safety" class="font-bold text-sm text-white">READ_ONLY</span>
         </div>
-        <div class="p-2.5 rounded-md bg-white/[0.02] border border-white/[0.06]">
-          <span class="text-zinc-500 text-[10px] block uppercase">Risk Score</span>
-          <span id="modal-perm-risk" class="font-semibold text-zinc-300">0.05 / 1.00</span>
+        <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10">
+          <span class="text-slate-400 text-xs block uppercase font-sans font-bold mb-1">Risk Score</span>
+          <span id="modal-perm-risk" class="font-bold text-sm text-white">0.05 / 1.00</span>
         </div>
       </div>
 
-      <div id="modal-perm-rollback-box" class="hidden p-2.5 rounded-md bg-white/[0.02] border border-white/[0.06] space-y-1 text-xs font-mono">
-        <span class="text-[10px] text-zinc-500 uppercase font-semibold">Rollback / Undo:</span>
-        <div id="modal-perm-rollback" class="text-zinc-400 break-all text-[11px]">-</div>
+      <!-- Rollback Box -->
+      <div id="modal-perm-rollback-box" class="hidden p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-1.5 text-xs font-mono">
+        <span class="text-xs text-amber-400 uppercase font-sans font-bold">Rollback Command:</span>
+        <div id="modal-perm-rollback" class="text-slate-300 break-all text-sm">-</div>
       </div>
 
-      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-white/[0.08]">
-        <button onclick="closeModal('modal-permission')" class="btn btn-ghost px-4 py-2 text-xs">Cancel</button>
-        <button id="modal-perm-dryrun-btn" class="btn btn-secondary px-4 py-2 text-xs">
-          <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
+      <!-- Buttons -->
+      <div class="flex items-center justify-end space-x-4 pt-4 border-t border-white/10">
+        <button onclick="closeModal('modal-permission')" class="btn-editorial-ghost text-sm">
+          Abort
+        </button>
+        <button id="modal-perm-dryrun-btn" class="btn-editorial-secondary text-sm">
+          <i data-lucide="flask-conical" class="w-4 h-4"></i>
           <span>Dry-Run Sandbox</span>
         </button>
-        <button id="modal-perm-approve-btn" class="btn btn-primary px-5 py-2 text-xs font-semibold">
-          <i data-lucide="check" class="w-3.5 h-3.5"></i>
-          <span>Approve &amp; Execute</span>
+        <button id="modal-perm-approve-btn" class="btn-editorial-primary text-sm">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Authorize &amp; Execute</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: LOGS VIEWER -->
+  <!-- ======================================================== -->
+  <div id="modal-logs" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="modal-dialog avant-card-elevated max-w-4xl w-full p-8 space-y-6 border border-white/20">
+      <div class="flex items-center justify-between border-b border-white/10 pb-5">
+        <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+          <i data-lucide="file-text" class="w-5 h-5 text-slate-300 not-italic"></i>
+          <span id="modal-logs-title">Service Journal Stream</span>
+        </h3>
+        <button onclick="closeModal('modal-logs')" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+      <pre id="modal-logs-content" class="p-6 bg-black/80 border border-white/15 rounded-2xl text-sm font-mono text-slate-200 overflow-y-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_20px_rgba(0,0,0,0.9)]"></pre>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- SLIDE-OVER DRAWER: MISSION HISTORY & INQUIRIES -->
+  <!-- ======================================================== -->
+  <div id="history-drawer-overlay" onclick="closeHistoryDrawer()" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+  <aside id="history-drawer" class="fixed top-0 right-0 z-50 h-full w-full sm:w-[450px] bg-[#09090e]/95 backdrop-blur-3xl border-l border-white/15 shadow-[0_0_80px_rgba(0,0,0,0.9)] transform translate-x-full transition-transform duration-300 ease-out flex flex-col pointer-events-auto">
+    
+    <!-- Drawer Header -->
+    <div class="p-6 border-b border-white/10 flex items-center justify-between shrink-0 bg-white/[0.02]">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_18px_rgba(0,210,255,0.25)]">
+          <i data-lucide="history" class="w-5 h-5 text-cyan-300"></i>
+        </div>
+        <div>
+          <h3 class="font-editorial italic text-xl text-white">Mission History</h3>
+          <p class="text-xs text-slate-400 font-sans">Recent Inquiries &amp; Ops Timeline</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="clearQueryHistory()" title="Clear Inquiries History" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-rose-400 transition" id="btn-clear-history">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+        <button onclick="closeHistoryDrawer()" title="Close History (Esc)" class="p-2 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
     </div>
-  </div>
 
-  <!-- ======================================================== -->
-  <!-- MODAL: SERVICE JOURNAL LOGS VIEWER                       -->
-  <!-- ======================================================== -->
-  <div id="modal-logs" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="modal-dialog linear-card-elevated max-w-3xl w-full p-6 space-y-4 border border-white/[0.18]">
-      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
-        <h3 class="font-semibold text-sm text-white flex items-center space-x-2">
-          <i data-lucide="file-text" class="w-4 h-4 text-cyan-400"></i>
-          <span id="modal-logs-title">Service Journal Logs</span>
-        </h3>
-        <button onclick="closeModal('modal-logs')" class="text-zinc-500 hover:text-white text-lg font-mono">&times;</button>
+    <!-- Search & Filter Input Bar -->
+    <div class="px-6 py-4 border-b border-white/5 shrink-0 bg-white/[0.01]">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        <input 
+          type="text" 
+          id="history-filter-input" 
+          placeholder="Filter past inquiries or intent..." 
+          oninput="filterHistoryList(this.value)"
+          class="editorial-input w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-sans text-slate-200"
+        />
       </div>
-      <pre id="modal-logs-content" class="p-4 bg-[#060709] border border-white/[0.08] rounded-lg text-xs font-mono text-zinc-300 overflow-y-auto max-h-96 whitespace-pre-wrap"></pre>
     </div>
-  </div>
 
+    <!-- Scrollable History Items Container -->
+    <div id="history-items-container" class="p-6 space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+      <!-- Dynamically populated via app.js -->
+    </div>
+
+    <!-- Drawer Footer Quick Tip -->
+    <div class="p-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[11px] text-slate-400 font-mono shrink-0">
+      <span class="flex items-center gap-1.5">
+        <span>Shortcut:</span>
+        <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px] border border-white/15">Ctrl+H</kbd>
+      </span>
+      <span class="text-slate-400">Click item to load</span>
+    </div>
+
+  </aside>
+
+  <!-- Toast Notification Container -->
   <div id="toast-container"></div>
-  <script src="/static/app.js"></script>
+
+  <script src="/static/app.js?v=6.0"></script>
 </body>
 </html>

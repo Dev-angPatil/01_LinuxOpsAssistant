@@ -19,14 +19,12 @@ def main():
         open_browser=not args.no_browser
     )
 
-    print(f"
-[+] Dashboard live at: {url}")
+    print(f"\n[+] Dashboard live at: {url}")
     print("[+] Press Ctrl+C to stop the GUI server.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("
-[*] Stopping GUI server...")
+        print("\n[*] Stopping GUI server...")
         server.shutdown()
         sys.exit(0)
 

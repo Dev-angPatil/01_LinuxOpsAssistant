@@ -1,5 +1,5 @@
 // ==========================================================================
-// LinuxOps Assistant — Cyberpunk Obsidian Client Cockpit Engine (v3.0)
+// LinuxOps Assistant — Luxury Avant-Garde Editorial Client Application Logic
 // ==========================================================================
 
 // Global state
@@ -8,6 +8,353 @@ let memoryChart = null;
 let sseSource = null;
 let allServices = [];
 let pendingPermissionResolver = null;
+let sfxEnabled = true;
+let audioCtx = null;
+
+// ==========================================================================
+// LUXURY WEB AUDIO SYNTHESIZER
+// ==========================================================================
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) audioCtx = new AudioContextClass();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playScifiSound(type) {
+  if (!sfxEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'click' || type === 'tab') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.04);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    } else if (type === 'scan' || type === 'execute') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+      osc.start(now);
+      osc.stop(now + 0.10);
+    } else if (type === 'success') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.05);
+      osc.frequency.setValueAtTime(783.99, now + 0.10);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } else if (type === 'alert' || type === 'error') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.12);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'voice_on') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.16);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc.start(now);
+      osc.stop(now + 0.16);
+    } else if (type === 'voice_off') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    }
+  } catch (e) {
+    // Fail silently
+  }
+}
+
+function toggleSFX() {
+  sfxEnabled = !sfxEnabled;
+  const btn = document.getElementById('btn-toggle-sfx');
+  if (btn) {
+    btn.innerHTML = sfxEnabled 
+      ? '<i data-lucide="volume-2" class="w-4 h-4 text-white"></i>'
+      : '<i data-lucide="volume-x" class="w-4 h-4 text-slate-500"></i>';
+    if (window.lucide) lucide.createIcons();
+  }
+  if (sfxEnabled) playScifiSound('click');
+}
+
+function updateTacticalClock() {
+  const clockEl = document.getElementById('hud-tactical-clock');
+  if (clockEl) {
+    const d = new Date();
+    const utc = d.toISOString().substring(11, 19) + ' UTC';
+    const local = d.toTimeString().substring(0, 8);
+    clockEl.textContent = `${local} [${utc}]`;
+  }
+}
+
+function focusCommandDeck() {
+  switchTab('home');
+  const input = document.getElementById('agent-prompt-input');
+  if (input) {
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input.focus();
+  }
+  playScifiSound('click');
+}
+
+// ==========================================================================
+// VOICE ACTIVATION & SPEECH SYNTHESIS ENGINE
+// ==========================================================================
+let speechRecognition = null;
+let isVoiceListening = false;
+let ttsVoiceEnabled = false;
+let speechFinalTranscript = '';
+let mediaStreamAudio = null;
+
+function isSpeechRecognitionSupported() {
+  return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+}
+
+function updateVoiceUIState(listening) {
+  const micBtn = document.getElementById('btn-voice-mic');
+  const voiceLabel = document.getElementById('btn-voice-label');
+  const hudContainer = document.getElementById('voice-hud-container');
+  const statusEl = document.getElementById('voice-hud-status');
+  const interimEl = document.getElementById('voice-hud-interim');
+
+  if (micBtn) {
+    if (listening) {
+      micBtn.classList.add('listening');
+      micBtn.innerHTML = '<i data-lucide="mic" class="w-4.5 h-4.5 text-cyan-300 animate-pulse"></i><span id="btn-voice-label" class="text-cyan-300 font-bold">Listening... 🔴</span>';
+    } else {
+      micBtn.classList.remove('listening');
+      micBtn.innerHTML = '<i data-lucide="mic" class="w-4.5 h-4.5 text-cyan-300"></i><span id="btn-voice-label">Voice Command 🎙</span>';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (hudContainer) {
+    if (listening) {
+      hudContainer.classList.remove('hidden');
+      if (statusEl) statusEl.textContent = 'Listening...';
+      if (interimEl) interimEl.textContent = 'Speak your sysadmin command...';
+    } else {
+      hudContainer.classList.add('hidden');
+    }
+  }
+}
+
+async function toggleVoiceActivation() {
+  if (isVoiceListening) {
+    stopVoiceActivation(true);
+    return;
+  }
+  await startVoiceActivation();
+}
+
+async function startVoiceActivation() {
+  // Step 1: Explicitly request microphone access
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      mediaStreamAudio = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.warn('Microphone permission error:', err);
+      showToast('Microphone access required. Please allow microphone permissions in your browser.', 'error', 4000);
+      return;
+    }
+  }
+
+  // Step 2: Initialize Web Speech Recognition
+  if (isSpeechRecognitionSupported()) {
+    try {
+      const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+      speechRecognition = new SpeechRecognitionClass();
+      speechRecognition.continuous = false;
+      speechRecognition.interimResults = true;
+      speechRecognition.lang = 'en-US';
+
+      speechRecognition.onstart = () => {
+        isVoiceListening = true;
+        updateVoiceUIState(true);
+        playScifiSound('voice_on');
+        showToast('Voice activation active. Speak your command...', 'info', 2500);
+      };
+
+      speechRecognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+
+        const interimEl = document.getElementById('voice-hud-interim');
+        const inputEl = document.getElementById('agent-prompt-input');
+
+        if (interimEl) {
+          interimEl.textContent = interim || final || 'Listening...';
+        }
+
+        if (final) {
+          speechFinalTranscript = final.trim();
+          if (inputEl) {
+            inputEl.value = speechFinalTranscript;
+            toggleClearPromptBtn(speechFinalTranscript);
+          }
+        } else if (interim && inputEl) {
+          inputEl.value = interim;
+          toggleClearPromptBtn(interim);
+        }
+      };
+
+      speechRecognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        isVoiceListening = false;
+        updateVoiceUIState(false);
+        if (event.error === 'not-allowed') {
+          showToast('Microphone access was denied. Please allow microphone permissions.', 'error', 4000);
+        } else if (event.error !== 'no-speech') {
+          showToast(`Voice recognition: ${event.error}`, 'warning', 3000);
+        }
+      };
+
+      speechRecognition.onend = () => {
+        const wasListening = isVoiceListening;
+        isVoiceListening = false;
+        updateVoiceUIState(false);
+
+        if (mediaStreamAudio) {
+          mediaStreamAudio.getTracks().forEach(t => t.stop());
+          mediaStreamAudio = null;
+        }
+
+        if (wasListening && speechFinalTranscript) {
+          playScifiSound('success');
+          const inputEl = document.getElementById('agent-prompt-input');
+          const promptToRun = speechFinalTranscript;
+          speechFinalTranscript = '';
+          if (inputEl) {
+            inputEl.value = promptToRun;
+            toggleClearPromptBtn(promptToRun);
+          }
+          
+          // Auto-submit voice instruction after a short pause
+          setTimeout(() => {
+            submitAgentPrompt(promptToRun);
+          }, 350);
+        } else {
+          playScifiSound('voice_off');
+        }
+      };
+
+      speechFinalTranscript = '';
+      focusCommandDeck();
+      speechRecognition.start();
+    } catch (e) {
+      console.error('Failed to start speech recognition', e);
+      showToast('Could not start voice recognition: ' + e.message, 'error', 4000);
+      updateVoiceUIState(false);
+    }
+  } else {
+    showToast('Speech Recognition not supported in this browser. Please use Chrome, Edge, or Chromium.', 'warning', 4500);
+  }
+}
+
+function stopVoiceActivation(submit = true) {
+  if (speechRecognition && isVoiceListening) {
+    try {
+      if (submit) {
+        const inputEl = document.getElementById('agent-prompt-input');
+        if (inputEl && inputEl.value.trim()) {
+          speechFinalTranscript = inputEl.value.trim();
+        }
+      } else {
+        speechFinalTranscript = '';
+      }
+      speechRecognition.stop();
+    } catch (e) {}
+  }
+  if (mediaStreamAudio) {
+    mediaStreamAudio.getTracks().forEach(t => t.stop());
+    mediaStreamAudio = null;
+  }
+  isVoiceListening = false;
+  updateVoiceUIState(false);
+}
+
+function toggleVoiceSpeech() {
+  ttsVoiceEnabled = !ttsVoiceEnabled;
+  const btn = document.getElementById('btn-toggle-tts');
+  if (btn) {
+    btn.innerHTML = ttsVoiceEnabled 
+      ? '<i data-lucide="volume-2" class="w-4 h-4 text-cyan-300"></i>' 
+      : '<i data-lucide="volume-x" class="w-4 h-4 text-slate-500"></i>';
+    if (window.lucide) lucide.createIcons();
+  }
+  if (ttsVoiceEnabled) {
+    playScifiSound('success');
+    showToast('AI Voice Speech synthesis enabled', 'success', 2500);
+    speakText('Voice synthesis online. Linux Operations Assistant ready.');
+  } else {
+    playScifiSound('click');
+    showToast('AI Voice Speech synthesis disabled', 'info', 2000);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }
+}
+
+function speakText(text) {
+  if (!ttsVoiceEnabled || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const cleanText = text
+      .replace(/[*_#`~[\]()$]/g, '')
+      .replace(/https?:\/\/\S+/g, 'link')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanText) return;
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    
+    // Pick natural English voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(v => (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.lang.startsWith('en')));
+    if (englishVoice) utterance.voice = englishVoice;
+
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('TTS error:', e);
+  }
+}
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,62 +364,66 @@ document.addEventListener('DOMContentLoaded', () => {
   initCharts();
   startTelemetrySSE();
   loadInitialData();
+  renderQueryHistory();
 
-  // Initialize Cockpit Subsystems
-  ThemeManager.init();
-  SoundFX.init();
-  SparklineManager.init();
-  HistorySidebar.init();
-  MascotManager.init();
-  CapabilityManager.init();
-  CommandPalette.init();
-  CommandCenter.init();
+  updateTacticalClock();
+  setInterval(updateTacticalClock, 1000);
 
-  // Show command bar initially (home tab is default)
-  const ccBar = document.getElementById('cc-command-bar');
-  if (ccBar) ccBar.classList.remove('hidden');
+  // Restore live output collapsed state
+  try {
+    if (localStorage.getItem('linuxops_output_collapsed') === 'true') {
+      collapseLiveOutput();
+    }
+  } catch (e) {}
+
+  // Setup prompt form submit
+  const form = document.getElementById('agent-prompt-form');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('agent-prompt-input');
+      if (input && input.value.trim()) {
+        submitAgentPrompt(input.value.trim());
+      }
+    });
+  }
 
   // Refresh button
   const btnRefresh = document.getElementById('btn-refresh-health');
   if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
-      SoundFX.play('click');
+      playScifiSound('scan');
       fetchHealthSnapshot();
     });
   }
 
   // Global Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
-    // Ctrl+K or Cmd+K for Command Palette
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+    // Ctrl+H or Alt+H for Mission History Drawer
+    if ((e.ctrlKey && e.key.toLowerCase() === 'h') || (e.altKey && e.key.toLowerCase() === 'h')) {
       e.preventDefault();
-      CommandPalette.open();
+      toggleHistoryDrawer();
       return;
     }
-    // Ctrl+B or Cmd+B for History Sidebar Toggle
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+    // Ctrl+J or Alt+J to Collapse/Expand Live Output
+    if ((e.ctrlKey && e.key.toLowerCase() === 'j') || (e.altKey && e.key.toLowerCase() === 'j')) {
       e.preventDefault();
-      HistorySidebar.toggle();
+      toggleLiveOutputCollapse();
       return;
     }
-    // Ctrl+N or Cmd+N for New Chat Session
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 'N')) {
+    // Alt+V or Ctrl+Space for Voice Activation
+    if ((e.altKey && e.key.toLowerCase() === 'v') || (e.ctrlKey && e.code === 'Space')) {
       e.preventDefault();
-      HistorySidebar.newChat();
+      toggleVoiceActivation();
       return;
     }
-    // '/' to focus command input when not in text field
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
-      const ccInput = document.getElementById('cc-text-input');
-      if (ccInput) {
-        switchTab('home');
-        ccInput.focus();
-      }
+      focusCommandDeck();
     }
-    // Escape to close open modals
     if (e.key === 'Escape') {
-      CommandPalette.close();
+      stopVoiceActivation(false);
+      closeHistoryDrawer();
       closeModal('modal-permission');
       closeModal('modal-logs');
     }
@@ -90,70 +441,155 @@ function showToast(message, type = 'info', duration = 3500) {
   toast.className = 'toast-item';
 
   let iconName = 'info';
-  let iconColor = 'text-cyan-400';
+  let iconColor = 'text-white';
   if (type === 'success') {
     iconName = 'check-circle';
     iconColor = 'text-emerald-400';
+    playScifiSound('success');
   } else if (type === 'error') {
     iconName = 'alert-circle';
     iconColor = 'text-rose-400';
+    playScifiSound('alert');
   } else if (type === 'warning') {
     iconName = 'alert-triangle';
     iconColor = 'text-amber-400';
+    playScifiSound('alert');
+  } else {
+    playScifiSound('click');
   }
 
   toast.innerHTML = `
     <div class="mt-0.5 ${iconColor} shrink-0">
       <i data-lucide="${iconName}" class="w-4 h-4"></i>
     </div>
-    <div class="flex-1 text-xs text-zinc-200 leading-relaxed break-words">${escapeHtml(message)}</div>
-    <button onclick="this.parentElement.remove()" class="text-zinc-500 hover:text-zinc-300 font-mono text-sm leading-none">&times;</button>
+    <div class="flex-1 text-xs text-white leading-relaxed break-words font-sans font-medium">${escapeHtml(message)}</div>
+    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white font-mono text-sm leading-none">&times;</button>
   `;
 
   container.appendChild(toast);
   if (window.lucide) lucide.createIcons();
 
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-8px)';
-    setTimeout(() => toast.remove(), 250);
+    toast.classList.add('toast-leave');
+    setTimeout(() => {
+      if (toast.parentElement) toast.remove();
+    }, 200);
   }, duration);
 }
 
 // ==========================================================================
-// MODAL CONTROLLERS & PERMISSION DIALOG
+// COMMAND EXECUTION PERMISSION MODAL & GATE
 // ==========================================================================
-function openModal(modalId) {
-  const m = document.getElementById(modalId);
-  if (m) m.classList.remove('hidden');
-  if (window.lucide) lucide.createIcons();
-}
+function requestCommandPermission(options) {
+  const {
+    command,
+    description = 'Executes specified operation on the Linux host.',
+    safetyLevel = 'MODIFYING',
+    riskScore = 0.35,
+    rollback = null,
+    onApprove = null,
+    onDryRun = null
+  } = options;
 
-function closeModal(modalId) {
-  const m = document.getElementById(modalId);
-  if (m) m.classList.add('hidden');
-  if (modalId === 'modal-permission' && pendingPermissionResolver) {
-    pendingPermissionResolver(false);
-    pendingPermissionResolver = null;
-  }
+  playScifiSound('alert');
+
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modal-permission');
+    const cmdEl = document.getElementById('modal-perm-command');
+    const descEl = document.getElementById('modal-perm-description');
+    const safetyEl = document.getElementById('modal-perm-safety');
+    const riskEl = document.getElementById('modal-perm-risk');
+    const rollbackBox = document.getElementById('modal-perm-rollback-box');
+    const rollbackEl = document.getElementById('modal-perm-rollback');
+    const approveBtn = document.getElementById('modal-perm-approve-btn');
+    const dryRunBtn = document.getElementById('modal-perm-dryrun-btn');
+
+    if (!modal) return resolve(false);
+
+    cmdEl.textContent = command;
+    descEl.textContent = description;
+    safetyEl.textContent = safetyLevel;
+    safetyEl.className = 'font-bold ' + getSafetyTextColor(safetyLevel);
+    riskEl.textContent = (riskScore || 0.05).toFixed(2) + ' / 1.00';
+
+    if (rollback) {
+      rollbackBox.classList.remove('hidden');
+      rollbackEl.textContent = rollback;
+    } else {
+      rollbackBox.classList.add('hidden');
+    }
+
+    const cleanup = () => {
+      approveBtn.onclick = null;
+      dryRunBtn.onclick = null;
+      closeModal('modal-permission');
+    };
+
+    approveBtn.onclick = async () => {
+      cleanup();
+      playScifiSound('execute');
+      if (onApprove) await onApprove();
+      resolve(true);
+    };
+
+    dryRunBtn.onclick = async () => {
+      cleanup();
+      playScifiSound('scan');
+      if (onDryRun) await onDryRun();
+      else await executeDryRunSandbox(command);
+      resolve(false);
+    };
+
+    openModal('modal-permission');
+    if (window.lucide) lucide.createIcons();
+  });
 }
 
 function copyModalCommand() {
-  const cmd = document.getElementById('modal-perm-command').textContent;
-  if (cmd && cmd !== '-') {
-    navigator.clipboard.writeText(cmd).then(() => {
-      showToast('Command copied to clipboard', 'success', 2000);
-      SoundFX.play('click');
+  const cmd = document.getElementById('modal-perm-command')?.textContent;
+  if (cmd) {
+    navigator.clipboard.writeText(cmd);
+    showToast('Command copied to clipboard', 'info', 2000);
+  }
+}
+
+async function executeDryRunSandbox(cmd) {
+  showToast('Testing command in ephemeral CoW sandbox...', 'info');
+  try {
+    const res = await fetch('/api/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd, dry_run: true })
     });
+    const data = await res.json();
+    if (data.blocked) {
+      showToast('SANDBOX BLOCKED: ' + data.error, 'error', 5000);
+    } else {
+      showToast(`Sandbox Verified (Exit Code ${data.returncode}) in ${data.latency_ms || 0}ms`, 'success', 4000);
+    }
+  } catch (e) {
+    showToast('Sandbox error: ' + e.message, 'error');
   }
 }
 
 // ==========================================================================
-// TAB SWITCHING (RIGHT VERTICAL NAVIGATION)
+// TAB SWITCHING & INITIALIZATION
 // ==========================================================================
+const TAB_TITLES = {
+  'home': 'Home / AI Ops Deck',
+  'health': 'System Health & PSI Telemetry',
+  'services': 'Services & Process Management',
+  'storage': 'Storage Matrix & Cleanup',
+  'network': 'Network & Ports Control',
+  'taxonomy': '16-Class Failure Taxonomy',
+  'packages': 'Package Nexus',
+  'desktop': 'Runner & Portals'
+};
+
 function switchTab(tabId) {
+  playScifiSound('tab');
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.nav-vertical-btn, .nav-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-capsule-tab').forEach(el => el.classList.remove('active'));
 
   const activeContent = document.getElementById('tab-content-' + tabId);
   const activeBtn = document.getElementById('tab-btn-' + tabId);
@@ -161,16 +597,9 @@ function switchTab(tabId) {
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeBtn) activeBtn.classList.add('active');
 
-  // Show/hide CommandCenter bar on the home tab only
-  const ccBar = document.getElementById('cc-command-bar');
-  if (ccBar) ccBar.classList.toggle('hidden', tabId !== 'home');
-
-  // Trigger lazy loading
   if (tabId === 'services') loadServices();
   if (tabId === 'network') loadNetwork();
   if (tabId === 'taxonomy') loadTaxonomyScenarios();
-
-  SoundFX.play('click');
 
   if (window.lucide) {
     setTimeout(() => lucide.createIcons(), 50);
@@ -181,6 +610,8 @@ async function loadInitialData() {
   await fetchHealthSnapshot();
   await loadTaxonomyScenarios();
 }
+
+// ==========================================================================
 // TELEMETRY & CHARTS
 // ==========================================================================
 function startTelemetrySSE() {
@@ -222,59 +653,41 @@ async function fetchHealthSnapshot() {
 function updateTelemetryUI(snap) {
   if (!snap) return;
 
-  function safeSetText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  }
-
-  // Header
-  const dInfo = snap.distro_info || {};
-  const distroName = dInfo.distro_name || 'Linux';
-  safeSetText('header-hostname', snap.hostname || 'localhost');
-  safeSetText('header-distro', distroName);
-  safeSetText('header-kernel', 'Kernel ' + (snap.kernel_release || ''));
-
-  const pressureBadge = document.getElementById('header-pressure');
-  if (pressureBadge) {
-    pressureBadge.textContent = snap.pressure_status || 'NORMAL';
-    if (snap.pressure_status === 'ELEVATED') {
-      pressureBadge.className = 'font-mono text-[11px] font-semibold text-amber-400';
-    } else if (snap.pressure_status === 'CRITICAL') {
-      pressureBadge.className = 'font-mono text-[11px] font-semibold text-rose-400';
-    } else {
-      pressureBadge.className = 'font-mono text-[11px] font-semibold text-emerald-400';
-    }
-  }
-
-  // Health Cards
+  // Header & Hero Stats
   const cpu = snap.cpu || {};
   const mem = snap.memory || {};
   const load = snap.load || {};
 
   const totalCpuPct = (cpu.user_pct || 0) + (cpu.system_pct || 0);
-  safeSetText('health-cpu-pct', totalCpuPct.toFixed(1) + '%');
-  safeSetText('health-cpu-cores', (cpu.core_count || 1) + ' Cores');
-  safeSetText('health-cpu-breakdown', `User: ${(cpu.user_pct||0).toFixed(1)}% | Sys: ${(cpu.system_pct||0).toFixed(1)}% | IO: ${(cpu.iowait_pct||0).toFixed(1)}%`);
-  safeSetText('home-cpu-pct', totalCpuPct.toFixed(1) + '%');
 
-  safeSetText('health-ram-pct', (mem.used_percent || 0).toFixed(1) + '%');
-  safeSetText('health-ram-avail', Math.round(mem.used_mb||0) + ' / ' + Math.round(mem.total_mb||0) + ' MB');
-  safeSetText('health-swap-info', 'Swap: ' + (mem.swap_used_percent||0).toFixed(1) + '% used');
-  safeSetText('home-ram-pct', (mem.used_percent || 0).toFixed(1) + '%');
+  // Hero Card Stats
+  const heroCpu = document.getElementById('hero-cpu-stat');
+  if (heroCpu) heroCpu.textContent = totalCpuPct.toFixed(1) + '%';
+  const heroPsi = document.getElementById('hero-psi-stat');
+  if (heroPsi) heroPsi.textContent = snap.pressure_status || 'NORMAL';
 
-  safeSetText('health-load-1m', (load.load_1m || 0).toFixed(2));
-  safeSetText('health-load-5m', `5m: ${(load.load_5m||0).toFixed(2)} | 15m: ${(load.load_15m||0).toFixed(2)}`);
-  safeSetText('health-procs-count', `${load.running_processes||0} running / ${load.total_processes||0} procs`);
+  // Health Elements
+  const cpuPctEl = document.getElementById('health-cpu-pct');
+  if (cpuPctEl) cpuPctEl.textContent = totalCpuPct.toFixed(1) + '%';
+  const cpuCoresEl = document.getElementById('health-cpu-cores');
+  if (cpuCoresEl) cpuCoresEl.textContent = (cpu.core_count || 1) + ' Cores';
+  const cpuBreakdownEl = document.getElementById('health-cpu-breakdown');
+  if (cpuBreakdownEl) cpuBreakdownEl.textContent = `User: ${(cpu.user_pct||0).toFixed(1)}% | Sys: ${(cpu.system_pct||0).toFixed(1)}% | IO: ${(cpu.iowait_pct||0).toFixed(1)}%`;
 
-  safeSetText('health-psi-badge', snap.pressure_status || 'NORMAL');
-  safeSetText('health-zombie-count', (cpu.zombie_count || 0) + ' Zombies');
-  safeSetText('health-uptime-str', 'Uptime: ' + ((snap.uptime_seconds||0)/3600).toFixed(1) + ' hrs');
+  const ramPctEl = document.getElementById('health-ram-pct');
+  if (ramPctEl) ramPctEl.textContent = (mem.used_percent || 0).toFixed(1) + '%';
+  const swapInfoEl = document.getElementById('health-swap-info');
+  if (swapInfoEl) swapInfoEl.textContent = 'Swap: ' + (mem.swap_used_percent||0).toFixed(1) + '% used';
 
-  // Push to Header Live Sparklines
-  if (typeof SparklineManager !== 'undefined') {
-    SparklineManager.pushCPU(totalCpuPct);
-    SparklineManager.pushRAM(mem.used_percent || 0);
-  }
+  const load1mEl = document.getElementById('health-load-1m');
+  if (load1mEl) load1mEl.textContent = (load.load_1m || 0).toFixed(2);
+  const load5mEl = document.getElementById('health-load-5m');
+  if (load5mEl) load5mEl.textContent = `5m: ${(load.load_5m||0).toFixed(2)} | 15m: ${(load.load_15m||0).toFixed(2)}`;
+
+  const psiBadge = document.getElementById('health-psi-badge');
+  if (psiBadge) psiBadge.textContent = snap.pressure_status || 'NORMAL';
+  const uptimeEl = document.getElementById('health-uptime-str');
+  if (uptimeEl) uptimeEl.textContent = 'Uptime: ' + ((snap.uptime_seconds||0)/3600).toFixed(1) + ' hrs';
 
   // Update Charts
   const nowStr = new Date().toLocaleTimeString();
@@ -302,7 +715,6 @@ function updateTelemetryUI(snap) {
     memoryChart.update('none');
   }
 
-  // Update PSI & Disks tables
   renderPSITable(snap.psi_metrics);
   renderDisksTable(snap.disks);
 }
@@ -313,10 +725,10 @@ function initCharts() {
     maintainAspectRatio: false,
     animation: false,
     scales: {
-      y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#71717A', font: { family: 'JetBrains Mono', size: 10 } } },
-      x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#71717A', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
+      y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono', size: 11 } } },
+      x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono', size: 11 }, maxRotation: 0 } }
     },
-    plugins: { legend: { labels: { color: '#D4D4D8', font: { family: 'Inter', size: 11 }, boxWidth: 12 } } }
+    plugins: { legend: { labels: { color: '#F1F5F9', font: { family: 'Space Grotesk', size: 13, weight: 600 }, boxWidth: 14 } } }
   };
 
   const ctxCpu = document.getElementById('chart-cpu');
@@ -326,8 +738,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'CPU Total %', data: [], borderColor: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.04)', fill: true, tension: 0.2, borderWidth: 1.5 },
-          { label: 'I/O Wait %', data: [], borderColor: '#F59E0B', borderDash: [3, 3], fill: false, tension: 0.2, borderWidth: 1.5 }
+          { label: 'CPU Total %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.12)', fill: true, tension: 0.3, borderWidth: 2.5, pointBackgroundColor: '#00D2FF', pointRadius: 2 },
+          { label: 'I/O Wait %', data: [], borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.08)', borderDash: [4, 4], fill: true, tension: 0.3, borderWidth: 2, pointBackgroundColor: '#F59E0B', pointRadius: 2 }
         ]
       },
       options: chartOptions
@@ -341,8 +753,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'RAM Used %', data: [], borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.04)', fill: true, tension: 0.2, borderWidth: 1.5 },
-          { label: 'Swap Used %', data: [], borderColor: '#A1A1AA', borderDash: [3, 3], fill: false, tension: 0.2, borderWidth: 1.5 }
+          { label: 'RAM Used %', data: [], borderColor: '#A855F7', backgroundColor: 'rgba(168, 85, 247, 0.12)', fill: true, tension: 0.3, borderWidth: 2.5, pointBackgroundColor: '#A855F7', pointRadius: 2 },
+          { label: 'Swap Used %', data: [], borderColor: '#FB7185', backgroundColor: 'rgba(251, 113, 133, 0.08)', borderDash: [4, 4], fill: true, tension: 0.3, borderWidth: 2, pointBackgroundColor: '#FB7185', pointRadius: 2 }
         ]
       },
       options: chartOptions
@@ -354,18 +766,22 @@ function renderPSITable(psi) {
   const container = document.getElementById('psi-table-container');
   if (!container) return;
   if (!psi) {
-    container.innerHTML = '<p class="text-zinc-600 font-mono">Kernel PSI metrics not available (/proc/pressure unmounted).</p>';
+    container.innerHTML = '<p class="text-slate-500 font-mono">Kernel PSI metrics not available (/proc/pressure unmounted).</p>';
     return;
   }
 
-  let html = '<div class="grid grid-cols-3 gap-2">';
+  let html = '<div class="grid grid-cols-3 gap-3">';
   for (const [subsys, metrics] of Object.entries(psi)) {
     const avg10 = metrics.some_avg10 || 0;
-    const colorClass = avg10 > 20 ? 'text-rose-400' : (avg10 > 5 ? 'text-amber-400' : 'text-emerald-400');
-    html += `<div class="p-3 rounded-lg bg-[#060709] border border-white/[0.06] space-y-1">
-      <span class="font-mono font-semibold uppercase text-zinc-500 text-[10px]">${subsys}</span>
-      <div class="text-lg font-bold font-mono ${colorClass}">${avg10.toFixed(2)}%</div>
-      <p class="text-[10px] text-zinc-600 font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
+    const colorClass = avg10 > 20 ? 'text-rose-400 border-rose-500/40 bg-rose-500/10' : (avg10 > 5 ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' : 'text-cyan-300 border-cyan-500/30 bg-cyan-500/5');
+    const badgeColor = avg10 > 20 ? 'text-rose-400' : (avg10 > 5 ? 'text-amber-400' : 'text-emerald-400');
+    html += `<div class="p-4 rounded-2xl border space-y-1.5 ${colorClass}">
+      <div class="flex items-center justify-between">
+        <span class="font-sans font-bold uppercase text-slate-300 text-xs tracking-wider">${subsys}</span>
+        <span class="text-[10px] font-mono font-bold uppercase ${badgeColor}">${avg10 > 20 ? 'HIGH STALL' : (avg10 > 5 ? 'ELEVATED' : 'NORMAL')}</span>
+      </div>
+      <div class="font-editorial italic text-3xl ${badgeColor}">${avg10.toFixed(2)}%</div>
+      <p class="text-xs text-slate-400 font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
     </div>`;
   }
   html += '</div>';
@@ -376,20 +792,20 @@ function renderDisksTable(disks) {
   const container = document.getElementById('disks-table-container');
   if (!container) return;
   if (!disks || disks.length === 0) {
-    container.innerHTML = '<p class="text-zinc-600 font-mono">No filesystem mounts discovered.</p>';
+    container.innerHTML = '<p class="text-slate-500 font-mono">No filesystem mounts discovered.</p>';
     return;
   }
 
-  let html = '<div class="space-y-2">';
+  let html = '<div class="space-y-3">';
   disks.slice(0, 4).forEach(d => {
-    const color = d.used_percent > 85 ? 'bg-rose-500' : (d.used_percent > 70 ? 'bg-amber-500' : 'bg-white');
-    html += `<div class="p-2.5 rounded-lg bg-[#060709] border border-white/[0.06] space-y-1.5 font-mono text-xs">
-      <div class="flex justify-between">
-        <span class="text-zinc-200 font-semibold">${d.mountpoint}</span>
-        <span class="text-zinc-400">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
+    const barColor = d.used_percent > 85 ? 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.6)]' : (d.used_percent > 70 ? 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)]' : 'bg-cyan-400 shadow-[0_0_12px_rgba(0,210,255,0.6)]');
+    html += `<div class="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5 font-sans text-xs sm:text-sm">
+      <div class="flex justify-between items-center">
+        <span class="text-white font-semibold font-tech text-sm">${d.mountpoint}</span>
+        <span class="text-cyan-300 font-mono font-bold">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
       </div>
-      <div class="w-full bg-white/[0.08] h-1.5 rounded-full overflow-hidden">
-        <div class="${color} h-full" style="width: ${Math.min(100, d.used_percent)}%"></div>
+      <div class="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+        <div class="${barColor} h-full transition-all duration-500" style="width: ${Math.min(100, d.used_percent)}%"></div>
       </div>
     </div>`;
   });
@@ -398,57 +814,340 @@ function renderDisksTable(disks) {
 }
 
 // ==========================================================================
-// AI OPS AGENT: CHAT, REASONING & COMMAND PERMISSION FEED
+// MISSION & INQUIRY HISTORY ENGINE (SLIDE-OVER DRAWER)
 // ==========================================================================
-function quickPrompt(text) {
-  // Route through CommandCenter (new path) — keep old agent-prompt-input as fallback
-  const ccInput = document.getElementById('cc-text-input');
-  if (ccInput) {
-    ccInput.value = text;
-    CommandCenter.submitCommand(text);
+const HISTORY_STORAGE_KEY = 'linuxops_mission_history_v1';
+
+const DEFAULT_HISTORY = [
+  { prompt: 'Why is port 80 blocked in firewall?', intent: 'DIAGNOSTIC', time: '18:20:10', safety: 'READ_ONLY' },
+  { prompt: 'Show system health and pressure', intent: 'TELEMETRY', time: '18:15:42', safety: 'READ_ONLY' },
+  { prompt: 'Why is NGINX failing to bind?', intent: 'DIAGNOSTIC', time: '18:10:05', safety: 'READ_ONLY' },
+  { prompt: 'Organize my Downloads folder', intent: 'MUTATION', time: '17:55:20', safety: 'MUTATION_SAFE' },
+  { prompt: 'Find large files over 100MB', intent: 'AUDIT', time: '17:42:18', safety: 'READ_ONLY' },
+  { prompt: 'Audit SSH security configuration', intent: 'SECURITY', time: '17:30:00', safety: 'READ_ONLY' }
+];
+
+function toggleHistoryDrawer() {
+  const drawer = document.getElementById('history-drawer');
+  const overlay = document.getElementById('history-drawer-overlay');
+  if (!drawer || !overlay) return;
+  const isClosed = drawer.classList.contains('translate-x-full');
+  if (isClosed) {
+    openHistoryDrawer();
+  } else {
+    closeHistoryDrawer();
+  }
+}
+
+function openHistoryDrawer() {
+  playScifiSound('click');
+  const drawer = document.getElementById('history-drawer');
+  const overlay = document.getElementById('history-drawer-overlay');
+  if (drawer && overlay) {
+    drawer.classList.remove('translate-x-full');
+    overlay.classList.remove('opacity-0', 'pointer-events-none');
+    overlay.classList.add('opacity-100', 'pointer-events-auto');
+    renderQueryHistory();
+    // Auto-focus search input inside drawer after slide-in
+    setTimeout(() => {
+      const filterInput = document.getElementById('history-filter-input');
+      if (filterInput) filterInput.focus();
+    }, 120);
+  }
+}
+
+function closeHistoryDrawer() {
+  const drawer = document.getElementById('history-drawer');
+  const overlay = document.getElementById('history-drawer-overlay');
+  if (drawer && overlay) {
+    drawer.classList.add('translate-x-full');
+    overlay.classList.remove('opacity-100', 'pointer-events-auto');
+    overlay.classList.add('opacity-0', 'pointer-events-none');
+  }
+}
+
+function getStoredHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return DEFAULT_HISTORY;
+}
+
+function saveQueryToHistory(promptText, intent = 'QUERY', safety = 'READ_ONLY') {
+  if (!promptText || !promptText.trim()) return;
+  const history = getStoredHistory().filter(h => h.prompt.toLowerCase() !== promptText.trim().toLowerCase());
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0];
+  
+  history.unshift({
+    prompt: promptText.trim(),
+    intent: intent || 'QUERY',
+    time: timeStr,
+    safety: safety || 'READ_ONLY'
+  });
+
+  const trimmed = history.slice(0, 35);
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch (e) {}
+
+  renderQueryHistory();
+}
+
+function renderQueryHistory(filterText = '') {
+  const container = document.getElementById('history-items-container');
+  const countBadge = document.getElementById('history-badge-count');
+
+  const history = getStoredHistory();
+
+  // Update top-right navbar count badge
+  if (countBadge) {
+    if (history.length > 0) {
+      countBadge.textContent = history.length;
+      countBadge.classList.remove('hidden');
+    } else {
+      countBadge.classList.add('hidden');
+    }
+  }
+
+  if (!container) return;
+
+  const filtered = filterText 
+    ? history.filter(h => h.prompt.toLowerCase().includes(filterText.toLowerCase()) || (h.intent && h.intent.toLowerCase().includes(filterText.toLowerCase())))
+    : history;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-center text-xs text-slate-400 font-mono space-y-2">
+        <i data-lucide="inbox" class="w-6 h-6 mx-auto text-slate-500"></i>
+        <p>${filterText ? 'No matching past inquiries found' : 'No mission history yet'}</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
+
+  let html = '';
+  filtered.forEach((item) => {
+    const escaped = escapeHtml(item.prompt);
+    const intentClass = getIntentBadgeClass(item.intent);
+    html += `
+      <div class="history-item flex items-center justify-between group space-x-3" onclick="loadHistoryPrompt('${escaped.replace(/'/g, "\\'")}')">
+        <div class="flex-1 min-w-0 space-y-1.5">
+          <div class="flex items-center space-x-2">
+            <span class="${intentClass} text-[9px] font-mono px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">${escapeHtml(item.intent || 'QUERY')}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${escapeHtml(item.time || '')}</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-200 font-mono truncate group-hover:text-white transition-colors">${escaped}</p>
+        </div>
+        <button 
+          type="button" 
+          onclick="event.stopPropagation(); quickPrompt('${escaped.replace(/'/g, "\\'")}');" 
+          title="Execute Mission Query" 
+          class="opacity-0 group-hover:opacity-100 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+          <i data-lucide="play" class="w-4 h-4 text-cyan-300"></i>
+        </button>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  if (window.lucide) lucide.createIcons();
+}
+
+function filterHistoryList(query) {
+  renderQueryHistory(query);
+}
+
+function clearQueryHistory() {
+  playScifiSound('click');
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+  } catch (e) {}
+  renderQueryHistory();
+  showToast('Mission history cleared', 'info', 2000);
+}
+
+function loadHistoryPrompt(promptText) {
+  playScifiSound('click');
+  const input = document.getElementById('agent-prompt-input');
+  if (input) {
+    input.value = promptText;
+    toggleClearPromptBtn(promptText);
+    input.focus();
+  }
+  // Automatically close history drawer on smaller screens or when loading into prompt
+  if (window.innerWidth < 768) {
+    closeHistoryDrawer();
+  }
+  showToast('Query loaded into command deck', 'info', 1500);
+}
+
+function toggleClearPromptBtn(val) {
+  const btn = document.getElementById('btn-clear-prompt');
+  if (btn) {
+    if (val && val.trim().length > 0) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  }
+}
+
+function clearPromptInput() {
+  playScifiSound('click');
+  const input = document.getElementById('agent-prompt-input');
+  if (input) {
+    input.value = '';
+    input.focus();
+    toggleClearPromptBtn('');
+  }
+}
+
+function getIntentBadgeClass(intent) {
+  const norm = (intent || '').toUpperCase();
+  if (norm.includes('DIAGNOSTIC') || norm.includes('DIAGNOSE')) return 'bg-amber-400/20 text-amber-300 border border-amber-400/30';
+  if (norm.includes('MUTATION') || norm.includes('ACTION')) return 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30';
+  if (norm.includes('SECURITY') || norm.includes('AUDIT')) return 'bg-rose-400/20 text-rose-300 border border-rose-400/30';
+  if (norm.includes('TELEMETRY') || norm.includes('HEALTH')) return 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30';
+  return 'bg-white/10 text-slate-300 border border-white/20';
+}
+
+// ==========================================================================
+// SHRINKABLE & EXPANDABLE LIVE WORKING OUTPUT CONTROLLER
+// ==========================================================================
+function toggleLiveOutputCollapse() {
+  playScifiSound('click');
+  const expandedCard = document.getElementById('output-expanded-card');
+  if (!expandedCard) return;
+
+  const isCurrentlyCollapsed = expandedCard.classList.contains('hidden');
+  if (isCurrentlyCollapsed) {
+    expandLiveOutput(true);
+    showToast('Tactical stream expanded', 'info', 1500);
+  } else {
+    collapseLiveOutput();
+    showToast('Tactical stream minimized', 'info', 1500);
+  }
+}
+
+function collapseLiveOutput() {
+  const aside = document.getElementById('home-output-aside');
+  const mainArena = document.getElementById('home-main-arena');
+  const expandedCard = document.getElementById('output-expanded-card');
+  const collapsedCard = document.getElementById('output-collapsed-card');
+
+  if (!aside || !mainArena || !expandedCard || !collapsedCard) return;
+
+  expandedCard.classList.add('hidden');
+  collapsedCard.classList.remove('hidden');
+
+  aside.classList.remove('lg:col-span-5', 'xl:col-span-5');
+  aside.classList.add('lg:col-span-1', 'xl:col-span-1');
+
+  mainArena.classList.remove('lg:col-span-7', 'xl:col-span-7');
+  mainArena.classList.add('lg:col-span-11', 'xl:col-span-11');
+
+  try {
+    localStorage.setItem('linuxops_output_collapsed', 'true');
+  } catch (e) {}
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function expandLiveOutput(playSound = false) {
+  if (playSound) playScifiSound('click');
+  const aside = document.getElementById('home-output-aside');
+  const mainArena = document.getElementById('home-main-arena');
+  const expandedCard = document.getElementById('output-expanded-card');
+  const collapsedCard = document.getElementById('output-collapsed-card');
+
+  if (!aside || !mainArena || !expandedCard || !collapsedCard) return;
+
+  collapsedCard.classList.add('hidden');
+  expandedCard.classList.remove('hidden');
+
+  aside.classList.remove('lg:col-span-1', 'xl:col-span-1');
+  aside.classList.add('lg:col-span-5', 'xl:col-span-5');
+
+  mainArena.classList.remove('lg:col-span-11', 'xl:col-span-11');
+  mainArena.classList.add('lg:col-span-7', 'xl:col-span-7');
+
+  try {
+    localStorage.setItem('linuxops_output_collapsed', 'false');
+  } catch (e) {}
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ==========================================================================
+// AI OPS AGENT: CHAT & TACTICAL STREAM
+// ==========================================================================
+function quickPrompt(text) {
+  playScifiSound('click');
+  closeHistoryDrawer();
+  expandLiveOutput(false);
   const input = document.getElementById('agent-prompt-input');
   if (input) {
     input.value = text;
+    toggleClearPromptBtn(text);
     submitAgentPrompt(text);
   }
 }
 
 async function submitAgentPrompt(promptText) {
+  playScifiSound('execute');
+  expandLiveOutput(false);
   const feed = document.getElementById('agent-feed-container');
+  const input = document.getElementById('agent-prompt-input');
   const btn = document.getElementById('btn-submit-prompt');
-  if (btn) btn.disabled = true;
+  const statusEl = document.getElementById('working-stream-status');
 
-  // Add User Message Card
+  if (!feed) return;
+
+  // Keep query explicitly visible on the search bar
+  if (input) {
+    input.value = promptText;
+    toggleClearPromptBtn(promptText);
+  }
+
+  if (statusEl) {
+    statusEl.innerHTML = '<span class="text-cyan-300 animate-pulse">⚡ Reasoning &amp; AST Checking...</span>';
+  }
+
   const userCard = document.createElement('div');
-  userCard.className = 'p-3.5 rounded-lg bg-white/[0.03] border border-white/[0.08] space-y-1.5';
+  userCard.className = 'p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/15 font-mono text-xs text-white space-y-2';
   userCard.innerHTML = `
-    <div class="flex items-center justify-between text-xs font-mono">
-      <span class="font-semibold text-zinc-300 flex items-center space-x-1.5">
-        <i data-lucide="user" class="w-3.5 h-3.5 text-zinc-400"></i>
-        <span>User Query</span>
+    <div class="flex items-center justify-between text-[10px] text-slate-400 font-sans uppercase tracking-wider">
+      <span class="flex items-center space-x-1.5">
+        <i data-lucide="user" class="w-3.5 h-3.5 text-slate-300"></i>
+        <span>Sysadmin Inquirer</span>
       </span>
-      <span class="text-zinc-600 text-[10px]">${new Date().toLocaleTimeString()}</span>
+      <span>${new Date().toLocaleTimeString()}</span>
     </div>
-    <p class="text-xs text-white font-mono">${escapeHtml(promptText)}</p>
+    <div class="text-xs sm:text-[13px] text-white font-semibold pl-3 border-l-2 border-cyan-400 leading-relaxed">${escapeHtml(promptText)}</div>
   `;
-  feed.prepend(userCard);
+  feed.appendChild(userCard);
 
-  // Add Agent Pending Card
   const agentCard = document.createElement('div');
-  agentCard.className = 'p-4 rounded-lg bg-[#0E1015] border border-white/[0.08] space-y-3';
+  agentCard.className = 'p-5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3';
   agentCard.innerHTML = `
-    <div class="flex items-center space-x-2 text-xs text-zinc-400 font-mono">
-      <i data-lucide="loader-2" class="w-3.5 h-3.5 text-white animate-spin"></i>
-      <span>Classifying intent & evaluating safety guardrails...</span>
+    <div class="flex items-center space-x-2.5 text-xs font-sans text-slate-300">
+      <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+      <span>Reasoning &amp; AST validation in progress...</span>
     </div>
   `;
-  feed.prepend(agentCard);
+  feed.appendChild(agentCard);
+
+  feed.scrollTop = feed.scrollHeight;
+  if (btn) btn.disabled = true;
   if (window.lucide) lucide.createIcons();
 
   try {
-    // Request agent analysis (stage first if modifying)
     const res = await fetch('/api/agent/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -456,36 +1155,45 @@ async function submitAgentPrompt(promptText) {
     });
     const data = await res.json();
     renderAgentResponseCard(agentCard, data);
+
+    // Save to history
+    saveQueryToHistory(promptText, data.intent || 'QUERY', data.safety_level || 'READ_ONLY');
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-emerald-400">🟢 Verified (${new Date().toLocaleTimeString()})</span>`;
+    }
   } catch (e) {
     agentCard.innerHTML = `
-      <div class="text-xs text-rose-400 font-mono font-medium flex items-center space-x-2">
+      <div class="text-xs text-rose-400 font-mono font-bold flex items-center space-x-2">
         <i data-lucide="alert-circle" class="w-4 h-4"></i>
-        <span>Agent Dispatch Error: ${escapeHtml(e.message)}</span>
+        <span>Agent Error: ${escapeHtml(e.message)}</span>
       </div>
     `;
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-rose-400">⚠️ Error</span>`;
+    }
   } finally {
     if (btn) btn.disabled = false;
     if (window.lucide) lucide.createIcons();
+    feed.scrollTop = feed.scrollHeight;
   }
 }
 
 function renderAgentResponseCard(card, data) {
+  playScifiSound('success');
   const safetyClass = getSafetyBadgeClass(data.safety_level || 'READ_ONLY');
-  const isModifying = data.safety_level && data.safety_level !== 'READ_ONLY';
-  const cardBorderClass = isModifying ? 'command-approval-card modifying' : 'linear-card';
 
-  card.className = `p-4 space-y-3 ${cardBorderClass}`;
+  card.className = 'avant-card-elevated p-5 sm:p-6 space-y-4';
 
   let stepsHtml = '';
   if (data.steps && data.steps.length > 0) {
     stepsHtml = `
-      <div class="space-y-1 text-[11px] text-zinc-400 font-mono border-l-2 border-white/20 pl-3 py-0.5">
+      <div class="space-y-1 text-[11px] text-slate-300 font-mono border-l-2 border-white/30 pl-3 py-0.5 leading-relaxed">
         ${data.steps.map(s => `<div>&bull; ${escapeHtml(s)}</div>`).join('')}
       </div>
     `;
   }
 
-  // Planned Command Section (The Main Feature: Show command + description + ask permission)
   let commandSectionHtml = '';
   const plannedCmds = data.planned_commands || (data.command ? [{
     command: data.command,
@@ -497,47 +1205,44 @@ function renderAgentResponseCard(card, data) {
 
   if (plannedCmds.length > 0) {
     commandSectionHtml = `
-      <div class="space-y-2 pt-1">
-        <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">Planned Command Execution & Guardrails:</div>
-        ${plannedCmds.map((c, idx) => `
-          <div class="p-3 rounded-lg bg-[#060709] border border-white/[0.10] space-y-2.5">
+      <div class="space-y-3 pt-1">
+        <div class="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400">Planned Command Execution &amp; Guardrails:</div>
+        ${plannedCmds.map((c) => `
+          <div class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2.5">
             <div class="flex items-center justify-between">
-              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2 py-0.5 rounded font-semibold uppercase">${c.safety_level || 'READ_ONLY'}</span>
-              <span class="text-[10px] font-mono text-zinc-500">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2.5 py-0.5 rounded-full uppercase font-bold">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="text-[10px] font-mono text-slate-400">Risk: ${(c.risk_score || 0.05).toFixed(2)}</span>
             </div>
 
-            <!-- Exact Command -->
-            <div class="p-2 rounded bg-black/60 border border-white/[0.06] font-mono text-xs text-zinc-100 flex items-start justify-between space-x-2">
-              <div class="break-all select-all flex-1">
-                <span class="text-zinc-600 select-none">$ </span>
-                <span class="font-semibold">${escapeHtml(c.command)}</span>
+            <div class="p-3 rounded-xl bg-black/80 border border-white/10 font-mono text-xs text-white flex items-start justify-between space-x-2">
+              <div class="break-all select-all flex-1 font-semibold text-white">
+                <span class="text-slate-500 select-none">$ </span>
+                ${escapeHtml(c.command)}
               </div>
-              <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-zinc-500 hover:text-zinc-300 px-1" title="Copy Command">
-                <i data-lucide="copy" class="w-3 h-3"></i>
+              <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-slate-400 hover:text-white px-1" title="Copy Command">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
               </button>
             </div>
 
-            <!-- Short Description of What It Will Do -->
-            <div class="text-xs text-zinc-300 font-sans leading-relaxed">
-              <span class="text-zinc-500 text-[10px] font-mono uppercase block font-semibold">Description:</span>
+            <div class="text-xs text-slate-200 font-sans leading-relaxed">
+              <span class="text-slate-500 text-[10px] font-semibold uppercase block mb-0.5">Rationale:</span>
               ${escapeHtml(c.description || 'Executes operation on the system.')}
             </div>
 
             ${c.rollback_command ? `
-              <div class="text-[11px] font-mono text-zinc-500">
-                <span class="text-zinc-600">Rollback:</span> ${escapeHtml(c.rollback_command)}
+              <div class="text-[11px] font-mono text-slate-400">
+                <span class="text-amber-400 font-bold">Rollback:</span> ${escapeHtml(c.rollback_command)}
               </div>
             ` : ''}
 
-            <!-- Permission Confirmation Buttons -->
-            <div class="flex items-center space-x-2 pt-1 border-t border-white/[0.06]">
-              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.command-approval-card'))" class="btn btn-primary px-3 py-1.5 text-xs">
+            <div class="flex items-center space-x-2 pt-2 border-t border-white/10">
+              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.avant-card-elevated'))" class="btn-editorial-primary !py-1.5 !px-3 text-xs">
                 <i data-lucide="play" class="w-3 h-3"></i>
-                <span>Approve & Execute</span>
+                <span>Execute</span>
               </button>
-              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn btn-secondary px-3 py-1.5 text-xs">
+              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn-editorial-secondary !py-1.5 !px-3 text-xs">
                 <i data-lucide="flask-conical" class="w-3 h-3"></i>
-                <span>Dry-Run Sandbox</span>
+                <span>Dry-Run</span>
               </button>
             </div>
           </div>
@@ -546,55 +1251,60 @@ function renderAgentResponseCard(card, data) {
     `;
   }
 
-  // Diagnostic Report / Output JSON viewer
   let outputDetailsHtml = '';
   if (data.output && !plannedCmds.length) {
     outputDetailsHtml = `
-      <pre class="p-3 rounded-lg bg-[#060709] border border-white/[0.06] text-[11px] font-mono text-zinc-300 overflow-x-auto max-h-48 whitespace-pre-wrap">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
+      <pre class="p-4 rounded-2xl bg-black/60 border border-white/10 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
     `;
   }
 
   let rollbackBtnHtml = '';
   if (data.rollback_command && data.executed) {
     rollbackBtnHtml = `
-      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn btn-secondary px-3 py-1 text-xs">
+      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn-editorial-secondary !py-1 !px-2.5 text-xs">
         <i data-lucide="undo-2" class="w-3 h-3"></i>
-        <span>Rollback State</span>
+        <span>Rollback</span>
       </button>
     `;
   }
 
   card.innerHTML = `
-    <div class="flex items-center justify-between text-xs border-b border-white/[0.06] pb-2 font-mono">
+    <div class="flex items-center justify-between text-xs border-b border-white/10 pb-2.5 font-sans">
       <div class="flex items-center space-x-2">
         <span class="font-semibold text-white flex items-center space-x-1.5">
-          <i data-lucide="bot" class="w-3.5 h-3.5 text-zinc-300"></i>
-          <span>Agent Intent: ${escapeHtml(data.intent || 'ACTION')}</span>
+          <i data-lucide="bot" class="w-4 h-4 text-cyan-300"></i>
+          <span>${escapeHtml(data.intent || 'ACTION')}</span>
         </span>
-        <span class="${safetyClass} text-[10px] px-2 py-0.5 rounded font-semibold uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
+        <span class="${safetyClass} text-[9px] font-mono px-2.5 py-0.5 rounded-full uppercase font-bold">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
       </div>
-      <span class="text-zinc-600 text-[10px]">${new Date().toLocaleTimeString()}</span>
+      <span class="text-slate-500 text-[10px]">${new Date().toLocaleTimeString()}</span>
     </div>
 
-    <div class="text-xs text-zinc-200 font-sans font-medium">${escapeHtml(data.summary || 'Analysis complete.')}</div>
+    <div class="text-xs sm:text-sm text-white font-sans font-medium leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
     
     ${stepsHtml}
     ${commandSectionHtml}
     ${outputDetailsHtml}
 
-    <div class="flex items-center justify-between pt-1 font-mono text-[10px] text-zinc-500">
+    <div class="flex items-center justify-between pt-1 font-mono text-[10px] text-slate-500">
       <span>Risk Score: ${(data.risk_score || 0.05).toFixed(2)}</span>
       ${rollbackBtnHtml}
     </div>
   `;
 
   if (window.lucide) lucide.createIcons();
+
+  // Optional Voice TTS Output
+  if (voiceSpeechEnabled && data.summary) {
+    speakText(data.summary);
+  }
 }
 
 function clearAgentFeed() {
+  playScifiSound('click');
   const feed = document.getElementById('agent-feed-container');
   if (feed) {
-    feed.innerHTML = '<p class="text-xs font-mono text-zinc-600 p-2">Feed cleared.</p>';
+    feed.innerHTML = '<p class="text-xs font-mono text-slate-500 p-2">Tactical reasoning feed purged.</p>';
   }
 }
 
@@ -602,7 +1312,7 @@ function clearAgentFeed() {
 // COMMAND EXECUTION ENGINE & ROLLBACK
 // ==========================================================================
 async function executeCommandDirect(cmd, rollbackCmd, cardEl) {
-  showToast('Executing: ' + cmd, 'info');
+  showToast('Executing command: ' + cmd, 'info');
 
   try {
     const res = await fetch('/api/execute', {
@@ -620,22 +1330,21 @@ async function executeCommandDirect(cmd, rollbackCmd, cardEl) {
     if (data.success) {
       showToast(`Command executed successfully (Exit Code ${data.returncode}) in ${data.latency_ms || 0}ms`, 'success');
     } else {
-      showToast(`Command returned non-zero code (${data.returncode})`, 'warning');
+      showToast(`Command returned non-zero exit code (${data.returncode})`, 'warning');
     }
 
-    // Append execution result box to card
     if (cardEl) {
       const resultBox = document.createElement('div');
-      resultBox.className = 'p-3 rounded-lg bg-black border border-white/[0.12] space-y-1.5 font-mono text-xs';
+      resultBox.className = 'p-4 sm:p-5 rounded-2xl bg-black/70 border border-white/10 space-y-2 font-mono text-xs leading-relaxed';
       resultBox.innerHTML = `
-        <div class="flex items-center justify-between text-[10px] text-zinc-400">
-          <span class="font-semibold text-emerald-400">&check; Execution Complete</span>
+        <div class="flex items-center justify-between text-[10px] text-slate-500">
+          <span class="font-bold text-white">&check; Execution Complete</span>
           <span>Exit: ${data.returncode} | Latency: ${data.latency_ms || 0}ms</span>
         </div>
-        <pre class="text-[11px] text-zinc-300 overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
+        <pre class="text-[11px] text-slate-200 overflow-x-auto max-h-36 whitespace-pre-wrap">${escapeHtml(data.stdout || data.stderr || '(No output returned)')}</pre>
         ${(rollbackCmd || data.rollback_command) ? `
-          <div class="pt-1 flex justify-end">
-            <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn btn-secondary px-2.5 py-1 text-[10px]">
+          <div class="pt-2 flex justify-end">
+            <button onclick="executeRollback('${escapeHtml(rollbackCmd || data.rollback_command)}')" class="btn-editorial-secondary !py-1 !px-2.5 text-[10px]">
               <i data-lucide="undo-2" class="w-3 h-3"></i>
               <span>Rollback</span>
             </button>
@@ -668,9 +1377,9 @@ async function executeRollback(rollbackCmd) {
         });
         const data = await res.json();
         if (data.success) {
-          showToast('Rollback executed successfully', 'success');
+          showToast('Rollback completed successfully', 'success');
         } else {
-          showToast('Rollback failed: ' + (data.stderr || 'Non-zero exit'), 'error');
+          showToast('Rollback error: ' + (data.error || 'Failed'), 'error');
         }
       } catch (e) {
         showToast('Rollback error: ' + e.message, 'error');
@@ -680,26 +1389,23 @@ async function executeRollback(rollbackCmd) {
 }
 
 // ==========================================================================
-// SERVICES TAB ACTIONS (Hooked into Permission Modal)
+// SERVICES & PROCESSES
 // ==========================================================================
 async function loadServices() {
-  const tbody = document.getElementById('services-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="3" class="text-center text-zinc-600 py-6 font-mono">Loading service units...</td></tr>';
-
   try {
     const res = await fetch('/api/services');
-    const data = await res.json();
-    allServices = data.services || [];
-    renderServicesTable(allServices);
+    if (res.ok) {
+      allServices = await res.json();
+      renderServicesTable(allServices);
+    }
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-rose-400 py-4 font-mono">Failed to load services: ${escapeHtml(e.message)}</td></tr>`;
+    console.error('Failed to load services', e);
   }
 }
 
 function filterServices() {
   const query = (document.getElementById('service-search-input')?.value || '').toLowerCase();
-  const filtered = allServices.filter(s => s.unit.toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query));
+  const filtered = allServices.filter(s => (s.unit || '').toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query));
   renderServicesTable(filtered);
 }
 
@@ -707,26 +1413,38 @@ function renderServicesTable(services) {
   const tbody = document.getElementById('services-table-body');
   if (!tbody) return;
 
-  if (services.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-zinc-600 py-6 font-mono">No matching services found.</td></tr>';
+  if (!services || services.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-500 py-6 font-mono">No matching services found.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = services.slice(0, 50).map(s => {
-    const isFailed = s.active === 'failed' || s.sub === 'failed';
-    const isActive = s.active === 'active';
-    const stateBadge = isFailed ? '<span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-mono font-semibold">FAILED</span>' :
-                       (isActive ? '<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-semibold">ACTIVE</span>' :
-                       '<span class="px-1.5 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 text-[10px] font-mono">INACTIVE</span>');
+  tbody.innerHTML = services.map(s => {
+    const isRunning = s.active_state === 'active' || s.sub_state === 'running';
+    const isFailed = s.active_state === 'failed';
+    const statusColor = isFailed ? 'text-rose-400' : (isRunning ? 'text-emerald-400' : 'text-slate-500');
+    const dotColor = isFailed ? 'bg-rose-400' : (isRunning ? 'bg-emerald-400' : 'bg-slate-600');
 
     return `
       <tr>
-        <td class="font-mono text-zinc-200">${escapeHtml(s.unit)}</td>
-        <td>${stateBadge}</td>
+        <td class="font-semibold text-white">
+          <div class="flex items-center space-x-2">
+            <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+            <span>${escapeHtml(s.unit)}</span>
+          </div>
+        </td>
+        <td class="${statusColor} font-bold">${escapeHtml(s.active_state)} (${escapeHtml(s.sub_state)})</td>
         <td class="text-right space-x-1.5">
-          <button onclick="promptServiceAction('${escapeHtml(s.unit)}', 'restart')" class="btn btn-secondary px-2 py-1 text-[10px]">Restart</button>
-          <button onclick="promptServiceAction('${escapeHtml(s.unit)}', 'stop')" class="btn btn-danger px-2 py-1 text-[10px]">Stop</button>
-          <button onclick="promptServiceAction('${escapeHtml(s.unit)}', 'logs')" class="btn btn-ghost px-2 py-1 text-[10px]">Logs</button>
+          <button onclick="promptServiceAction('${escapeHtml(s.unit)}', '${isRunning ? 'restart' : 'start'}')" class="btn-editorial-secondary !py-1 !px-2.5 text-[11px]">
+            ${isRunning ? 'Restart' : 'Start'}
+          </button>
+          ${isRunning ? `
+            <button onclick="promptServiceAction('${escapeHtml(s.unit)}', 'stop')" class="btn-editorial-primary !py-1 !px-2.5 text-[11px]">
+              Stop
+            </button>
+          ` : ''}
+          <button onclick="viewServiceLogs('${escapeHtml(s.unit)}')" class="btn-editorial-ghost !py-1 !px-2 text-[11px]">
+            Logs
+          </button>
         </td>
       </tr>
     `;
@@ -734,100 +1452,99 @@ function renderServicesTable(services) {
 }
 
 function promptServiceAction(svc, action) {
-  if (action === 'logs') {
-    openModal('modal-logs');
-    document.getElementById('modal-logs-title').textContent = 'Journal Logs: ' + svc;
-    document.getElementById('modal-logs-content').textContent = 'Loading logs...';
-    fetch('/api/services/action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ service: svc, action: 'logs' })
-    })
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById('modal-logs-content').textContent = data.logs || 'No recent logs found for unit.';
-    })
-    .catch(e => {
-      document.getElementById('modal-logs-content').textContent = 'Failed to load logs: ' + e.message;
-    });
-    return;
-  }
-
   const cmd = `systemctl ${action} ${svc}`;
-  const desc = `Sends '${action}' instruction to systemd unit '${svc}'. May restart active network connections or worker processes.`;
+  const rollbackCmd = action === 'start' ? `systemctl stop ${svc}` : (action === 'stop' ? `systemctl start ${svc}` : null);
 
   requestCommandPermission({
     command: cmd,
-    description: desc,
-    safetyLevel: action === 'stop' ? 'HIGH_RISK' : 'MODIFYING',
-    riskScore: action === 'stop' ? 0.60 : 0.35,
-    rollback: `systemctl restart ${svc}`,
+    description: `${action.toUpperCase()} system service unit ${svc}.`,
+    safetyLevel: 'MODIFYING',
+    riskScore: 0.35,
+    rollback: rollbackCmd,
     onApprove: async () => {
-      showToast(`Executing systemctl ${action} on ${svc}...`, 'info');
+      showToast(`Executing: ${cmd}`, 'info');
       try {
-        const res = await fetch('/api/services/action', {
+        const res = await fetch('/api/services/control', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ service: svc, action: action })
+          body: JSON.stringify({ unit: svc, action: action })
         });
         const data = await res.json();
         if (data.success) {
-          showToast(`Service ${svc} ${action}: SUCCESS`, 'success');
+          showToast(`Service ${svc} ${action}ed successfully`, 'success');
+          loadServices();
         } else {
-          showToast(`Service ${svc} ${action}: FAILED (${data.error || 'error'})`, 'error');
+          showToast(`Failed to ${action} ${svc}: ` + (data.error || 'Error'), 'error');
         }
-        loadServices();
       } catch (e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(`Error: ${e.message}`, 'error');
       }
     }
   });
 }
 
-// ==========================================================================
-// PROCESSES TAB (Hooked into Permission Modal)
-// ==========================================================================
-async function loadProcesses() {
-  const tbody = document.getElementById('processes-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" class="text-center text-zinc-600 py-6 font-mono">Loading active processes...</td></tr>';
+async function viewServiceLogs(svc) {
+  playScifiSound('scan');
+  const modal = document.getElementById('modal-logs');
+  const title = document.getElementById('modal-logs-title');
+  const content = document.getElementById('modal-logs-content');
+
+  if (title) title.textContent = `Journal Logs: ${svc}`;
+  if (content) content.textContent = 'Streaming journal logs from journalctl...';
+  openModal('modal-logs');
 
   try {
-    const res = await fetch('/api/processes?n=30');
-    const data = await res.json();
-    const procs = data.processes || [];
-    if (procs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-zinc-600 py-6 font-mono">No processes returned.</td></tr>';
-      return;
+    const res = await fetch(`/api/services/logs?unit=${encodeURIComponent(svc)}&lines=100`);
+    if (res.ok) {
+      const logs = await res.json();
+      content.textContent = (logs.lines || []).join('\n') || '(No journal logs recorded for unit)';
+    } else {
+      content.textContent = 'Failed to fetch journal logs.';
     }
-    tbody.innerHTML = procs.map(p => `
-      <tr>
-        <td class="font-mono text-white font-semibold">${p.pid}</td>
-        <td class="text-zinc-400 font-mono">${escapeHtml(p.user || '')}</td>
-        <td class="font-mono ${p.cpu > 50 ? 'text-rose-400 font-bold' : 'text-zinc-300'}">${p.cpu.toFixed(1)}%</td>
-        <td class="font-mono ${p.mem > 50 ? 'text-amber-400 font-bold' : 'text-zinc-300'}">${p.mem.toFixed(1)}%</td>
-        <td class="font-mono text-zinc-300 truncate max-w-xs" title="${escapeHtml(p.command || '')}">${escapeHtml(p.command || '')}</td>
-        <td class="text-right">
-          <button onclick="promptKillProcess(${p.pid}, '${escapeHtml(p.command || '')}')" class="btn btn-danger px-2 py-1 text-[10px]">Kill</button>
-        </td>
-      </tr>
-    `).join('');
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-rose-400 py-4 font-mono">Failed to load processes: ${escapeHtml(e.message)}</td></tr>`;
+    content.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function loadProcesses() {
+  playScifiSound('scan');
+  try {
+    const res = await fetch('/api/processes');
+    if (res.ok) {
+      const procs = await res.json();
+      const tbody = document.getElementById('processes-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = (procs || []).slice(0, 30).map(p => `
+        <tr>
+          <td class="font-mono text-white">${p.pid}</td>
+          <td class="text-slate-400">${escapeHtml(p.user || 'root')}</td>
+          <td class="font-bold text-white">${(p.cpu_pct||0).toFixed(1)}%</td>
+          <td class="text-slate-300 font-bold">${(p.mem_pct||0).toFixed(1)}%</td>
+          <td class="truncate max-w-[140px] text-white" title="${escapeHtml(p.command)}">${escapeHtml(p.command)}</td>
+          <td class="text-right">
+            <button onclick="promptKillProcess(${p.pid}, '${escapeHtml(p.command)}')" class="btn-editorial-primary !py-0.5 !px-2 text-[10px]">
+              Kill
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+  } catch (e) {
+    console.error('Failed to load processes', e);
   }
 }
 
 function promptKillProcess(pid, cmdName) {
   const cmd = `kill -15 ${pid}`;
-  const desc = `Sends SIGTERM (signal 15) to terminate process PID ${pid} (${cmdName || 'process'}). Allows application to execute cleanup handlers.`;
 
   requestCommandPermission({
     command: cmd,
-    description: desc,
+    description: `Terminates active process PID ${pid} (${cmdName}).`,
     safetyLevel: 'HIGH_RISK',
-    riskScore: 0.70,
+    riskScore: 0.65,
     onApprove: async () => {
-      showToast(`Terminating process PID ${pid}...`, 'info');
+      showToast(`Killing process ${pid}...`, 'info');
       try {
         const res = await fetch('/api/processes/kill', {
           method: 'POST',
@@ -836,11 +1553,11 @@ function promptKillProcess(pid, cmdName) {
         });
         const data = await res.json();
         if (data.success) {
-          showToast(`Process PID ${pid} terminated`, 'success');
+          showToast(`Process ${pid} terminated`, 'success');
+          loadProcesses();
         } else {
-          showToast(`Failed to kill PID ${pid}: ${data.error || 'error'}`, 'error');
+          showToast(`Failed to kill process: ` + (data.error || 'Error'), 'error');
         }
-        loadProcesses();
       } catch (e) {
         showToast('Error: ' + e.message, 'error');
       }
@@ -849,85 +1566,89 @@ function promptKillProcess(pid, cmdName) {
 }
 
 // ==========================================================================
-// STORAGE & CLEANUP TAB (Hooked into Permission Modal)
+// STORAGE & CLEANUP
 // ==========================================================================
 async function previewOrganize() {
-  const path = document.getElementById('organize-path-input').value.trim() || '~/Downloads';
-  const out = document.getElementById('organize-result-container');
-  out.classList.remove('hidden');
-  out.innerHTML = '<p class="text-zinc-400">Computing directory categorization plan...</p>';
+  playScifiSound('scan');
+  const path = document.getElementById('organize-path-input')?.value || '~/Downloads';
+  const container = document.getElementById('organize-result-container');
+  if (!container) return;
+
+  container.classList.remove('hidden');
+  container.innerHTML = '<span class="text-slate-400 font-mono">Analyzing target directory topology...</span>';
 
   try {
-    const res = await fetch('/api/storage/organise', {
+    const res = await fetch('/api/storage/organize/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: path, dry_run: true })
+      body: JSON.stringify({ path: path })
     });
     const data = await res.json();
-    out.innerHTML = `
-      <div class="font-semibold text-white">Dry-Run Preview for ${escapeHtml(data.directory || path)}:</div>
-      <div>Files to categorize: <span class="text-white font-bold">${data.moved_count || 0}</span></div>
-      <div class="max-h-40 overflow-y-auto space-y-1 pt-1 text-zinc-400">
-        ${(data.moves || []).map(m => `<div>&rarr; ${escapeHtml(m.file)} &rArr; <span class="text-white">${escapeHtml(m.category)}/</span></div>`).join('')}
-      </div>
-    `;
+    if (data.success) {
+      container.innerHTML = `
+        <div class="space-y-1.5 text-xs font-sans">
+          <div class="text-white font-bold">Preview: Discovered ${data.total_files || 0} candidate files to organize:</div>
+          <div class="space-y-1 text-slate-300 font-mono">
+            ${(data.moves || []).slice(0, 10).map(m => `<div>&bull; ${escapeHtml(m.source)} &rarr; <span class="text-white">${escapeHtml(m.destination)}</span></div>`).join('')}
+            ${(data.moves || []).length > 10 ? `<div class="text-slate-500">...and ${data.moves.length - 10} more items</div>` : ''}
+          </div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(data.error)}</span>`;
+    }
   } catch (e) {
-    out.innerHTML = `<p class="text-rose-400">Error: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(e.message)}</span>`;
   }
 }
 
 function promptOrganizeNow() {
-  const path = document.getElementById('organize-path-input').value.trim() || '~/Downloads';
-  const cmd = `ops-assistant organise '${path}'`;
-  const desc = `Moves cluttered files in '${path}' into categorized subdirectories (Images, Documents, Videos, Audio, Archives, Code).`;
+  const path = document.getElementById('organize-path-input')?.value || '~/Downloads';
 
   requestCommandPermission({
-    command: cmd,
-    description: desc,
+    command: `ops-assistant organize --path "${path}"`,
+    description: `Categorizes loose files in ${path} into dedicated subdirectories.`,
     safetyLevel: 'MODIFYING',
-    riskScore: 0.30,
-    rollback: `ops-assistant organise-undo '${path}'`,
+    riskScore: 0.35,
     onApprove: async () => {
-      const out = document.getElementById('organize-result-container');
-      out.classList.remove('hidden');
-      out.innerHTML = '<p class="text-zinc-400">Executing directory organization...</p>';
-
+      showToast('Organizing directory...', 'info');
       try {
-        const res = await fetch('/api/storage/organise', {
+        const res = await fetch('/api/storage/organize/execute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: path, dry_run: false })
+          body: JSON.stringify({ path: path })
         });
         const data = await res.json();
-        out.innerHTML = `<div class="font-semibold text-emerald-400">&check; Successfully organized ${data.moved_count || 0} files in ${escapeHtml(data.directory || path)}!</div>`;
-        showToast(`Organized ${data.moved_count || 0} files`, 'success');
+        if (data.success) {
+          showToast(`Organized ${data.moved_count || 0} files successfully`, 'success');
+          previewOrganize();
+        } else {
+          showToast('Error: ' + data.error, 'error');
+        }
       } catch (e) {
-        out.innerHTML = `<p class="text-rose-400">Error: ${escapeHtml(e.message)}</p>`;
-        showToast('Organize failed: ' + e.message, 'error');
+        showToast('Error: ' + e.message, 'error');
       }
     }
   });
 }
 
 function promptCleanStorage() {
-  const cmd = "journalctl --vacuum-size=200M && rm -rf /tmp/*";
-  const desc = "Vacuums rotated systemd journal logs to 200MB and purges stale temporary files.";
-
   requestCommandPermission({
-    command: cmd,
-    description: desc,
+    command: 'journalctl --vacuum-time=7d && rm -rf /tmp/* && sync',
+    description: 'Purges old rotated journal logs, temporary scratch files, and frees system disk sectors.',
     safetyLevel: 'MODIFYING',
     riskScore: 0.40,
-    onApprove: async () => {
-      await cleanStorage(false);
-    }
+    onApprove: () => cleanStorage(false)
   });
 }
 
 async function cleanStorage(dryRun) {
-  const out = document.getElementById('clean-result-container');
-  out.classList.remove('hidden');
-  out.innerHTML = `<p class="text-zinc-400">${dryRun ? 'Scanning for purgeable logs...' : 'Cleaning logs and temp files...'}</p>`;
+  playScifiSound('scan');
+  const container = document.getElementById('clean-result-container');
+  if (container) {
+    container.classList.remove('hidden');
+    container.innerHTML = '<span class="text-slate-400">Scanning purge candidates...</span>';
+  }
 
   try {
     const res = await fetch('/api/storage/clean', {
@@ -936,113 +1657,123 @@ async function cleanStorage(dryRun) {
       body: JSON.stringify({ dry_run: dryRun })
     });
     const data = await res.json();
-    out.innerHTML = `
-      <div class="font-semibold text-white">${dryRun ? 'Dry-Run Clean Preview:' : 'Clean Execution Complete:'}</div>
-      <div>Cleanable Items: <span class="text-white font-bold">${data.cleaned_count || 0}</span></div>
-      <div>Freed Space: <span class="text-emerald-400 font-bold">${data.freed_human || '0 MB'}</span></div>
-    `;
-    if (!dryRun) showToast(`Cleaned ${data.cleaned_count || 0} items (${data.freed_human || '0 MB'})`, 'success');
+    if (container) {
+      container.innerHTML = `
+        <div class="space-y-1.5 text-xs font-sans">
+          <div class="text-white font-bold">${dryRun ? 'Purge Preview' : 'Purge Executed'}:</div>
+          <div>Reclaimable Space: <span class="text-white font-bold">${data.reclaimable_mb || 0} MB</span></div>
+          <div class="text-slate-400">${escapeHtml(data.details || 'Cache analysis complete.')}</div>
+        </div>
+      `;
+    }
   } catch (e) {
-    out.innerHTML = `<p class="text-rose-400">Error: ${escapeHtml(e.message)}</p>`;
-    showToast('Clean error: ' + e.message, 'error');
+    if (container) container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(e.message)}</span>`;
   }
 }
 
 async function loadLargeFiles() {
+  playScifiSound('scan');
   const container = document.getElementById('large-files-container');
-  container.innerHTML = '<p class="text-zinc-400 font-mono">Scanning filesystem for files >100MB...</p>';
+  if (!container) return;
+
+  container.innerHTML = '<p class="text-slate-400 font-mono">Scanning filesystem tree for files &gt;100MB...</p>';
+
   try {
-    const res = await fetch('/api/storage/analysis?path=/');
-    const data = await res.json();
-    const files = data.large_files || [];
-    if (files.length === 0) {
-      container.innerHTML = '<p class="text-zinc-600 font-mono">No large files (>100MB) found in scan.</p>';
-      return;
+    const res = await fetch('/api/storage/large-files?min_mb=100');
+    if (res.ok) {
+      const files = await res.json();
+      if (!files || files.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 font-mono">No files larger than 100MB found.</p>';
+        return;
+      }
+      container.innerHTML = files.map(f => `
+        <div class="p-3 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between text-xs font-mono">
+          <span class="truncate max-w-[220px] text-white" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>
+          <span class="text-white font-bold">${(f.size_mb||0).toFixed(1)} MB</span>
+        </div>
+      `).join('');
     }
-    container.innerHTML = files.map(f => `
-      <div class="flex justify-between p-2 rounded bg-[#060709] border border-white/[0.06] font-mono text-xs">
-        <span class="text-zinc-300 truncate max-w-sm">${escapeHtml(f.path)}</span>
-        <span class="font-bold text-amber-400">${f.size_human}</span>
-      </div>
-    `).join('');
   } catch (e) {
-    container.innerHTML = `<p class="text-rose-400 font-mono">Scan failed: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="text-rose-400 font-mono">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
 // ==========================================================================
-// NETWORK & FIREWALL TAB
+// NETWORK & FIREWALL
 // ==========================================================================
 async function loadNetwork() {
+  playScifiSound('scan');
   try {
-    const res = await fetch('/api/network/status');
-    const data = await res.json();
-
-    const portsBody = document.getElementById('network-ports-body');
-    const ports = data.ports || [];
-    if (portsBody) {
-      if (ports.length === 0) {
-        portsBody.innerHTML = '<tr><td colspan="4" class="text-center text-zinc-600 py-6 font-mono">No listening sockets.</td></tr>';
-      } else {
-        portsBody.innerHTML = ports.slice(0, 30).map(p => `
+    const res = await fetch('/api/network/ports');
+    if (res.ok) {
+      const ports = await res.json();
+      const tbody = document.getElementById('network-ports-body');
+      if (tbody) {
+        tbody.innerHTML = (ports || []).map(p => `
           <tr>
-            <td class="font-mono font-semibold text-white">${p.port}</td>
-            <td class="font-mono text-zinc-400 uppercase">${p.protocol || 'tcp'}</td>
-            <td class="font-mono text-zinc-300">${p.address || '*'}</td>
-            <td class="font-mono text-zinc-400">${escapeHtml(p.process || '-')}</td>
+            <td class="font-bold text-white font-mono">${p.port}</td>
+            <td class="text-slate-400 uppercase font-mono">${p.proto}</td>
+            <td class="text-slate-300 font-mono">${p.address}</td>
+            <td class="text-slate-400 font-mono truncate max-w-[120px]">${escapeHtml(p.process || '-')}</td>
           </tr>
         `).join('');
       }
     }
 
-    const fwCard = document.getElementById('firewall-status-card');
-    const fw = data.firewall || {};
-    if (fwCard) {
-      fwCard.innerHTML = `
-        <div class="flex justify-between font-mono font-semibold">
-          <span>Tool: ${fw.tool || 'UFW'}</span>
-          <span class="${fw.status === 'active' ? 'text-emerald-400' : 'text-amber-400'}">STATUS: ${(fw.status || 'inactive').toUpperCase()}</span>
-        </div>
-        <p class="text-zinc-500 mt-1 font-mono text-[11px]">Default: ${fw.default_incoming || 'drop'} incoming</p>
-      `;
+    const fwRes = await fetch('/api/network/firewall/status');
+    if (fwRes.ok) {
+      const fw = await fwRes.json();
+      const card = document.getElementById('firewall-status-card');
+      if (card) {
+        card.innerHTML = `
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full ${fw.active ? 'bg-emerald-400' : 'bg-rose-400'}"></span>
+              <span class="font-bold text-white">${escapeHtml(fw.firewall_backend || 'UFW/NFT')}: ${fw.active ? 'ACTIVE & FILTERING' : 'INACTIVE'}</span>
+            </div>
+            <p class="text-[11px] text-slate-400">${escapeHtml(fw.summary || 'Firewall packet filtering active.')}</p>
+          </div>
+        `;
+      }
     }
   } catch (e) {
-    console.error('Failed to load network status', e);
+    console.error('Failed to load network state', e);
   }
 }
 
 function promptFirewallRule(action) {
-  const port = document.getElementById('fw-port-input').value.trim();
-  const proto = document.getElementById('fw-proto-select').value;
+  const port = document.getElementById('fw-port-input')?.value;
+  const proto = document.getElementById('fw-proto-select')?.value || 'tcp';
+
   if (!port) {
-    showToast('Please specify a port number', 'warning');
+    showToast('Please specify a target port number', 'warning');
     return;
   }
 
   const cmd = `ufw ${action} ${port}/${proto}`;
-  const desc = `${action === 'allow' ? 'Opens' : 'Blocks'} inbound traffic on network port ${port}/${proto} in host firewall.`;
+  const rollbackCmd = action === 'allow' ? `ufw delete allow ${port}/${proto}` : `ufw delete deny ${port}/${proto}`;
 
   requestCommandPermission({
     command: cmd,
-    description: desc,
-    safetyLevel: 'HIGH_RISK',
-    riskScore: 0.65,
-    rollback: `ufw delete ${action} ${port}/${proto}`,
+    description: `Modifies firewall rule matrix to ${action.toUpperCase()} ingress port ${port}/${proto}.`,
+    safetyLevel: 'MODIFYING',
+    riskScore: 0.45,
+    rollback: rollbackCmd,
     onApprove: async () => {
-      showToast(`Updating firewall rule (${action} ${port}/${proto})...`, 'info');
+      showToast(`Applying firewall rule: ${cmd}`, 'info');
       try {
-        const res = await fetch('/api/network/firewall', {
+        const res = await fetch('/api/network/firewall/rule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: action, port: port, proto: proto })
+          body: JSON.stringify({ action: action, port: parseInt(port, 10), proto: proto })
         });
         const data = await res.json();
         if (data.success) {
-          showToast(`Firewall ${action} port ${port}/${proto}: SUCCESS`, 'success');
+          showToast(`Firewall rule applied successfully`, 'success');
+          loadNetwork();
         } else {
-          showToast(`Firewall update failed: ${data.error || 'error'}`, 'error');
+          showToast('Failed to apply firewall rule: ' + data.error, 'error');
         }
-        loadNetwork();
       } catch (e) {
         showToast('Error: ' + e.message, 'error');
       }
@@ -1051,99 +1782,92 @@ function promptFirewallRule(action) {
 }
 
 // ==========================================================================
-// 16-CLASS TAXONOMY & DAG VISUALIZER
+// 16-CLASS FAILURE TAXONOMY & CAUSALITY DAG
 // ==========================================================================
 async function loadTaxonomyScenarios() {
-  const grid = document.getElementById('taxonomy-scenarios-grid');
-  if (!grid) return;
-
   try {
-    const res = await fetch('/api/taxonomy/scenarios');
-    const data = await res.json();
-    const scenarios = data.scenarios || [];
+    const res = await fetch('/api/taxonomy');
+    if (res.ok) {
+      const scenarios = await res.json();
+      const grid = document.getElementById('taxonomy-scenarios-grid');
+      if (!grid) return;
 
-    grid.innerHTML = scenarios.map(s => `
-      <div onclick="runTaxonomyScenario('${escapeHtml(s.id)}')" class="linear-card p-3 space-y-1.5 cursor-pointer hover:border-white/30 transition">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-mono font-bold text-zinc-400 uppercase">${escapeHtml(s.id)}</span>
-          <i data-lucide="play" class="w-3 h-3 text-white"></i>
-        </div>
-        <p class="text-[11px] font-medium text-zinc-200 line-clamp-2">${escapeHtml(s.symptom)}</p>
-      </div>
-    `).join('');
-
-    if (window.lucide) lucide.createIcons();
+      grid.innerHTML = (scenarios || []).map(sc => `
+        <button onclick="runTaxonomyScenario('${escapeHtml(sc.id)}')" class="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-left transition space-y-1.5 group">
+          <div class="text-xs font-semibold text-white group-hover:text-slate-200 flex items-center space-x-1.5">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-white"></i>
+            <span class="truncate">${escapeHtml(sc.name)}</span>
+          </div>
+          <div class="text-[10px] text-slate-500 font-mono truncate">${escapeHtml(sc.category || 'System')}</div>
+        </button>
+      `).join('');
+      if (window.lucide) lucide.createIcons();
+    }
   } catch (e) {
-    grid.innerHTML = '<p class="text-rose-400 text-xs p-3 col-span-4 font-mono">Failed to load taxonomy scenarios.</p>';
+    console.error('Failed to load taxonomy scenarios', e);
   }
 }
 
 async function runTaxonomyScenario(scenarioId) {
-  const container = document.getElementById('taxonomy-report-container');
-  container.classList.remove('hidden');
-  document.getElementById('diag-report-title').textContent = 'Triage Scenario: ' + scenarioId;
-  document.getElementById('diag-symptom').textContent = 'Diagnosing scenario...';
-  document.getElementById('diag-root-cause').textContent = 'Computing causal DAG...';
-  document.getElementById('diag-rationale').textContent = '...';
+  playScifiSound('scan');
+  const reportContainer = document.getElementById('taxonomy-report-container');
+  if (!reportContainer) return;
+
+  reportContainer.classList.remove('hidden');
+  document.getElementById('diag-report-title').textContent = `Diagnosing Scenario: ${scenarioId.toUpperCase()}...`;
+  document.getElementById('diag-symptom').textContent = 'Correlating multi-vector telemetry across journald, dmesg, and PSI metrics...';
+  document.getElementById('diag-root-cause').textContent = 'Constructing directed causality DAG...';
+  document.getElementById('diag-rationale').textContent = 'Calculating topological in-degree minimization...';
 
   try {
-    const res = await fetch('/api/diagnose', {
+    const res = await fetch('/api/taxonomy/simulate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: scenarioId })
+      body: JSON.stringify({ scenario_id: scenarioId })
     });
-    const data = await res.json();
-    const exp = data.explanation || {};
+    const report = await res.json();
+    playScifiSound('success');
 
-    document.getElementById('diag-symptom').textContent = exp.symptom || scenarioId;
-    document.getElementById('diag-root-cause').textContent = exp.root_cause || '-';
-    document.getElementById('diag-rationale').textContent = exp.rationale || '-';
+    document.getElementById('diag-report-title').textContent = `XAI Diagnosis: ${report.taxonomy_class || scenarioId.toUpperCase()}`;
+    document.getElementById('diag-symptom').textContent = report.symptom || 'Anomaly detected.';
+    document.getElementById('diag-root-cause').textContent = report.root_cause || 'Root cause isolated.';
+    document.getElementById('diag-rationale').textContent = report.rationale || 'Topological analysis completed.';
 
-    // Mermaid DAG
-    const dagContainer = document.getElementById('mermaid-dag-container');
-    const mermaidStr = data.causality_dag?.mermaid || 'graph TD\nRootCause["Root Cause"] --> Symptom["Symptom"]';
-    dagContainer.innerHTML = '<div class="mermaid">' + mermaidStr + '</div>';
-    if (window.mermaid) {
-      mermaid.run({ nodes: dagContainer.querySelectorAll('.mermaid') });
+    const mermaidContainer = document.getElementById('mermaid-dag-container');
+    if (mermaidContainer && report.mermaid_dag) {
+      mermaidContainer.innerHTML = `<div class="mermaid">${escapeHtml(report.mermaid_dag)}</div>`;
+      if (window.mermaid) {
+        mermaid.init(undefined, mermaidContainer.querySelectorAll('.mermaid'));
+      }
+    } else if (mermaidContainer) {
+      mermaidContainer.innerHTML = '<span class="text-xs font-mono text-slate-500">Topological Graph: InDegree=0 Root Isolated</span>';
     }
 
-    // Proposed Remediation Commands
-    const cmdContainer = document.getElementById('diag-commands-container');
-    const cmds = exp.proposed_commands || [];
-    cmdContainer.innerHTML = cmds.map(c => `
-      <div class="p-3.5 rounded-lg bg-[#060709] border border-white/[0.10] space-y-2.5">
-        <div class="flex items-center justify-between">
-          <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2 py-0.5 rounded font-semibold uppercase">${c.safety_level}</span>
-          <span class="text-[10px] font-mono text-zinc-500">Risk: ${c.risk_score.toFixed(2)} | Sandbox: ${c.sandbox_verified ? 'Verified' : 'Simulated'}</span>
-        </div>
-        <div class="p-2 rounded bg-black/60 border border-white/[0.06] font-mono text-xs text-zinc-100 flex items-start justify-between space-x-2">
-          <div class="break-all select-all flex-1">
-            <span class="text-zinc-600 select-none">$ </span>
-            <span class="font-semibold">${escapeHtml(c.command)}</span>
+    const cmdsContainer = document.getElementById('diag-commands-container');
+    if (cmdsContainer) {
+      const cmds = report.remediation_commands || [];
+      if (cmds.length === 0) {
+        cmdsContainer.innerHTML = '<p class="text-xs text-white font-mono">No mutating commands required. State is clean.</p>';
+      } else {
+        cmdsContainer.innerHTML = cmds.map(c => `
+          <div class="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-3 py-0.5 rounded-full uppercase">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="text-[10px] font-mono text-slate-400">Risk: ${(c.risk_score||0.05).toFixed(2)}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-black/80 font-mono text-xs text-white border border-white/10 flex items-center justify-between">
+              <span class="font-semibold text-white">$ ${escapeHtml(c.command)}</span>
+              <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale || '')}', '${escapeHtml(c.safety_level || 'READ_ONLY')}', ${c.risk_score || 0.05}, '${escapeHtml(c.rollback || '')}')" class="btn-editorial-primary !py-1 !px-3 text-xs">
+                Execute
+              </button>
+            </div>
+            <p class="text-xs text-slate-300 font-sans leading-relaxed">${escapeHtml(c.rationale || 'Remediates root cause.')}</p>
           </div>
-          <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Copied', 'info', 2000);" class="text-zinc-500 hover:text-zinc-300 px-1">
-            <i data-lucide="copy" class="w-3 h-3"></i>
-          </button>
-        </div>
-        <p class="text-xs text-zinc-300 font-sans leading-relaxed">${escapeHtml(c.rationale)}</p>
-        <div class="flex space-x-2 pt-1 border-t border-white/[0.06]">
-          <button onclick="promptExecuteRemediation('${escapeHtml(c.command)}', '${escapeHtml(c.rationale)}', '${c.safety_level}', ${c.risk_score}, '${escapeHtml(c.rollback_command || '')}')" class="btn btn-primary px-3 py-1.5 text-xs">
-            <i data-lucide="play" class="w-3 h-3"></i>
-            <span>Execute With Permission</span>
-          </button>
-          ${c.rollback_command ? `
-            <button onclick="executeRollback('${escapeHtml(c.rollback_command)}')" class="btn btn-secondary px-3 py-1.5 text-xs">
-              <i data-lucide="undo-2" class="w-3 h-3"></i>
-              <span>Rollback</span>
-            </button>
-          ` : ''}
-        </div>
-      </div>
-    `).join('');
-
-    if (window.lucide) lucide.createIcons();
+        `).join('');
+      }
+    }
   } catch (e) {
-    showToast('Diagnosis error: ' + e.message, 'error');
+    showToast('Simulation error: ' + e.message, 'error');
   }
 }
 
@@ -1154,113 +1878,117 @@ function promptExecuteRemediation(command, description, safetyLevel, riskScore, 
     safetyLevel: safetyLevel,
     riskScore: riskScore,
     rollback: rollbackCommand,
-    onApprove: async () => {
-      await executeCommandDirect(command, rollbackCommand, null);
-    }
+    onApprove: () => executeCommandDirect(command, rollbackCommand, null)
   });
 }
 
 // ==========================================================================
-// PACKAGE MANAGER TAB
+// PACKAGE MANAGER
 // ==========================================================================
 async function searchPackage() {
-  const pkg = document.getElementById('pkg-search-input').value.trim();
-  const out = document.getElementById('pkg-result-container');
-  if (!pkg) {
-    showToast('Please enter a package name', 'warning');
-    return;
-  }
-  out.innerHTML = `<p class="text-zinc-400">Searching repositories for ${escapeHtml(pkg)}...</p>`;
+  playScifiSound('scan');
+  const pkg = document.getElementById('pkg-search-input')?.value;
+  const container = document.getElementById('pkg-result-container');
+
+  if (!pkg || !container) return;
+  container.innerHTML = '<p class="text-slate-400 font-mono">Querying multi-distro package repository...</p>';
 
   try {
-    const res = await fetch('/api/agent/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: 'search package ' + pkg, execute: true })
-    });
-    const data = await res.json();
-    out.innerHTML = `
-      <div class="font-semibold text-white">Repository search result for '${escapeHtml(pkg)}':</div>
-      <pre class="pt-2 text-zinc-300 whitespace-pre-wrap">${escapeHtml(JSON.stringify(data.output || data.summary, null, 2))}</pre>
-    `;
+    const res = await fetch(`/api/packages/search?query=${encodeURIComponent(pkg)}`);
+    if (res.ok) {
+      const data = await res.json();
+      container.innerHTML = `
+        <div class="space-y-2.5 font-sans">
+          <div class="flex items-center justify-between text-white font-bold">
+            <span class="font-editorial italic text-base">${escapeHtml(data.package || pkg)}</span>
+            <span class="text-xs text-slate-400 font-mono">${data.installed ? 'INSTALLED' : 'AVAILABLE IN REPO'}</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">${escapeHtml(data.description || 'Package metadata located.')}</p>
+          <div class="pt-2 flex space-x-2.5">
+            ${!data.installed ? `
+              <button onclick="requestCommandPermission({command: 'pacman -S --noconfirm ${pkg}', description: 'Installs package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.35, onApprove: () => executeCommandDirect('pacman -S --noconfirm ${pkg}', 'pacman -R --noconfirm ${pkg}')})" class="btn-editorial-primary !py-1.5 !px-3.5 text-xs">
+                Install Package
+              </button>
+            ` : `
+              <button onclick="requestCommandPermission({command: 'pacman -R --noconfirm ${pkg}', description: 'Removes package ${pkg}', safetyLevel: 'MODIFYING', riskScore: 0.40, onApprove: () => executeCommandDirect('pacman -R --noconfirm ${pkg}', 'pacman -S --noconfirm ${pkg}')})" class="btn-editorial-primary !py-1.5 !px-3.5 text-xs">
+                Remove Package
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }
   } catch (e) {
-    out.innerHTML = `<p class="text-rose-400">Error: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="text-rose-400 font-mono">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
 // ==========================================================================
-// DESKTOP & DIRECT RUNNER TAB
+// DIRECT COMMAND RUNNER & DESKTOP TOOLS
 // ==========================================================================
 function promptDirectCommand() {
-  const cmd = document.getElementById('direct-cmd-input').value.trim();
+  const cmd = document.getElementById('direct-cmd-input')?.value;
   if (!cmd) {
-    showToast('Please enter a command to run', 'warning');
+    showToast('Enter a command to run', 'warning');
     return;
   }
 
   requestCommandPermission({
     command: cmd,
-    description: `Executes '${cmd}' on the local system with AST safety validation and ephemeral namespace verification.`,
+    description: 'Direct shell execution requested through AST safety gate.',
     safetyLevel: 'MODIFYING',
     riskScore: 0.35,
-    onApprove: async () => {
-      await executeCommandDirect(cmd, null, null);
-    }
+    onApprove: () => executeCommandDirect(cmd, null, null)
   });
 }
 
 function promptDownload() {
-  const url = document.getElementById('download-url-input').value.trim();
-  const dest = document.getElementById('download-dest-input').value.trim() || '~/Downloads';
-  const autoExtract = document.getElementById('download-auto-extract').checked;
+  const url = document.getElementById('download-url-input')?.value;
+  const dest = document.getElementById('download-dest-input')?.value || '~/Downloads';
+  const autoExtract = document.getElementById('download-auto-extract')?.checked;
 
   if (!url) {
-    showToast('Please enter a download URL', 'warning');
+    showToast('Please specify a download URL', 'warning');
     return;
   }
 
-  const cmd = `curl -fsSL -O '${url}' --output-dir '${dest}'`;
-  const desc = `Streams file download from '${url}' into destination '${dest}' with auto-extraction (${autoExtract ? 'enabled' : 'disabled'}).`;
-
   requestCommandPermission({
-    command: cmd,
-    description: desc,
+    command: `ops-assistant download "${url}" --dest "${dest}" ${autoExtract ? '--auto-extract' : ''}`,
+    description: `Downloads file from ${url} into ${dest} with hash integrity verification.`,
     safetyLevel: 'MODIFYING',
-    riskScore: 0.20,
-    rollback: `rm -f '${dest}/downloaded_file'`,
+    riskScore: 0.30,
     onApprove: async () => {
-      const out = document.getElementById('download-result-container');
-      out.classList.remove('hidden');
-      out.innerHTML = `<p class="text-zinc-400">Connecting and streaming download from ${escapeHtml(url)}...</p>`;
-
+      showToast('Starting stream download...', 'info');
+      const container = document.getElementById('download-result-container');
+      if (container) {
+        container.classList.remove('hidden');
+        container.innerHTML = '<span class="text-slate-400">Streaming bytes from remote host...</span>';
+      }
       try {
         const res = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url, destination_dir: dest, auto_extract: autoExtract })
+          body: JSON.stringify({ url: url, destination: dest, auto_extract: autoExtract })
         });
         const data = await res.json();
-        if (data.success) {
-          out.innerHTML = `
-            <div class="font-semibold text-emerald-400">&check; ${escapeHtml(data.message)}</div>
-            <div>Size: <span class="text-white font-bold">${data.size_human}</span></div>
-            <div>Saved to: <span class="text-zinc-300 font-mono">${escapeHtml(data.file_path)}</span></div>
-            ${data.extraction ? `<div class="text-zinc-400 pt-1">&check; ${escapeHtml(data.extraction.message)}</div>` : ''}
-          `;
-          showToast('Download completed successfully', 'success');
-        } else {
-          out.innerHTML = `<p class="text-rose-400">&cross; Download Failed: ${escapeHtml(data.error)}</p>`;
-          showToast('Download failed: ' + data.error, 'error');
+        if (container) {
+          if (data.success) {
+            container.innerHTML = `
+              <div class="text-white font-bold">&check; Download completed: ${escapeHtml(data.filename || 'file')} (${(data.size_mb || 0).toFixed(2)} MB) in ${dest}</div>
+            `;
+          } else {
+            container.innerHTML = `<span class="text-rose-400">Download failed: ${escapeHtml(data.error)}</span>`;
+          }
         }
       } catch (e) {
-        out.innerHTML = `<p class="text-rose-400">Network error: ${escapeHtml(e.message)}</p>`;
-        showToast('Download network error: ' + e.message, 'error');
+        if (container) container.innerHTML = `<span class="text-rose-400">Error: ${escapeHtml(e.message)}</span>`;
       }
     }
   });
 }
 
 async function desktopAction(action, params) {
+  playScifiSound('execute');
   try {
     const res = await fetch('/api/desktop/action', {
       method: 'POST',
@@ -1268,23 +1996,28 @@ async function desktopAction(action, params) {
       body: JSON.stringify({ action: action, ...params })
     });
     const data = await res.json();
-    showToast(data.message || data.error || 'Action dispatched', data.success !== false ? 'success' : 'error');
+    if (data.success) {
+      showToast('Desktop action triggered', 'success');
+    } else {
+      showToast('Failed to trigger action: ' + data.error, 'error');
+    }
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
   }
 }
 
 // ==========================================================================
-// MODAL & HELPER UTILITIES
+// MODAL & UTILITY HELPERS
 // ==========================================================================
 function openModal(id) {
-  const m = document.getElementById(id);
-  if (m) m.classList.remove('hidden');
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove('hidden');
 }
 
 function closeModal(id) {
-  const m = document.getElementById(id);
-  if (m) m.classList.add('hidden');
+  playScifiSound('click');
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add('hidden');
 }
 
 function getSafetyBadgeClass(lvl) {
@@ -1296,1224 +2029,15 @@ function getSafetyBadgeClass(lvl) {
 }
 
 function getSafetyTextColor(lvl) {
-  if (lvl === 'READ_ONLY') return 'text-emerald-400';
+  if (lvl === 'READ_ONLY') return 'text-sky-400';
   if (lvl === 'MODIFYING') return 'text-amber-400';
   if (lvl === 'HIGH_RISK') return 'text-rose-400';
   if (lvl === 'DESTRUCTIVE') return 'text-rose-500';
-  return 'text-emerald-400';
+  return 'text-white';
 }
 
 function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-// ==========================================================================
-
-// ==========================================================================
-// THEME MANAGER
-// ==========================================================================
-const ThemeManager = {
-  init() {
-    const saved = localStorage.getItem('ops-theme') || 'cyan';
-    this.setTheme(saved, true);
-  },
-  setTheme(name, silent = false) {
-    document.documentElement.setAttribute('data-theme', name);
-    const sel = document.getElementById('theme-selector');
-    if (sel) sel.value = name;
-    localStorage.setItem('ops-theme', name);
-    if (!silent) {
-      SoundFX.play('click');
-      showToast(`Theme switched to ${name.toUpperCase()}`, 'info', 1500);
-    }
-  }
-};
-
-// ==========================================================================
-// SYNTHETIC AUDIO FEEDBACK (WEB AUDIO API)
-// ==========================================================================
-const SoundFX = {
-  ctx: null,
-  enabled: true,
-  init() {
-    const saved = localStorage.getItem('ops-sound');
-    this.enabled = saved !== 'false';
-    this.updateIcon();
-  },
-  toggle() {
-    this.enabled = !this.enabled;
-    localStorage.setItem('ops-sound', String(this.enabled));
-    this.updateIcon();
-    if (this.enabled) this.play('click');
-    showToast(`Audio FX ${this.enabled ? 'Enabled' : 'Muted'}`, 'info', 1500);
-  },
-  updateIcon() {
-    const icon = document.getElementById('sound-icon');
-    if (icon) {
-      icon.setAttribute('data-lucide', this.enabled ? 'volume-2' : 'volume-x');
-      icon.className = `w-3.5 h-3.5 ${this.enabled ? 'text-cyan-400' : 'text-zinc-600'}`;
-      if (window.lucide) lucide.createIcons();
-    }
-  },
-  _getCtx() {
-    if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AC();
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
-    return this.ctx;
-  },
-  play(type) {
-    if (!this.enabled) return;
-    try {
-      const ctx = this._getCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'click') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(500, now + 0.035);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
-        osc.start(now);
-        osc.stop(now + 0.035);
-      } else if (type === 'mic-start') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
-      } else if (type === 'mic-stop') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(880, now);
-        osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
-      } else if (type === 'success') {
-        [523.25, 659.25, 783.99].forEach((freq, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = 'sine';
-          o.frequency.setValueAtTime(freq, now + i * 0.06);
-          g.gain.setValueAtTime(0.05, now + i * 0.06);
-          g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.06 + 0.2);
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.start(now + i * 0.06);
-          o.stop(now + i * 0.06 + 0.2);
-        });
-      } else if (type === 'warning') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(260, now);
-        osc.frequency.linearRampToValueAtTime(200, now + 0.15);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-      } else if (type === 'error') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(160, now);
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-      }
-    } catch (e) {}
-  }
-};
-
-// ==========================================================================
-// LIVE HEADER SPARKLINE MANAGER
-// ==========================================================================
-const SparklineManager = {
-  cpuBuffer: Array(14).fill(0),
-  ramBuffer: Array(14).fill(0),
-  init() {
-    this.draw('sparkline-cpu', this.cpuBuffer, '#06b6d4');
-    this.draw('sparkline-ram', this.ramBuffer, '#10b981');
-  },
-  pushCPU(pct) {
-    this.cpuBuffer.push(pct);
-    if (this.cpuBuffer.length > 14) this.cpuBuffer.shift();
-    this.draw('sparkline-cpu', this.cpuBuffer, '#06b6d4');
-    const el = document.getElementById('spark-cpu-val');
-    if (el) el.textContent = Math.round(pct) + '%';
-  },
-  pushRAM(pct) {
-    this.ramBuffer.push(pct);
-    if (this.ramBuffer.length > 14) this.ramBuffer.shift();
-    this.draw('sparkline-ram', this.ramBuffer, '#10b981');
-    const el = document.getElementById('spark-ram-val');
-    if (el) el.textContent = Math.round(pct) + '%';
-  },
-  draw(canvasId, buffer, color) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    if (buffer.length < 2) return;
-
-    ctx.beginPath();
-    const step = W / (buffer.length - 1);
-    buffer.forEach((v, i) => {
-      const y = H - (Math.min(100, Math.max(0, v)) / 100) * (H - 3) - 1.5;
-      const x = i * step;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-  }
-};
-
-// ==========================================================================
-// LEFT COLLAPSIBLE HISTORY SIDEBAR
-// ==========================================================================
-const HistorySidebar = {
-  sessions: [],
-  init() {
-    const savedState = localStorage.getItem('ops-sidebar');
-    if (savedState === 'collapsed') {
-      const sb = document.getElementById('sidebar-history');
-      if (sb) sb.classList.add('collapsed');
-      document.body.classList.add('sidebar-collapsed');
-    }
-    this.loadSessions();
-  },
-  toggle() {
-    const sb = document.getElementById('sidebar-history');
-    if (!sb) return;
-    sb.classList.toggle('collapsed');
-    const isCollapsed = sb.classList.contains('collapsed');
-    document.body.classList.toggle('sidebar-collapsed', isCollapsed);
-    localStorage.setItem('ops-sidebar', isCollapsed ? 'collapsed' : 'expanded');
-    SoundFX.play('click');
-    if (window.lucide) lucide.createIcons();
-  },
-  newChat() {
-    SoundFX.play('click');
-    switchTab('home');
-    CommandCenter.clearTranscript();
-    const inp = document.getElementById('cc-text-input');
-    if (inp) inp.focus();
-    MascotManager.setMood('OBSERVING', 'New session started. Ready for sysadmin operations.');
-    showToast('New session started', 'info', 1500);
-  },
-  saveSession(session) {
-    this.sessions = [session, ...this.sessions.filter(s => s.id !== session.id)].slice(0, 30);
-    localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
-    this.renderList();
-  },
-  loadSessions() {
-    try {
-      const raw = localStorage.getItem('cc-history-sessions');
-      this.sessions = raw ? JSON.parse(raw) : [];
-    } catch (e) { this.sessions = []; }
-    this.renderList();
-  },
-  deleteSession(id, e) {
-    if (e) e.stopPropagation();
-    this.sessions = this.sessions.filter(s => s.id !== id);
-    localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
-    this.renderList();
-    SoundFX.play('click');
-  },
-  clearAll() {
-    if (confirm('Clear all recent chat history?')) {
-      this.sessions = [];
-      localStorage.removeItem('cc-history-sessions');
-      this.renderList();
-      SoundFX.play('click');
-      showToast('Chat history cleared', 'info', 2000);
-    }
-  },
-  filter(query) {
-    const q = (query || '').toLowerCase().trim();
-    const items = document.querySelectorAll('.history-item');
-    items.forEach(el => {
-      const title = (el.dataset.title || '').toLowerCase();
-      el.classList.toggle('hidden', !title.includes(q));
-    });
-  },
-  renderList() {
-    const list = document.getElementById('history-sessions-list');
-    if (!list) return;
-    if (!this.sessions.length) {
-      list.innerHTML = `<p class="text-[11px] text-zinc-600 text-center py-6 font-mono">No previous sessions</p>`;
-      return;
-    }
-    list.innerHTML = this.sessions.map(s => {
-      const timeStr = this._relativeTime(s.timestamp);
-      return `
-        <div class="history-item" data-id="${escapeHtml(s.id)}" data-title="${escapeHtml(s.title)}" onclick="HistorySidebar.selectSession('${escapeHtml(s.id)}', '${escapeHtml(s.title)}')">
-          <div class="flex items-center space-x-2 min-w-0 flex-1">
-            <i data-lucide="message-square" class="w-3.5 h-3.5 text-zinc-500 shrink-0"></i>
-            <span class="truncate font-medium">${escapeHtml(s.title)}</span>
-          </div>
-          <div class="flex items-center space-x-1 shrink-0 ml-2">
-            <span class="text-[9px] text-zinc-600 font-mono">${timeStr}</span>
-            <button onclick="HistorySidebar.deleteSession('${escapeHtml(s.id)}', event)" class="text-zinc-600 hover:text-rose-400 p-0.5 rounded transition" title="Delete">
-              <i data-lucide="x" class="w-3 h-3"></i>
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-    if (window.lucide) lucide.createIcons();
-  },
-  selectSession(id, title) {
-    SoundFX.play('click');
-    switchTab('home');
-    const inp = document.getElementById('cc-text-input');
-    if (inp) { inp.value = title; }
-    showToast(`Loaded query: "${title}"`, 'info', 2000);
-  },
-  _relativeTime(ts) {
-    if (!ts) return '';
-    const diff = Math.floor((Date.now() - ts) / 1000);
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    return Math.floor(diff / 86400) + 'd ago';
-  }
-};
-
-// ==========================================================================
-// DYNAMIC MASCOT AVATAR & TYPEWRITER SPEECH BUBBLE
-// ==========================================================================
-const MascotManager = {
-  avatars: [
-    {
-      id: 'l',
-      name: 'L (Death Note)',
-      img: '/static/assets/mascot_l.jpg',
-      mood: 'OBSERVING',
-      pillClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-      quotes: [
-        'Observing system telemetry... zero anomalous causal loops detected.',
-        'Analyzing kernel signatures and process hierarchy.',
-        'Topological DAG ready for sub-50ms root cause isolation.'
-      ]
-    },
-    {
-      id: 'tux',
-      name: 'Tux (Linux Penguin)',
-      img: '/static/assets/mascot_tux.svg',
-      mood: 'NOMINAL',
-      pillClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      quotes: [
-        'Kernel PSI pressure is nominal. Systemd units operational.',
-        'Filesystem mounts verified. Inodes healthy.',
-        'Ready for elevated sysadmin diagnostics.'
-      ]
-    },
-    {
-      id: 'cyber',
-      name: 'Cyber Hacker Anime',
-      img: '/static/assets/mascot_cyber.svg',
-      mood: 'STANDBY',
-      pillClass: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      quotes: [
-        'AST safety guardrails primed. Sandboxed execution enabled.',
-        'Listening sockets & firewall tables indexed.',
-        'Air-gapped local LLM provider standby.'
-      ]
-    },
-    {
-      id: 'matrix',
-      name: 'Matrix Terminal Tux',
-      img: '/static/assets/mascot_matrix.svg',
-      mood: 'SYNCED',
-      pillClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      quotes: [
-        'Sub-50ms deterministic triage active.',
-        'System call tracing enabled via procfs and dmesg.',
-        'All 16 failure taxonomy classifiers loaded.'
-      ]
-    }
-  ],
-  currentIndex: 0,
-  typewriterTimer: null,
-  init() {
-    // Pick random mascot on page load / visit!
-    this.currentIndex = Math.floor(Math.random() * this.avatars.length);
-    this.applyAvatar(false);
-  },
-  cycle() {
-    SoundFX.play('click');
-    const btn = document.getElementById('mascot-avatar-btn');
-    if (btn) {
-      btn.classList.add('flip');
-      setTimeout(() => btn.classList.remove('flip'), 500);
-    }
-    this.currentIndex = (this.currentIndex + 1) % this.avatars.length;
-    this.applyAvatar(true);
-  },
-  applyAvatar(isCycle = false) {
-    const cur = this.avatars[this.currentIndex];
-    const img = document.getElementById('mascot-avatar-img');
-    const moodText = document.getElementById('mascot-mood-text');
-    const moodPill = document.getElementById('mascot-mood-pill');
-
-    if (img) img.src = cur.img;
-    if (moodText) moodText.textContent = `${cur.name.split(' ')[0].toUpperCase()} • ${cur.mood}`;
-    if (moodPill) moodPill.className = `mascot-mood-pill ${cur.pillClass} font-mono`;
-
-    const randomQuote = cur.quotes[Math.floor(Math.random() * cur.quotes.length)];
-    this.typewrite(randomQuote);
-    if (isCycle) showToast(`Switched avatar to ${cur.name}`, 'info', 1500);
-  },
-  setMood(mood, text) {
-    const cur = this.avatars[this.currentIndex];
-    const moodText = document.getElementById('mascot-mood-text');
-    const moodPill = document.getElementById('mascot-mood-pill');
-    
-    let pillClass = 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
-    if (mood === 'THINKING') {
-      pillClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    } else if (mood === 'GATED') {
-      pillClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-    } else if (mood === 'SUCCESS') {
-      pillClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    }
-
-    if (moodText) moodText.textContent = `${cur.name.split(' ')[0].toUpperCase()} • ${mood}`;
-    if (moodPill) moodPill.className = `mascot-mood-pill ${pillClass} font-mono`;
-    if (text) this.typewrite(text);
-  },
-  typewrite(text) {
-    const el = document.getElementById('mascot-speech-text');
-    if (!el) return;
-    if (this.typewriterTimer) clearInterval(this.typewriterTimer);
-    el.textContent = '';
-    let i = 0;
-    this.typewriterTimer = setInterval(() => {
-      if (i < text.length) {
-        el.textContent += text.charAt(i);
-        i++;
-      } else {
-        clearInterval(this.typewriterTimer);
-        this.typewriterTimer = null;
-      }
-    }, 16);
-  }
-};
-
-// ==========================================================================
-// BOTTOM 4-CATEGORY CAPABILITY ACTION BAR
-// ==========================================================================
-const CapabilityManager = {
-  categories: {
-    explore: [
-      { label: '📁 Explore ~/Downloads', cmd: 'Explore the ~/Downloads folder and list recent items' },
-      { label: '🔍 Find Space Hogs >100MB', cmd: 'Find all files larger than 100MB across root filesystem' },
-      { label: '🌐 Check Open Ports', cmd: 'List all listening TCP and UDP ports and sockets' },
-      { label: '⚙️ List Active Services', cmd: 'List all running systemd services and units' },
-      { label: '💾 Check Disk Partitions', cmd: 'Show all mounted filesystems and available disk space' }
-    ],
-    optimize: [
-      { label: '🧹 Vacuum System Journal', cmd: 'Vacuum journalctl logs older than 7 days' },
-      { label: '📦 Clear Package Cache', cmd: 'Clean apt package cache and obsolete archives' },
-      { label: '💽 Trim SSD Partitions', cmd: 'Run fstrim to trim all mounted SSD filesystems' },
-      { label: '⚡ Free Memory Buffers', cmd: 'Inspect RAM buffers and compact memory' },
-      { label: '🔄 Audit Zombie Processes', cmd: 'Find and clean orphaned or zombie processes' }
-    ],
-    monitor: [
-      { label: '📊 System Health & PSI', cmd: 'Inspect system health, CPU PSI, and memory pressure' },
-      { label: '🔥 Top CPU Processes', cmd: 'Show top 10 CPU-consuming processes right now' },
-      { label: '🧠 Memory Leak Audit', cmd: 'Audit top memory consumers and inspect potential leaks' },
-      { label: '🔬 Inspect Disk I/O Wait', cmd: 'Why is disk I/O spiking or waiting?' },
-      { label: '🛡️ Audit Failed Units', cmd: 'Diagnose any failed systemd services or units' }
-    ],
-    launch: [
-      { label: '🌐 Launch Web Browser', cmd: 'Launch default browser' },
-      { label: '💻 Open Linux Terminal', cmd: 'Open terminal emulator' },
-      { label: '🛡️ Audit SSH Security', cmd: 'Audit SSH configuration and detect brute-force attempts' },
-      { label: '🔧 Restart NGINX Service', cmd: 'Restart the nginx service gracefully' },
-      { label: '📈 Analyze System Boot Time', cmd: 'Analyze system boot time using systemd-analyze' }
-    ]
-  },
-  currentCategory: 'explore',
-  init() {
-    this.renderChips();
-  },
-  switchCategory(cat) {
-    this.currentCategory = cat;
-    SoundFX.play('click');
-    document.querySelectorAll('.capability-cat-btn').forEach(btn => btn.classList.remove('active'));
-    const tabBtn = document.getElementById('cap-tab-' + cat);
-    if (tabBtn) tabBtn.classList.add('active');
-    this.renderChips();
-  },
-  renderChips() {
-    const grid = document.getElementById('capability-chips-grid');
-    if (!grid) return;
-    const chips = this.categories[this.currentCategory] || [];
-    grid.innerHTML = chips.map(c => `
-      <button class="capability-chip" onclick="CapabilityManager.dispatch('${escapeHtml(c.cmd)}')">
-        <span>${escapeHtml(c.label)}</span>
-      </button>
-    `).join('');
-  },
-  dispatch(cmd) {
-    SoundFX.play('click');
-    switchTab('home');
-    const inp = document.getElementById('cc-text-input');
-    if (inp) inp.value = cmd;
-    CommandCenter.submitCommand(cmd);
-  }
-};
-
-// ==========================================================================
-// SPOTLIGHT COMMAND PALETTE (CTRL+K)
-// ==========================================================================
-const CommandPalette = {
-  isOpen: false,
-  actions: [
-    { title: '🤖 Switch to AI Ops Agent', category: 'Navigation', icon: 'bot', action: () => switchTab('home') },
-    { title: '📊 View Health & PSI Telemetry', category: 'Navigation', icon: 'activity', action: () => switchTab('health') },
-    { title: '⚙️ Manage Services & Processes', category: 'Navigation', icon: 'cpu', action: () => switchTab('services') },
-    { title: '💾 Storage & Disk Cleanup', category: 'Navigation', icon: 'hard-drive', action: () => switchTab('storage') },
-    { title: '🌐 Network & Firewall Inspection', category: 'Navigation', icon: 'network', action: () => switchTab('network') },
-    { title: '🛡️ 16-Class Taxonomy Playground', category: 'Navigation', icon: 'shield-alert', action: () => switchTab('taxonomy') },
-    { title: '📦 Manage Packages', category: 'Navigation', icon: 'package', action: () => switchTab('packages') },
-    { title: '💻 Desktop App Launcher', category: 'Navigation', icon: 'terminal', action: () => switchTab('desktop') },
-    { title: '➕ Start New Chat Session', category: 'Chat', icon: 'plus', action: () => HistorySidebar.newChat() },
-    { title: '🎤 Switch to Voice Input Mode', category: 'Input', icon: 'mic', action: () => { switchTab('home'); CommandCenter.setMode('voice'); } },
-    { title: '⌨️ Switch to Text Input Mode', category: 'Input', icon: 'type', action: () => { switchTab('home'); CommandCenter.setMode('text'); } },
-    { title: '🎨 Theme: Neon Cyan', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('cyan') },
-    { title: '🎨 Theme: Matrix Emerald', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('emerald') },
-    { title: '🎨 Theme: Tokyo Purple', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('purple') },
-    { title: '🎨 Theme: Sunset Amber', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('amber') },
-    { title: '🔊 Toggle Audio FX Feedback', category: 'Audio', icon: 'volume-2', action: () => SoundFX.toggle() }
-  ],
-  init() {
-    this.renderList(this.actions);
-  },
-  open() {
-    this.isOpen = true;
-    SoundFX.play('click');
-    const modal = document.getElementById('modal-command-palette');
-    if (modal) modal.classList.remove('hidden');
-    const inp = document.getElementById('palette-search-input');
-    if (inp) {
-      inp.value = '';
-      inp.focus();
-    }
-    this.renderList(this.actions);
-  },
-  close() {
-    this.isOpen = false;
-    const modal = document.getElementById('modal-command-palette');
-    if (modal) modal.classList.add('hidden');
-  },
-  filter(query) {
-    const q = (query || '').toLowerCase().trim();
-    if (!q) {
-      this.renderList(this.actions);
-      return;
-    }
-    const filtered = this.actions.filter(a =>
-      a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
-    );
-    this.renderList(filtered);
-  },
-  renderList(items) {
-    const res = document.getElementById('palette-results');
-    if (!res) return;
-    if (!items.length) {
-      res.innerHTML = `<p class="text-xs text-zinc-500 text-center py-6 font-mono">No matching commands found</p>`;
-      return;
-    }
-    res.innerHTML = items.map((item, idx) => `
-      <div class="palette-item" onclick="CommandPalette.exec(${idx})">
-        <div class="flex items-center space-x-2.5">
-          <i data-lucide="${item.icon}" class="w-4 h-4 text-cyan-400"></i>
-          <span class="font-medium text-xs">${escapeHtml(item.title)}</span>
-        </div>
-        <span class="text-[10px] font-mono uppercase text-zinc-500 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">${escapeHtml(item.category)}</span>
-      </div>
-    `).join('');
-    this._currentItems = items;
-    if (window.lucide) lucide.createIcons();
-  },
-  exec(idx) {
-    if (this._currentItems && this._currentItems[idx]) {
-      const item = this._currentItems[idx];
-      this.close();
-      item.action();
-    }
-  }
-};
-
-// ==========================================================================
-// COMMAND CENTER — Voice + Text Input, SSE Reasoning Panel
-// ==========================================================================
-function ccToggleStage(headerBtn) {
-  const stage = headerBtn.closest('.cc-stage');
-  if (stage) stage.classList.toggle('collapsed');
-  SoundFX.play('click');
-}
-
-const CommandCenter = (function () {
-
-  const INTENT_HINTS = [
-    'Restart the nginx service',
-    'Show memory usage',
-    'Why is disk I/O spiking?',
-    'List listening ports',
-    'Audit SSH security',
-    'Find files larger than 100MB',
-    'Show top CPU processes',
-    'Check disk space',
-    'Tail the system journal',
-    'Flush DNS cache',
-    'List running Docker containers',
-    'Show boot time analysis',
-  ];
-
-  const PLACEHOLDERS = [
-    'Restart the nginx service...',
-    'Show me memory usage for the last hour...',
-    'Why is disk I/O spiking?',
-    'List all listening ports...',
-    'Audit SSH security configuration...',
-    'Find files larger than 100 MB...',
-    'Show top CPU-consuming processes...',
-    'Check available disk space...',
-  ];
-
-  const state = {
-    mode: 'text',
-    sessionId: null,
-    sseSource: null,
-    isListening: false,
-    finalTranscript: '',
-    interimTranscript: '',
-    recognition: null,
-    audioCtx: null,
-    analyser: null,
-    animFrameId: null,
-    micStream: null,
-    commandHistory: [],
-    cards: new Map(),
-    placeholderIdx: 0,
-    placeholderTimer: null,
-  };
-
-  // ── Public: init ──────────────────────────────────────────────────────────
-  function init() {
-    _loadHistory();
-    const savedMode = _storageGet('cc-mode') || 'text';
-    setMode(savedMode, true);
-    _bindTextInput();
-    _checkVoiceSupport();
-    _startPlaceholderRotation();
-    if (window.lucide) lucide.createIcons();
-  }
-
-  // ── Public: setMode ────────────────────────────────────────────────────────
-  function setMode(mode, silent) {
-    state.mode = mode;
-    if (!silent) {
-      _storageSet('cc-mode', mode);
-      SoundFX.play('click');
-    }
-
-    const textBtn  = document.getElementById('cc-btn-text');
-    const voiceBtn = document.getElementById('cc-btn-voice');
-    const textPanel  = document.getElementById('cc-text-panel');
-    const voicePanel = document.getElementById('cc-voice-panel');
-
-    if (textBtn)  { textBtn.classList.toggle('active', mode === 'text'); textBtn.setAttribute('aria-pressed', String(mode === 'text')); }
-    if (voiceBtn) { voiceBtn.classList.toggle('active', mode === 'voice'); voiceBtn.setAttribute('aria-pressed', String(mode === 'voice')); }
-    if (textPanel)  textPanel.classList.toggle('hidden', mode !== 'text');
-    if (voicePanel) voicePanel.classList.toggle('hidden', mode !== 'voice');
-
-    if (mode !== 'voice' && state.isListening) _stopListening(false);
-    if (window.lucide) lucide.createIcons();
-  }
-
-  // ── Public: submitCommand ─────────────────────────────────────────────────
-  async function submitCommand(text) {
-    text = (text || '').trim();
-    if (!text) return;
-
-    SoundFX.play('click');
-    MascotManager.setMood('THINKING', `Analyzing: "${text}"...`);
-
-    state.commandHistory = [text, ...state.commandHistory.filter(h => h !== text)].slice(0, 20);
-    _storageSet('cc-history', JSON.stringify(state.commandHistory));
-
-    const transcript = document.getElementById('cc-transcript');
-    if (transcript) {
-      const empty = transcript.querySelector('.cc-empty-state');
-      if (empty) empty.remove();
-    }
-
-    const tempId = 'tmp-' + Date.now();
-    const card = _createCard(tempId, text);
-    if (transcript) {
-      transcript.prepend(card);
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    if (window.lucide) lucide.createIcons();
-
-    const inp = document.getElementById('cc-text-input');
-    if (inp) { inp.value = ''; inp.style.height = 'auto'; }
-
-    try {
-      _setStage(card, 'understanding', 'loading');
-
-      const res = await fetch('/api/command/interpret', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error('Interpret failed: HTTP ' + res.status);
-      const data = await res.json();
-
-      const sid = data.session_id;
-      state.sessionId = sid;
-      card.dataset.sessionId = sid;
-      state.cards.set(sid, card);
-
-      // Save to Left Sidebar History
-      HistorySidebar.saveSession({
-        id: sid,
-        title: text,
-        timestamp: Date.now(),
-        safety_level: data.safety_level
-      });
-
-      _updateUnderstanding(card, data.understanding);
-      _setStage(card, 'understanding', 'done');
-      _renderPlanSteps(card, data.plan_steps || []);
-
-      if (data.requires_confirmation) {
-        _setStage(card, 'plan', 'active');
-        _showConfirmUI(card, sid, data.safety_level, data.plan_steps || []);
-        MascotManager.setMood('GATED', 'Safety check: Confirmation required before execution.');
-        SoundFX.play('warning');
-      } else {
-        _setStage(card, 'plan', 'active');
-        _openSSEStream(sid);
-        await _executeCommand(sid, false);
-      }
-    } catch (err) {
-      _setCardError(card, err.message || 'Unknown error');
-      MascotManager.setMood('GATED', 'Command interpretation failed.');
-      SoundFX.play('error');
-    }
-  }
-
-  // ── Public: clearTranscript ───────────────────────────────────────────────
-  function clearTranscript() {
-    const t = document.getElementById('cc-transcript');
-    if (!t) return;
-    t.innerHTML = `
-      <div class="cc-empty-state">
-        <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-cyan-500/10">
-          <i data-lucide="sparkles" class="w-6 h-6 text-cyan-400"></i>
-        </div>
-        <p class="text-sm font-semibold text-zinc-200 mb-1">Linux Operations Copilot Ready</p>
-        <p class="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
-          Enter any query below or tap the microphone to speak. Every operation produces an Explainable AI <strong class="text-cyan-400">Understanding &rarr; Plan &rarr; Result</strong> trace with safety guardrails.
-        </p>
-      </div>`;
-    state.cards.clear();
-    SoundFX.play('click');
-    if (window.lucide) lucide.createIcons();
-  }
-
-  // ── Private: text input ───────────────────────────────────────────────────
-  function _bindTextInput() {
-    const inp  = document.getElementById('cc-text-input');
-    const send = document.getElementById('cc-send-btn');
-    if (!inp) return;
-
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        const v = inp.value.trim();
-        if (v) submitCommand(v);
-      }
-    });
-
-    inp.addEventListener('input', () => {
-      inp.style.height = 'auto';
-      inp.style.height = Math.min(inp.scrollHeight, 160) + 'px';
-    });
-
-    if (send) send.addEventListener('click', () => { const v = inp.value.trim(); if (v) submitCommand(v); });
-  }
-
-  function _startPlaceholderRotation() {
-    if (state.placeholderTimer) return;
-    state.placeholderTimer = setInterval(() => {
-      const inp = document.getElementById('cc-text-input');
-      if (inp && document.activeElement !== inp) {
-        inp.placeholder = PLACEHOLDERS[state.placeholderIdx % PLACEHOLDERS.length];
-        state.placeholderIdx++;
-      }
-    }, 4000);
-  }
-
-  // ── Private: voice support ────────────────────────────────────────────────
-  function _checkVoiceSupport() {
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      _showFallback('Your browser does not support the Web Speech API. Using Text mode.');
-      const vBtn = document.getElementById('cc-btn-voice');
-      if (vBtn) vBtn.disabled = true;
-      return;
-    }
-    _initVoice(SpeechRec);
-  }
-
-  function _showFallback(msg) {
-    const banner = document.getElementById('cc-voice-fallback');
-    const msgEl  = document.getElementById('cc-voice-fallback-msg');
-    if (banner) banner.classList.remove('hidden');
-    if (msgEl)  msgEl.textContent = msg;
-  }
-
-  function _initVoice(SpeechRec) {
-    const rec = new SpeechRec();
-    rec.continuous     = true;
-    rec.interimResults = true;
-    rec.lang           = navigator.language || 'en-US';
-
-    rec.onresult = evt => {
-      let interim = '', final = '';
-      for (let i = evt.resultIndex; i < evt.results.length; i++) {
-        const t = evt.results[i][0].transcript;
-        if (evt.results[i].isFinal) final += t; else interim += t;
-      }
-      if (final) state.finalTranscript += final;
-      state.interimTranscript = interim;
-      const preview = document.getElementById('cc-voice-preview');
-      const txt = state.finalTranscript + interim;
-      if (preview) { preview.textContent = txt; preview.classList.toggle('hidden', !txt); preview.classList.toggle('active', state.isListening); }
-    };
-
-    rec.onerror = evt => {
-      if (evt.error === 'not-allowed') {
-        _showFallback('Microphone access denied. Please allow mic permission in your browser.');
-        _stopListening(false); setMode('text');
-      } else {
-        showToast('Speech recognition error: ' + evt.error, 'error');
-        _stopListening(false);
-      }
-    };
-
-    rec.onend = () => { if (state.isListening) { try { rec.start(); } catch (e) {} } };
-    state.recognition = rec;
-
-    const micBtn = document.getElementById('cc-mic-btn');
-    if (micBtn) {
-      micBtn.addEventListener('click', () => {
-        if (state.isListening) _stopListening(true); else _startListening();
-      });
-    }
-  }
-
-  function _startListening() {
-    if (!state.recognition) return;
-    SoundFX.play('mic-start');
-    MascotManager.setMood('THINKING', 'Listening to voice query...');
-    state.isListening = true;
-    state.finalTranscript = '';
-    state.interimTranscript = '';
-    const preview = document.getElementById('cc-voice-preview');
-    if (preview) { preview.textContent = ''; preview.classList.add('hidden'); }
-    try { state.recognition.start(); } catch (e) {}
-    _setMicState('recording');
-    _startWaveform();
-  }
-
-  function _stopListening(submit) {
-    SoundFX.play('mic-stop');
-    state.isListening = false;
-    if (state.recognition) { try { state.recognition.stop(); } catch (e) {} }
-    _stopWaveform();
-    _setMicState('idle');
-    if (submit) {
-      const text = state.finalTranscript.trim();
-      state.finalTranscript = ''; state.interimTranscript = '';
-      const preview = document.getElementById('cc-voice-preview');
-      if (preview) preview.classList.add('hidden');
-      if (text) submitCommand(text);
-    }
-  }
-
-  function _setMicState(s) {
-    const btn   = document.getElementById('cc-mic-btn');
-    const label = document.getElementById('cc-mic-label');
-    if (!btn) return;
-    btn.classList.remove('cc-mic-idle', 'cc-mic-recording', 'cc-mic-processing');
-    btn.classList.add('cc-mic-' + s);
-    const icon = btn.querySelector('.cc-mic-icon');
-    if (icon) { icon.setAttribute('data-lucide', s === 'processing' ? 'loader-2' : 'mic'); if (window.lucide) lucide.createIcons(); }
-    const canvas = document.getElementById('cc-waveform-canvas');
-    if (canvas) canvas.classList.toggle('hidden', s !== 'recording');
-    if (label) label.textContent = s === 'recording' ? 'Tap to stop & send' : 'Tap to speak';
-  }
-
-  // ── Private: waveform ─────────────────────────────────────────────────────
-  async function _startWaveform() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const ctx    = new AudioContext();
-      const src    = ctx.createMediaStreamSource(stream);
-      const anlsr  = ctx.createAnalyser();
-      anlsr.fftSize = 64;
-      src.connect(anlsr);
-      state.audioCtx = ctx; state.analyser = anlsr; state.micStream = stream;
-      _drawWaveform();
-    } catch (e) {}
-  }
-
-  function _stopWaveform() {
-    if (state.animFrameId) { cancelAnimationFrame(state.animFrameId); state.animFrameId = null; }
-    if (state.audioCtx)   { state.audioCtx.close(); state.audioCtx = null; state.analyser = null; }
-    if (state.micStream)  { state.micStream.getTracks().forEach(t => t.stop()); state.micStream = null; }
-    const canvas = document.getElementById('cc-waveform-canvas');
-    if (canvas) { const cx = canvas.getContext('2d'); cx.clearRect(0, 0, canvas.width, canvas.height); }
-  }
-
-  function _drawWaveform() {
-    const canvas = document.getElementById('cc-waveform-canvas');
-    if (!canvas || !state.analyser) return;
-    const cx = canvas.getContext('2d');
-    const buf = new Uint8Array(state.analyser.frequencyBinCount);
-    const draw = () => {
-      if (!state.isListening || !state.analyser) return;
-      state.animFrameId = requestAnimationFrame(draw);
-      state.analyser.getByteFrequencyData(buf);
-      const W = canvas.width, H = canvas.height;
-      cx.clearRect(0, 0, W, H);
-      const BARS = 14, barW = (W / BARS) - 1.5;
-      for (let i = 0; i < BARS; i++) {
-        const v = buf[Math.floor(i * buf.length / BARS)] / 255;
-        const h = Math.max(3, v * H);
-        const x = i * (barW + 1.5), y = (H - h) / 2;
-        cx.fillStyle = `rgba(6, 182, 212, ${0.35 + v * 0.65})`;
-        cx.beginPath();
-        if (cx.roundRect) cx.roundRect(x, y, barW, h, 2); else cx.rect(x, y, barW, h);
-        cx.fill();
-      }
-    };
-    draw();
-  }
-
-  // ── Private: execute ──────────────────────────────────────────────────────
-  async function _executeCommand(sid, confirmed) {
-    try {
-      const res = await fetch('/api/command/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sid, confirmed }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const card = state.cards.get(sid);
-        if (card) _setCardError(card, err.error || 'Execution blocked (HTTP ' + res.status + ')');
-      }
-    } catch (e) {
-      const card = state.cards.get(sid);
-      if (card) _setCardError(card, 'Network error: ' + e.message);
-    }
-  }
-
-  // ── Private: SSE stream ───────────────────────────────────────────────────
-  function _openSSEStream(sid) {
-    if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
-    const src = new EventSource('/api/command/stream/' + sid);
-    state.sseSource = src;
-    ['understanding', 'plan_step', 'confirmation_required', 'result', 'error', 'done'].forEach(type => {
-      src.addEventListener(type, e => {
-        try { _handleSSEEvent(sid, type, type === 'done' ? {} : JSON.parse(e.data)); } catch (err) {}
-      });
-    });
-    src.onerror = () => { src.close(); state.sseSource = null; };
-  }
-
-  function _handleSSEEvent(sid, type, data) {
-    const card = state.cards.get(sid);
-    if (!card) return;
-
-    if (type === 'understanding') {
-      _updateUnderstanding(card, data.text || '');
-      _setStage(card, 'understanding', 'done');
-      MascotManager.setMood('THINKING', data.text || 'Planning execution...');
-    } else if (type === 'plan_step') {
-      _upsertPlanStep(card, data);
-      if (data.status === 'running') _setStage(card, 'plan', 'active');
-      if (data.status === 'done' || data.status === 'failed') {
-        const allSteps = [...card.querySelectorAll('.cc-step')];
-        if (allSteps.length && allSteps.every(s => s.dataset.status === 'done' || s.dataset.status === 'failed'))
-          _setStage(card, 'plan', 'done');
-      }
-    } else if (type === 'confirmation_required') {
-      _showConfirmUI(card, sid, data.safety_level, null);
-      MascotManager.setMood('GATED', 'Safety check: Action requires operator confirmation.');
-      SoundFX.play('warning');
-    } else if (type === 'result') {
-      _setStage(card, 'plan', 'done');
-      _setStage(card, 'result', 'active');
-      _updateResult(card, data);
-      _setStage(card, 'result', data.success ? 'done' : 'failed');
-      if (data.success) {
-        MascotManager.setMood('SUCCESS', data.summary || 'Command execution finished successfully.');
-        SoundFX.play('success');
-      } else {
-        MascotManager.setMood('GATED', data.summary || 'Command encountered an error.');
-        SoundFX.play('error');
-      }
-      if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
-    } else if (type === 'error') {
-      _setCardError(card, data.message || 'An error occurred');
-      MascotManager.setMood('GATED', data.message || 'Execution error');
-      SoundFX.play('error');
-      if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
-    } else if (type === 'done') {
-      if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
-    }
-    if (window.lucide) lucide.createIcons();
-  }
-
-  // ── Private: card DOM builders ────────────────────────────────────────────
-  function _createCard(tempId, queryText) {
-    const card = document.createElement('div');
-    card.className = 'cc-reasoning-card';
-    card.dataset.sessionId = tempId;
-    card.innerHTML = `
-      <div class="cc-card-header">
-        <div class="flex items-center gap-2 min-w-0">
-          <i data-lucide="user" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
-          <span class="text-xs font-semibold text-zinc-200 truncate">${escapeHtml(queryText)}</span>
-        </div>
-        <span class="text-[10px] text-zinc-500 font-mono shrink-0 ml-2">${new Date().toLocaleTimeString()}</span>
-      </div>
-      <div class="cc-stage active" data-stage="understanding">
-        <button class="cc-stage-header" onclick="ccToggleStage(this)" aria-expanded="true">
-          <div class="flex items-center gap-2">
-            <span class="cc-stage-num">1</span>
-            <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-cyan-400"></i>
-            <span>What I understood</span>
-          </div>
-          <i data-lucide="chevron-down" class="cc-chevron w-3.5 h-3.5"></i>
-        </button>
-        <div class="cc-stage-body">
-          <div class="cc-understanding-text text-zinc-400 italic text-xs flex items-center gap-1.5">
-            <i data-lucide="loader-2" class="w-3 h-3 cc-spin text-cyan-400"></i> Classifying intent and parsing semantics...
-          </div>
-        </div>
-      </div>
-      <div class="cc-stage collapsed" data-stage="plan">
-        <button class="cc-stage-header" onclick="ccToggleStage(this)" aria-expanded="false">
-          <div class="flex items-center gap-2">
-            <span class="cc-stage-num">2</span>
-            <i data-lucide="list-checks" class="w-3.5 h-3.5 text-emerald-400"></i>
-            <span>What I'm about to do</span>
-          </div>
-          <i data-lucide="chevron-down" class="cc-chevron w-3.5 h-3.5"></i>
-        </button>
-        <div class="cc-stage-body">
-          <div class="cc-plan-steps space-y-0"></div>
-          <div class="cc-confirm-ui hidden mt-3"></div>
-        </div>
-      </div>
-      <div class="cc-stage collapsed" data-stage="result">
-        <button class="cc-stage-header" onclick="ccToggleStage(this)" aria-expanded="false">
-          <div class="flex items-center gap-2">
-            <span class="cc-stage-num">3</span>
-            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i>
-            <span>What I did / found</span>
-          </div>
-          <i data-lucide="chevron-down" class="cc-chevron w-3.5 h-3.5"></i>
-        </button>
-        <div class="cc-stage-body">
-          <div class="cc-result-content"></div>
-        </div>
-      </div>`;
-    return card;
-  }
-
-  function _setStage(card, stageName, stateStr) {
-    const stage = card.querySelector(`[data-stage="${stageName}"]`);
-    if (!stage) return;
-    stage.classList.remove('active', 'done', 'failed', 'collapsed');
-    const header = stage.querySelector('.cc-stage-header');
-    if (stateStr === 'active' || stateStr === 'loading' || stateStr === 'confirm') {
-      stage.classList.add('active');
-      if (header) header.setAttribute('aria-expanded', 'true');
-    } else if (stateStr === 'pending') {
-      stage.classList.add('collapsed');
-      if (header) header.setAttribute('aria-expanded', 'false');
-    } else if (stateStr === 'done') {
-      stage.classList.add('done', 'collapsed');
-      if (header) header.setAttribute('aria-expanded', 'false');
-    } else if (stateStr === 'failed') {
-      stage.classList.add('failed', 'collapsed');
-      if (header) header.setAttribute('aria-expanded', 'false');
-    }
-  }
-
-  function _updateUnderstanding(card, text) {
-    const el = card.querySelector('.cc-understanding-text');
-    if (el) el.innerHTML = `<span class="text-zinc-200 leading-relaxed font-medium">${escapeHtml(text)}</span>`;
-  }
-
-  function _renderPlanSteps(card, steps) {
-    _setStage(card, 'plan', 'active');
-    const container = card.querySelector('.cc-plan-steps');
-    if (!container) return;
-    container.innerHTML = '';
-    steps.forEach(step => _upsertPlanStep(card, { ...step, status: 'pending' }));
-  }
-
-  function _upsertPlanStep(card, data) {
-    const container = card.querySelector('.cc-plan-steps');
-    if (!container) return;
-    const idx = data.index, status = data.status || 'pending';
-    let el = container.querySelector(`[data-step-idx="${idx}"]`);
-    if (!el) { el = document.createElement('div'); el.className = 'cc-step'; el.dataset.stepIdx = idx; container.appendChild(el); }
-    el.dataset.status = status;
-
-    const icons = {
-      pending: `<i data-lucide="circle" class="w-3.5 h-3.5 text-zinc-600 shrink-0"></i>`,
-      running: `<i data-lucide="loader-2" class="w-3.5 h-3.5 text-cyan-400 cc-spin shrink-0"></i>`,
-      done:    `<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>`,
-      failed:  `<i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-400 shrink-0"></i>`,
-    };
-    const badge = (data.safety_level && data.safety_level !== 'READ_ONLY')
-      ? `<span class="${getSafetyBadgeClass(data.safety_level)} text-[9px] font-mono px-1.5 py-0.5 rounded uppercase">${escapeHtml(data.safety_level)}</span>` : '';
-    const outHtml = ((status === 'done' || status === 'failed') && data.output)
-      ? `<div class="cc-step-cmd mt-1 opacity-80 max-h-32 overflow-y-auto">${escapeHtml(data.output.slice(0, 300))}${data.output.length > 300 ? '…' : ''}</div>` : '';
-
-    el.innerHTML = `
-      ${icons[status] || icons.pending}
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center flex-wrap gap-1.5">
-          <span class="text-xs text-zinc-200 font-medium">${escapeHtml(data.description || data.command || '')}</span>
-          ${badge}
-        </div>
-        ${data.command ? `<div class="cc-step-cmd">$ ${escapeHtml(data.command)}</div>` : ''}
-        ${outHtml}
-      </div>`;
-    if (window.lucide) lucide.createIcons();
-  }
-
-  function _showConfirmUI(card, sid, safetyLevel, steps) {
-    const ui = card.querySelector('.cc-confirm-ui');
-    if (!ui) return;
-    ui.classList.remove('hidden');
-    const col = safetyLevel === 'DESTRUCTIVE' ? 'text-rose-400' : 'text-amber-400';
-    ui.innerHTML = `
-      <div class="w-full p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
-        <div class="flex items-center gap-2 text-xs">
-          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 shrink-0"></i>
-          <span>This is a <strong class="${col} font-bold">${escapeHtml(safetyLevel)}</strong> operation. Review the steps above carefully.</span>
-        </div>
-        <div class="flex items-center gap-2.5 mt-3">
-          <button class="btn btn-ghost px-3.5 py-1.5 text-xs border border-white/10"
-                  onclick="CommandCenter._cancelExecution('${escapeHtml(sid)}')">
-            <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Cancel</span>
-          </button>
-          <button class="btn btn-primary px-4 py-1.5 text-xs font-semibold"
-                  onclick="CommandCenter._confirmExecution('${escapeHtml(sid)}')">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Confirm &amp; Execute</span>
-          </button>
-        </div>
-      </div>`;
-    if (window.lucide) lucide.createIcons();
-  }
-
-  function _confirmExecution(sid) {
-    SoundFX.play('click');
-    const card = state.cards.get(sid);
-    const ui = card && card.querySelector('.cc-confirm-ui');
-    if (ui) ui.classList.add('hidden');
-    MascotManager.setMood('THINKING', 'Executing confirmed operations...');
-    _openSSEStream(sid);
-    _executeCommand(sid, true);
-  }
-
-  function _cancelExecution(sid) {
-    SoundFX.play('click');
-    const card = state.cards.get(sid);
-    if (!card) return;
-    const ui = card.querySelector('.cc-confirm-ui');
-    if (ui) ui.innerHTML = `<span class="text-xs text-zinc-500 italic">Operation cancelled by operator.</span>`;
-    _setStage(card, 'plan', 'failed');
-    MascotManager.setMood('OBSERVING', 'Operation cancelled.');
-    showToast('Command execution cancelled', 'info', 2000);
-  }
-
-  function _updateResult(card, data) {
-    const el = card.querySelector('.cc-result-content');
-    if (!el) return;
-    const icon = data.success
-      ? `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>`
-      : `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>`;
-    const raw = data.raw_output ? `
-      <details class="cc-result-details mt-2 p-2 bg-[#08090e] rounded-lg border border-white/[0.06]">
-        <summary class="text-xs text-zinc-400 font-mono cursor-pointer hover:text-zinc-200 select-none">Technical Details ▾</summary>
-        <pre class="cc-result-raw text-xs font-mono mt-1 text-zinc-300 overflow-x-auto whitespace-pre-wrap p-2 bg-black/40 rounded">${escapeHtml(data.raw_output)}</pre>
-      </details>` : '';
-    el.innerHTML = `
-      <div class="flex items-start gap-2">${icon}<p class="text-xs text-zinc-200 leading-relaxed font-medium">${escapeHtml(data.summary || 'Done.')}</p></div>
-      ${raw}`;
-    if (window.lucide) lucide.createIcons();
-  }
-
-  function _setCardError(card, message) {
-    const existing = card.querySelector('.cc-card-error');
-    if (existing) existing.remove();
-    const err = document.createElement('div');
-    err.className = 'cc-card-error flex items-center gap-2 px-4 py-2.5 text-xs text-rose-400 border-t border-rose-400/20 bg-rose-500/5';
-    err.innerHTML = `<i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i><span>${escapeHtml(message)}</span>`;
-    card.appendChild(err);
-    if (window.lucide) lucide.createIcons();
-  }
-
-  // ── Private: storage helpers ───────────────────────────────────────────────
-  function _storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
-  function _storageSet(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
-  function _loadHistory() {
-    try { const r = _storageGet('cc-history'); state.commandHistory = r ? JSON.parse(r) : []; }
-    catch (e) { state.commandHistory = []; }
-  }
-
-  // ── Public exports ─────────────────────────────────────────────────────────
-  return { init, setMode, submitCommand, clearTranscript, _confirmExecution, _cancelExecution };
-
-})();
-
-function escapeHtml(str) {
-  if (!str) return '';
+  if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

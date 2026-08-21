@@ -171,38 +171,54 @@ class Intent:
 # Each rule: (IntentType, [(regex_pattern, arg_extractor_fn or None), ...])
 # arg_extractor receives the re.Match and returns a dict.
 
+def _sanitize_arg(val: str) -> str:
+    """Strip dangerous control characters, newlines, and null bytes from extracted arguments."""
+    if not isinstance(val, str):
+        return val
+    return re.sub(r"[\x00-\x1f\x7f]", "", val).strip()
+
+
+def _sanitize_token(val: str) -> str:
+    """Sanitize strict identifier tokens (services, packages, container names)."""
+    if not isinstance(val, str):
+        return val
+    val = re.sub(r"[\x00-\x1f\x7f]", "", val)
+    return re.sub(r"[/;&|`$<>(){}\[\]\\\"']", "", val).strip().rstrip("?.,!")
+
+
 def _extract_service(m: re.Match) -> Dict[str, Any]:
     """Pull the service name from a named group 'svc'."""
-    svc = (m.group("svc") or "").strip().rstrip("?.,!")
+    svc = _sanitize_token(m.group("svc") or "")
     return {"service": svc} if svc else {}
 
 
 def _extract_package(m: re.Match) -> Dict[str, Any]:
-    pkg = (m.group("pkg") or "").strip().rstrip("?.,!")
+    pkg = _sanitize_token(m.group("pkg") or "")
     return {"package": pkg} if pkg else {}
 
 
 def _extract_path(m: re.Match) -> Dict[str, Any]:
     try:
-        path = (m.group("path") or "").strip()
+        path = _sanitize_arg(m.group("path") or "").strip("\"'")
         return {"path": path} if path else {}
     except IndexError:
         return {}
 
 
 def _extract_host(m: re.Match) -> Dict[str, Any]:
-    host = (m.group("host") or "").strip().rstrip("?.,!")
+    host = _sanitize_token(m.group("host") or "")
     return {"host": host} if host else {}
 
 
 def _extract_port(m: re.Match) -> Dict[str, Any]:
     port = (m.group("port") or "").strip()
-    return {"port": port} if port else {}
+    digits = re.sub(r"\D", "", port)
+    return {"port": digits} if digits else {}
 
 
 def _extract_url(m: re.Match) -> Dict[str, Any]:
     try:
-        url = (m.group("url") or "").strip()
+        url = _sanitize_arg(m.group("url") or "").strip("\"'")
         return {"url": url} if url else {}
     except Exception:
         return {}
@@ -210,8 +226,8 @@ def _extract_url(m: re.Match) -> Dict[str, Any]:
 
 def _extract_move_copy(m: re.Match) -> Dict[str, Any]:
     try:
-        src = (m.group("src") or "").strip().strip("\"'")
-        dst = (m.group("dst") or "").strip().strip("\"'")
+        src = _sanitize_arg(m.group("src") or "").strip("\"'")
+        dst = _sanitize_arg(m.group("dst") or "").strip("\"'")
         res: Dict[str, Any] = {}
         if src:
             res["src"] = src
@@ -224,8 +240,8 @@ def _extract_move_copy(m: re.Match) -> Dict[str, Any]:
 
 def _extract_download(m: re.Match) -> Dict[str, Any]:
     try:
-        url = (m.group("url") or "").strip().strip("\"'")
-        dest = (m.group("dest") or "").strip().strip("\"'") if "dest" in m.groupdict() and m.group("dest") else None
+        url = _sanitize_arg(m.group("url") or "").strip("\"'")
+        dest = _sanitize_arg(m.group("dest") or "").strip("\"'") if "dest" in m.groupdict() and m.group("dest") else None
         res: Dict[str, Any] = {"url": url}
         if dest:
             res["dest"] = dest
@@ -248,7 +264,7 @@ def _extract_folder_path(m: re.Match) -> Dict[str, Any]:
             }
             path = named_map.get(named_dir.lower(), f"~/{named_dir.capitalize()}")
             return {"path": path}
-        path = (m.group("path") or "").strip().strip("\"'")
+        path = _sanitize_arg(m.group("path") or "").strip("\"'")
         return {"path": path} if path else {"path": "~"}
     except Exception:
         return {"path": "~"}
@@ -256,13 +272,16 @@ def _extract_folder_path(m: re.Match) -> Dict[str, Any]:
 
 def _extract_pid(m: re.Match) -> Dict[str, Any]:
     try:
-        pid = m.group("pid")
-        name = m.group("name") if "name" in m.groupdict() else None
+        pid = m.group("pid") if "pid" in m.groupdict() else None
+        name = _sanitize_token(m.group("name") or "") if "name" in m.groupdict() else None
         result: Dict[str, Any] = {}
         if pid:
-            result["pid"] = int(pid)
+            result["pid"] = int(re.sub(r"\D", "", str(pid)))
+        elif name and name.isdigit():
+            result["pid"] = int(name)
+            name = None
         if name:
-            result["name"] = name.strip()
+            result["name"] = name
         return result
     except Exception:
         return {}
@@ -270,7 +289,7 @@ def _extract_pid(m: re.Match) -> Dict[str, Any]:
 
 def _extract_container(m: re.Match) -> Dict[str, Any]:
     try:
-        c = (m.group("container") or "").strip().rstrip("?.,!")
+        c = _sanitize_token(m.group("container") or "")
         return {"container": c} if c else {}
     except Exception:
         return {}
@@ -278,7 +297,7 @@ def _extract_container(m: re.Match) -> Dict[str, Any]:
 
 def _extract_cron_pattern(m: re.Match) -> Dict[str, Any]:
     try:
-        pat = (m.group("pattern") or "").strip()
+        pat = _sanitize_arg(m.group("pattern") or "").strip("\"'")
         return {"pattern": pat} if pat else {}
     except Exception:
         return {}
@@ -286,8 +305,8 @@ def _extract_cron_pattern(m: re.Match) -> Dict[str, Any]:
 
 def _extract_backup_args(m: re.Match) -> Dict[str, Any]:
     try:
-        path = (m.group("path") or "").strip().strip("\"'")
-        dest = (m.group("dest") or "").strip().strip("\"'") if "dest" in m.groupdict() and m.group("dest") else None
+        path = _sanitize_arg(m.group("path") or "").strip("\"'")
+        dest = _sanitize_arg(m.group("dest") or "").strip("\"'") if "dest" in m.groupdict() and m.group("dest") else None
         res: Dict[str, Any] = {"path": path} if path else {}
         if dest:
             res["dest"] = dest
@@ -419,9 +438,10 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     # -----------------------------------------------------------------------
     (IntentType.HARDWARE_RECOMMEND_MODEL, [
         (r"\b(which|what)\s+(?:ai\s+|llm\s+|gguf\s+)?model\s+(?:should\s+i|to)\s+(?:download|run|use|get)\b", None),
-        (r"\brecommend\s+(?:an?\s+)?(?:ai\s+|llm\s+|gguf\s+)?model\b", None),
+        (r"\b(?:recommend|suggest|pick|find)\s+(?:an?\s+|the\s+)?(?:best\s+)?(?:ai\s+|llm\s+|gguf\s+)?model\b", None),
         (r"\bmodel\s+recommendation\b", None),
         (r"\bwhat\s+model\s+fits\s+my\s+(?:hardware|gpu|ram|cpu|system)\b", None),
+        (r"\bprofile.*(?:suggest|recommend|pick|find).*(?:model|llm)\b", None),
     ]),
 
     (IntentType.HARDWARE_AUTO_TUNE, [
@@ -430,7 +450,7 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.HARDWARE_PROFILE, [
-        (r"\b(?:check|profile|benchmark|inspect|test|show|get)\s+(?:my\s+)?(?:gpu|hardware|vram|specs|capabilities)\b", None),
+        (r"\b(?:check|profile|benchmark|inspect|test|show|get)\s+(?:my\s+)?(?:cpu|ram|gpu|hardware|vram|specs|capabilities)\b", None),
         (r"\bhardware\s+(?:profile|specs|benchmark|info|inspection|audit)\b", None),
         (r"\bhow\s+much\s+(?:vram|ram|gpu\s+memory)\s+do\s+i\s+have\b", None),
         (r"\bwhat\s+(?:gpu|hardware)\s+do\s+i\s+have\b", None),
@@ -520,9 +540,9 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.SECURITY_BRUTEFORCE, [
-        (r"\b(?:check|detect|find|show|scan)\s+(?:for\s+)?(?:ssh\s+)?(?:brute\s*force|failed\s+logins?|attackers?|failed\s+ssh(?:\s+attempts)?)(?:\s+attacks?)?\b", None),
+        (r"\b(?:check|detect|find|show|scan|search)(?:\s+(?:the\s+|my\s+)?(?:system|server|auth\s+logs?|logs?))?\s+(?:for\s+)?(?:ssh\s+)?(?:brute\s*force|failed\s+logins?|attackers?|failed\s+ssh(?:\s+attempts)?)(?:\s+(?:attacks?|logins?|attempts?))?\b", None),
         (r"\bwho\s+is\s+trying\s+to\s+(?:hack|bruteforce|login\s+to)\s+my\s+server\b", None),
-        (r"\bbrute\s*force\s+(?:check|audit|scan|attacks?)\b", None),
+        (r"\bbrute\s*force\s+(?:check|audit|scan|attacks?|logins?)\b", None),
     ]),
 
     (IntentType.SECURITY_SUID, [
@@ -543,9 +563,9 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.BACKUP_CREATE, [
-        (r"^(?:backup|snapshot|create\s+backup\s+of)\s+(?P<path>[\w\.\-\/~]+)(?:\s+to\s+(?P<dest>[\w\.\-\/~]+))?\b", _extract_backup_args),
-        (r"\bcreate\s+(?:a\s+)?(?:backup|snapshot)\s+of\s+(?P<path>[\w\.\-\/~]+)\b", _extract_backup_args),
-        (r"\bbackup\s+(?P<path>[\w\.\-\/~]+)(?:\s+configuration|\s+dir|\s+folder)?\b", _extract_backup_args),
+        (r"^(?:backup|snapshot|create\s+backup\s+of)\s+(?:my\s+|the\s+)?(?P<path>[\w\.\-\/~]+)(?:\s+(?:dir|directory|folder))?(?:\s+to\s+(?P<dest>[\w\.\-\/~]+))?\b", _extract_backup_args),
+        (r"\bcreate\s+(?:a\s+)?(?:backup|snapshot)\s+of\s+(?:my\s+|the\s+)?(?P<path>[\w\.\-\/~]+)\b", _extract_backup_args),
+        (r"\bbackup\s+(?:my\s+|the\s+)?(?P<path>[\w\.\-\/~]+)(?:\s+(?:configuration|dir|directory|folder))?\b", _extract_backup_args),
     ]),
 
     # -----------------------------------------------------------------------

@@ -52,6 +52,19 @@ class TestGUIServer(unittest.TestCase):
             content = resp.read().decode("utf-8")
             self.assertIn("Linux Operations Assistant", content)
 
+    def test_static_head(self):
+        req = urllib.request.Request(f"{self.url}/", headers={"Connection": "close"}, method="HEAD")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertIn("no-store", resp.headers.get("Cache-Control", ""))
+
+    def test_static_cache_headers(self):
+        req = urllib.request.Request(f"{self.url}/static/styles.css", headers={"Connection": "close"})
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertIn("no-store", resp.headers.get("Cache-Control", ""))
+            self.assertEqual(resp.headers.get("Pragma"), "no-cache")
+
     def test_api_health(self):
         status, data = self._get("/api/health")
         self.assertEqual(status, 200)

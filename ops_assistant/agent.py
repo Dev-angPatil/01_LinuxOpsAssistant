@@ -20,6 +20,9 @@ from ops_assistant.tools.sandbox_probe import EphemeralSandboxProbe
 
 class LLMProvider:
     """Base class for pluggable LLM inference backends."""
+    def generate_raw(self, prompt: str, max_tokens: int = 512, temperature: float = 0.2) -> Optional[str]:
+        raise NotImplementedError
+
     def generate_diagnosis(self, query: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
 
@@ -28,7 +31,32 @@ class OllamaProvider(LLMProvider):
         self.endpoint = endpoint
         self.model = model
 
+    def generate_raw(self, prompt: str, max_tokens: int = 512, temperature: float = 0.2) -> Optional[str]:
+        try:
+            req_data = json.dumps({"model": self.model, "prompt": prompt, "stream": False, "format": "json"}).encode("utf-8")
+            req = urllib.request.Request(self.endpoint, data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                return data.get("response", "")
+        except Exception:
+            return None
+
     def generate_diagnosis(self, query: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if context.get("prompt"):
+            raw = self.generate_raw(context["prompt"])
+            if raw:
+                json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+                if json_match:
+                    try:
+                        return json.loads(json_match.group(0))
+                    except Exception:
+                        pass
+                try:
+                    return json.loads(raw)
+                except Exception:
+                    pass
+            return None
+
         prompt = (
             f"You are an expert Linux System Administrator AI. Diagnose the following query given system telemetry and logs.\n"
             f"Query: {query}\n"
@@ -114,11 +142,79 @@ class LlamaCppProvider(LLMProvider):
             self._load_error = f"Failed to initialize Llama context: {e}"
             raise RuntimeError(self._load_error)
 
+    def generate_raw(self, prompt: str, max_tokens: int = 512, temperature: float = 0.2, repeat_penalty: float = 1.15) -> Optional[str]:
+        try:
+            self._ensure_loaded()
+            response = self._llm(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                repeat_penalty=repeat_penalty,
+                stop=["<|im_end|>", "```", "<|endoftext|>"]
+            )
+            return response["choices"][0]["text"].strip()
+        except Exception:
+            return None
+
+    def _extract_json_or_repair(self, raw_text: str) -> Optional[Dict[str, Any]]:
+        if not raw_text:
+            return None
+        # 1. Direct parse
+        try:
+            return json.loads(raw_text.strip())
+        except Exception:
+            pass
+        # 2. Extract block with regex
+        m = re.search(r"\{.*\}", raw_text, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                pass
+        # 3. Handle truncated JSON by closing open quotes and braces
+        cleaned = raw_text.strip()
+        if cleaned.startswith("{"):
+            cleaned_str = re.sub(r',\s*$', '', cleaned)
+            num_quotes = len(re.findall(r'(?<!\\)"', cleaned_str))
+            if num_quotes % 2 != 0:
+                cleaned_str += '"'
+            open_brackets = cleaned_str.count("[") - cleaned_str.count("]")
+            if open_brackets > 0:
+                cleaned_str += "]" * open_brackets
+            open_braces = cleaned_str.count("{") - cleaned_str.count("}")
+            if open_braces > 0:
+                cleaned_str += "}" * open_braces
+            try:
+                return json.loads(cleaned_str)
+            except Exception:
+                pass
+        # 4. Regex extraction of individual top-level keys
+        res: Dict[str, Any] = {}
+        symptom_m = re.search(r'"symptom"\s*:\s*"([^"]+)"', raw_text)
+        if symptom_m:
+            res["symptom"] = symptom_m.group(1)
+        root_m = re.search(r'"root_cause"\s*:\s*"([^"]+)"', raw_text)
+        if root_m:
+            res["root_cause"] = root_m.group(1)
+        rat_m = re.search(r'"rationale"\s*:\s*"([^"]+)"', raw_text)
+        if rat_m:
+            res["rationale"] = rat_m.group(1)
+        cmds_m = re.findall(r'\[\s*"([^"]+)"\s*(?:,\s*"([^"]*)")?(?:,\s*"?([0-9\.]+)"?)?(?:,\s*"([^"]*)")?\s*\]', raw_text)
+        if cmds_m:
+            res["proposed_commands"] = [list(c) for c in cmds_m]
+        if "symptom" in res or "root_cause" in res or "intent" in res:
+            return res
+        return None
+
     def generate_diagnosis(self, query: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
             self._ensure_loaded()
         except Exception:
             return None
+
+        if context.get("prompt"):
+            raw = self.generate_raw(context["prompt"])
+            return self._extract_json_or_repair(raw) if raw else None
 
         prompt = (
             f"<|im_start|>system\n"
@@ -138,19 +234,11 @@ class LlamaCppProvider(LLMProvider):
             f"<|im_start|>assistant\n"
         )
         try:
-            response = self._llm(
-                prompt,
-                max_tokens=512,
-                temperature=0.2,
-                stop=["<|im_end|>", "```"]
-            )
-            text = response["choices"][0]["text"].strip()
-            json_match = re.search(r"\{.*\}", text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group(0))
-            return json.loads(text)
+            raw = self.generate_raw(prompt, max_tokens=512, temperature=0.2)
+            return self._extract_json_or_repair(raw) if raw else None
         except Exception:
             return None
+
 
 class OpsAssistantAgent:
     COMMON_SERVICES = [
@@ -569,16 +657,41 @@ class OpsAssistantAgent:
             if llm_res and "symptom" in llm_res:
                 parsed_cmds = []
                 for cmd in llm_res.get("proposed_commands", []):
-                    if isinstance(cmd, (list, tuple)) and len(cmd) >= 4:
-                        sec_str = str(cmd[1]).upper()
-                        sec_lvl = SafetyLevel.READ_ONLY
-                        for s in SafetyLevel:
-                            if s.name == sec_str or s.value == sec_str:
-                                sec_lvl = s
-                                break
-                        parsed_cmds.append((str(cmd[0]), sec_lvl, float(cmd[2]), str(cmd[3])))
-                    elif isinstance(cmd, (list, tuple)) and len(cmd) >= 1:
-                        parsed_cmds.append((str(cmd[0]), SafetyLevel.READ_ONLY, 0.05, "Proposed remediation command."))
+                    cmd_str = ""
+                    sec_lvl = SafetyLevel.READ_ONLY
+                    risk_score = 0.05
+                    cmd_rationale = "Proposed remediation command."
+
+                    if isinstance(cmd, (list, tuple)):
+                        if len(cmd) >= 1:
+                            cmd_str = str(cmd[0]).strip()
+                        if len(cmd) >= 2:
+                            sec_str = str(cmd[1]).upper().strip()
+                            found_lvl = False
+                            for s in SafetyLevel:
+                                if s.name == sec_str or s.value == sec_str:
+                                    sec_lvl = s
+                                    found_lvl = True
+                                    break
+                            if not found_lvl:
+                                cmd_rationale = str(cmd[1]).strip()
+                        if len(cmd) >= 3:
+                            try:
+                                risk_score = float(cmd[2])
+                            except (ValueError, TypeError):
+                                pass
+                        if len(cmd) >= 4:
+                            cmd_rationale = str(cmd[3]).strip()
+                    elif isinstance(cmd, str):
+                        cmd_str = cmd.strip()
+
+                    if cmd_str:
+                        # AST Safety validation guardrail on all LLM-proposed commands
+                        real_lvl, real_risk, _ = self.safety_validator.evaluate_safety(cmd_str)
+                        levels = [SafetyLevel.READ_ONLY, SafetyLevel.MODIFYING, SafetyLevel.HIGH_RISK, SafetyLevel.DESTRUCTIVE]
+                        final_lvl = max(sec_lvl, real_lvl, key=lambda s: levels.index(s) if s in levels else 0)
+                        final_risk = max(risk_score, real_risk)
+                        parsed_cmds.append((cmd_str, final_lvl, final_risk, cmd_rationale))
 
                 provider_label = type(self.llm_provider).__name__
                 xai = self.explainer.synthesize_xai(
