@@ -1295,6 +1295,16 @@ function renderAgentResponseCard(card, data) {
     `;
   }
 
+  let paragraphHtml = '';
+  if (data.explanation_paragraph && data.explanation_paragraph !== data.summary) {
+    paragraphHtml = `
+      <div class="p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-xs text-slate-200 leading-relaxed font-sans">
+        <span class="text-[10px] text-cyan-300 font-semibold uppercase block mb-1">Ops Explanation:</span>
+        ${escapeHtml(data.explanation_paragraph)}
+      </div>
+    `;
+  }
+
   card.innerHTML = `
     <div class="flex items-center justify-between text-xs border-b border-white/10 pb-2.5 font-sans">
       <div class="flex items-center space-x-2">
@@ -1309,6 +1319,7 @@ function renderAgentResponseCard(card, data) {
 
     <div class="text-xs sm:text-sm text-white font-sans font-medium leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
     
+    ${paragraphHtml}
     ${stepsHtml}
     ${commandSectionHtml}
     ${outputDetailsHtml}

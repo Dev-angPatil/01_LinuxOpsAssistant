@@ -1002,12 +1002,14 @@ class OpsAssistantAgent:
 
         if intent.type == IntentType.DESKTOP_OPEN_FOLDER:
             path = args.get("path", "~")
-            cmd = f"xdg-open '{path}'"
-            desc = f"Opens directory '{path}' in the default desktop file manager."
+            cmd = args.get("command") or f"xdg-open '{path}'"
+            desc = args.get("description") or f"Opens directory '{path}' in the default desktop file manager."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Resolving path '{path}' for system file manager...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_folder(path)
                 result["output"] = res
@@ -1019,12 +1021,14 @@ class OpsAssistantAgent:
 
         elif intent.type == IntentType.DESKTOP_OPEN_FILE:
             path = args.get("path", "")
-            cmd = f"xdg-open '{path}'"
-            desc = f"Opens file '{path}' using its associated desktop application."
+            cmd = args.get("command") or f"xdg-open '{path}'"
+            desc = args.get("description") or f"Opens file '{path}' using its associated desktop application."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Resolving file '{path}' for default application...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_file(path)
                 result["output"] = res
@@ -1036,12 +1040,14 @@ class OpsAssistantAgent:
 
         elif intent.type == IntentType.DESKTOP_OPEN_IMAGE:
             path = args.get("path", "")
-            cmd = f"xdg-open '{path}'"
-            desc = f"Displays image '{path}' in the default system image viewer."
+            cmd = args.get("command") or f"xdg-open '{path}'"
+            desc = args.get("description") or f"Displays image '{path}' in the default system image viewer."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Opening image '{path}' with system viewer...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_image(path)
                 result["output"] = res
@@ -1053,12 +1059,14 @@ class OpsAssistantAgent:
 
         elif intent.type == IntentType.DESKTOP_OPEN_BROWSER:
             url = args.get("url", "https://google.com")
-            cmd = f"xdg-open '{url}'"
-            desc = f"Opens web address '{url}' in the default internet browser."
+            cmd = args.get("command") or f"xdg-open '{url}'"
+            desc = args.get("description") or f"Opens web address '{url}' in the default internet browser."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Opening web URL '{url}' in default browser...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_browser(url)
                 result["output"] = res
@@ -2081,7 +2089,7 @@ class OpsAssistantAgent:
             if execute:
                 import subprocess
                 p = subprocess.run(f"head -n 100 '{abs_path}'", shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "path": abs_path, "content": p.stdout, "stderr": p.stderr}
+                result["output"] = {"success": p.returncode == 0, "path": abs_path, "content": p.stdout, "stderr": p.stderr, "returncode": p.returncode}
                 result["summary"] = p.stdout[:2000] if p.stdout else f"File '{abs_path}' read successfully (empty file)."
             else:
                 result["summary"] = f"Ready to read file: '{abs_path}'."
@@ -2091,8 +2099,8 @@ class OpsAssistantAgent:
             raw_path = args.get("path", "new_directory")
             expanded = os.path.expandvars(os.path.expanduser(raw_path.strip().strip("\"'")))
             abs_path = os.path.abspath(os.path.join(get_working_dir(), expanded)) if not os.path.isabs(expanded) else os.path.abspath(expanded)
-            cmd = f"mkdir -p '{abs_path}'"
-            desc = f"Creates directory '{abs_path}' including any parent directories."
+            cmd = args.get("command") or f"mkdir -p '{abs_path}'"
+            desc = args.get("description") or f"Creates directory '{abs_path}' including any parent directories."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.MODIFYING.value
@@ -2100,10 +2108,12 @@ class OpsAssistantAgent:
             result["rollback_command"] = f"rmdir '{abs_path}'"
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20, "rollback_command": f"rmdir '{abs_path}'"}]
             result["steps"].append(f"Creating directory '{abs_path}'...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr}
+                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr, "returncode": p.returncode}
                 result["summary"] = f"Created directory: '{abs_path}' (exit code {p.returncode})."
             else:
                 result["summary"] = f"Ready to create directory: '{abs_path}'."
@@ -2126,7 +2136,7 @@ class OpsAssistantAgent:
             if execute and not val.is_destructive:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr}
+                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr, "returncode": p.returncode}
                 result["summary"] = f"Deleted directory: '{abs_path}' (exit code {p.returncode})."
             else:
                 result["summary"] = f"Ready to delete directory: '{abs_path}'."
@@ -2147,7 +2157,7 @@ class OpsAssistantAgent:
             if execute:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr}
+                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr, "returncode": p.returncode}
                 result["summary"] = p.stdout[:2000] if p.stdout else f"Directory '{abs_path}' listed."
             else:
                 result["summary"] = f"Ready to list directory: '{abs_path}'."
@@ -2176,7 +2186,7 @@ class OpsAssistantAgent:
             if execute:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr}
+                result["output"] = {"success": p.returncode == 0, "path": abs_path, "stdout": p.stdout, "stderr": p.stderr, "returncode": p.returncode}
                 result["summary"] = f"Permissions modified for '{abs_path}' (exit code {p.returncode})."
             else:
                 result["summary"] = f"Ready to modify permissions on '{abs_path}'."
@@ -2200,246 +2210,215 @@ class OpsAssistantAgent:
             from ops_assistant.tools import project_ops
             from ops_assistant.config import get_working_dir
             target_dir = args.get("path") or get_working_dir()
-            res = project_ops.install_project_dependencies(target_dir=target_dir, dry_run=not execute)
-            cmd = res.get("command") or "pip install -r requirements.txt"
-            desc = f"Installs {res.get('language', 'project')} dependencies in '{res.get('path', target_dir)}'."
-            result["command"] = cmd
-            result["command_description"] = desc
-            result["safety_level"] = SafetyLevel.MODIFYING.value
-            result["risk_score"] = 0.30
-            result["requires_permission"] = not execute
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30}]
-            result["steps"].append(f"Detecting project manifests in '{target_dir}' and installing dependencies...")
-            result["output"] = res
-            result["summary"] = res.get("summary") or f"Dependencies installed in {target_dir}."
+            m = project_ops.detect_manifest(target_dir)
+            if not m:
+                result["summary"] = f"No recognizable project manifest found in '{target_dir}'."
+                result["command"] = "# No manifest found"
+                result["command_description"] = "No dependencies to install."
+            else:
+                res = project_ops.install_dependencies(target_dir, dry_run=not execute)
+                result["command"] = res.get("command", "")
+                result["command_description"] = f"Installs {m['ecosystem']} dependencies ({m['manifest']})."
+                result["safety_level"] = SafetyLevel.MODIFYING.value
+                result["risk_score"] = 0.35
+                result["requires_permission"] = not execute
+                result["planned_commands"] = [{"command": result["command"], "description": result["command_description"], "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.35}]
+                result["steps"].append(f"Installing {m['ecosystem']} packages for '{m['manifest']}'...")
+                result["output"] = res
+                result["summary"] = res.get("message") or f"Ready to install {m['ecosystem']} dependencies."
 
         elif intent.type == IntentType.PROJECT_CREATE_VENV:
             from ops_assistant.tools import project_ops
             from ops_assistant.config import get_working_dir
             target_dir = args.get("path") or get_working_dir()
-            name = args.get("venv_name", "venv")
-            res = project_ops.create_python_venv(target_dir=target_dir, venv_name=name, dry_run=not execute)
-            cmd = res.get("command") or f"python3 -m venv '{name}'"
-            desc = f"Creates isolated Python virtual environment '{name}' in '{target_dir}'."
-            result["command"] = cmd
-            result["command_description"] = desc
+            vname = args.get("venv_name", "venv")
+            res = project_ops.create_python_venv(target_dir, vname, dry_run=not execute)
+            result["command"] = res.get("command", f"python3 -m venv '{os.path.join(target_dir, vname)}'")
+            result["command_description"] = f"Creates isolated Python virtual environment at '{os.path.join(target_dir, vname)}'."
             result["safety_level"] = SafetyLevel.MODIFYING.value
-            result["risk_score"] = 0.15
-            result["rollback_command"] = res.get("rollback_command")
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.15, "rollback_command": res.get("rollback_command")}]
-            result["steps"].append(f"Creating Python virtual environment '{name}' in '{target_dir}'...")
+            result["risk_score"] = 0.20
+            result["requires_permission"] = not execute
+            result["rollback_command"] = f"rm -rf '{os.path.join(target_dir, vname)}'"
+            result["planned_commands"] = [{"command": result["command"], "description": result["command_description"], "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20, "rollback_command": result["rollback_command"]}]
+            result["steps"].append(f"Creating Python virtual environment in '{vname}'...")
             result["output"] = res
-            result["summary"] = res.get("summary") or f"Virtual environment '{name}' created."
+            result["summary"] = res.get("message") or f"Ready to create virtual environment '{vname}'."
 
-        # Specialized Storage & Maintenance
+        # Trash Cleanup
         elif intent.type == IntentType.STORAGE_CLEAN_TRASH:
-            trash_path = os.path.expanduser("~/.local/share/Trash")
-            cmd = f"rm -rf '{trash_path}/files/'* '{trash_path}/info/'*"
-            desc = "Permanently purges all files and metadata stored in the user Trash."
-            result["command"] = cmd
-            result["command_description"] = desc
-            result["safety_level"] = SafetyLevel.DESTRUCTIVE.value
-            result["risk_score"] = 0.85
-            result["requires_permission"] = True
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.DESTRUCTIVE.value, "risk_score": 0.85}]
-            result["steps"].append("Cleaning all user trash items...")
-            if execute:
-                import subprocess
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
-                result["summary"] = "Emptied user Trash successfully."
-            else:
-                result["summary"] = "Ready to permanently empty user Trash (DESTRUCTIVE action)."
+            from ops_assistant.tools import storage_ops
+            res = storage_ops.clean_trash(dry_run=not execute)
+            result["command"] = res.get("command", "rm -rf ~/.local/share/Trash/files/*")
+            result["command_description"] = "Permanently cleans user trash bin to reclaim disk space."
+            result["safety_level"] = SafetyLevel.MODIFYING.value
+            result["risk_score"] = 0.30
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": result["command"], "description": result["command_description"], "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30}]
+            result["steps"].append("Cleaning user Trash directory...")
+            result["output"] = res
+            result["summary"] = res.get("message") or "Ready to purge Trash files."
 
+        # Extended Hardware & OS Inspection
         elif intent.type == IntentType.SYSTEM_CHECK_CPU:
-            cmd = "top -b -n 1 | head -n 15"
-            desc = "Inspects live CPU utilization percentage, tasks, and system load averages."
+            cmd = "top -bn1 | head -20"
+            desc = "Samples live CPU usage, system load, and top process threads."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.READ_ONLY.value
             result["risk_score"] = 0.05
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
-            result["steps"].append("Sampling CPU utilization and load averages...")
-            if execute:
-                import subprocess
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout}
-                result["summary"] = p.stdout[:2000] if p.stdout else "CPU metrics sampled."
-            else:
-                result["summary"] = "Ready to inspect CPU usage."
+            result["steps"].append("Sampling CPU performance and load metrics...")
+            snap = self.hub.get_health_snapshot()
+            result["output"] = {"cpu_percent": snap.cpu.usage_percent, "load_1m": snap.load.load_1m, "load_5m": snap.load.load_5m, "load_15m": snap.load.load_15m}
+            result["summary"] = f"CPU Usage: {snap.cpu.usage_percent:.1f}% | Load Averages: 1m={snap.load.load_1m}, 5m={snap.load.load_5m}, 15m={snap.load.load_15m}"
 
         elif intent.type == IntentType.SYSTEM_CHECK_RAM:
             cmd = "free -h"
-            desc = "Displays physical RAM and swap memory usage in human-readable units."
+            desc = "Inspects available physical RAM, cached buffers, and swap headroom."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.READ_ONLY.value
             result["risk_score"] = 0.05
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
-            result["steps"].append("Querying memory and swap availability...")
-            if execute:
-                import subprocess
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout}
-                result["summary"] = p.stdout[:2000] if p.stdout else "RAM memory inspected."
-            else:
-                result["summary"] = "Ready to inspect RAM usage."
-
-        elif intent.type == IntentType.SYSTEM_CHECK_DISK:
-            cmd = "df -h"
-            desc = "Reports storage partition capacity, used space, and mount points."
-            result["command"] = cmd
-            result["command_description"] = desc
-            result["safety_level"] = SafetyLevel.READ_ONLY.value
-            result["risk_score"] = 0.05
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
-            result["steps"].append("Sampling disk partition capacity...")
-            if execute:
-                import subprocess
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout}
-                result["summary"] = p.stdout[:2000] if p.stdout else "Disk space sampled."
-            else:
-                result["summary"] = "Ready to inspect disk space."
+            result["steps"].append("Querying kernel memory manager and swap metrics...")
+            snap = self.hub.get_health_snapshot()
+            used_mb = snap.memory.used_mb
+            total_mb = snap.memory.total_mb
+            pct = snap.memory.used_percent
+            result["output"] = asdict(snap.memory)
+            result["summary"] = f"RAM: {used_mb}/{total_mb} MB ({pct:.1f}% used) | Swap: {snap.memory.swap_used_mb}/{snap.memory.swap_total_mb} MB"
 
         elif intent.type == IntentType.SYSTEM_UPDATE:
-            d_info = DistroDetector().detect()
+            detector = DistroDetector()
+            d_info = detector.detect()
             pkg_mgr = d_info.package_manager
-            if pkg_mgr == "pacman":
-                cmd = "sudo pacman -Syu --noconfirm"
-            elif pkg_mgr in ("apt", "apt-get"):
-                cmd = "sudo apt update && sudo apt upgrade -y"
-            elif pkg_mgr in ("dnf", "yum"):
-                cmd = f"sudo {pkg_mgr} upgrade -y"
-            elif pkg_mgr == "zypper":
-                cmd = "sudo zypper update -y"
-            elif pkg_mgr == "apk":
-                cmd = "sudo apk update && sudo apk upgrade"
-            else:
-                cmd = "sudo apt update && sudo apt upgrade -y"
-
-            desc = f"Performs full system package update via {pkg_mgr}."
+            cmd_map = {
+                "apt": "sudo apt update && sudo apt upgrade -y",
+                "dnf": "sudo dnf upgrade --refresh -y",
+                "pacman": "sudo pacman -Syu --noconfirm",
+                "apk": "sudo apk update && sudo apk upgrade",
+                "zypper": "sudo zypper refresh && sudo zypper update -y",
+            }
+            cmd = cmd_map.get(pkg_mgr, "sudo apt update && sudo apt upgrade -y")
+            desc = f"Refreshes package repositories and updates system packages using {pkg_mgr}."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.HIGH_RISK.value
-            result["risk_score"] = 0.70
-            result["requires_permission"] = True
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.HIGH_RISK.value, "risk_score": 0.70}]
-            result["steps"].append(f"Preparing system-wide update for distro '{d_info.family_id}' via {pkg_mgr}...")
-            result["summary"] = f"Ready to update system packages using '{cmd}' (requires confirmation)."
+            result["risk_score"] = 0.65
+            result["requires_permission"] = not execute
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.HIGH_RISK.value, "risk_score": 0.65}]
+            result["steps"].append(f"Checking package updates for {d_info.display_name}...")
+            result["summary"] = f"Ready to update system packages using {pkg_mgr}."
+
+        elif intent.type == IntentType.NETWORK_CURL:
+            raw_url = args.get("url", "https://google.com")
+            cmd = f"curl -I '{raw_url}'"
+            desc = f"Fetches HTTP response headers from '{raw_url}'."
+            result["command"] = cmd
+            result["command_description"] = desc
+            result["safety_level"] = SafetyLevel.READ_ONLY.value
+            result["risk_score"] = 0.05
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
+            result["steps"].append(f"Executing HTTP curl request to '{raw_url}'...")
+            if execute:
+                import subprocess
+                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
+                result["summary"] = p.stdout[:1500] if p.stdout else f"HTTP curl query to '{raw_url}' finished."
+            else:
+                result["summary"] = f"Ready to curl URL: '{raw_url}'."
 
         elif intent.type == IntentType.ARCHIVE_CREATE:
-            src = args.get("src", "")
-            dest = args.get("dest") or f"{src.rstrip('/')}.tar.gz"
-            cmd = f"tar -czf '{dest}' '{src}'"
-            desc = f"Compresses '{src}' into gzip tarball archive '{dest}'."
+            from ops_assistant.config import get_working_dir
+            raw_src = args.get("source", "")
+            raw_dst = args.get("dest", f"{raw_src}.tar.gz" if raw_src else "archive.tar.gz")
+            cmd = f"tar -czf '{raw_dst}' '{raw_src}'"
+            desc = f"Creates compressed tar archive '{raw_dst}' from '{raw_src}'."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.MODIFYING.value
             result["risk_score"] = 0.25
-            result["rollback_command"] = f"rm -f '{dest}'"
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.25, "rollback_command": f"rm -f '{dest}'"}]
-            result["steps"].append(f"Compressing '{src}' into archive '{dest}'...")
+            result["rollback_command"] = f"rm -f '{raw_dst}'"
+            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.25, "rollback_command": f"rm -f '{raw_dst}'"}]
+            result["steps"].append(f"Compressing '{raw_src}' into '{raw_dst}'...")
             if execute:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
                 result["output"] = {"success": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
-                result["summary"] = f"Created archive '{dest}' (exit code {p.returncode})."
+                result["summary"] = f"Created archive '{raw_dst}' (exit code {p.returncode})."
             else:
-                result["summary"] = f"Ready to create archive '{dest}'."
+                result["summary"] = f"Ready to create archive '{raw_dst}'."
 
         elif intent.type == IntentType.ARCHIVE_EXTRACT:
-            src = args.get("src", "")
-            dest = args.get("dest", ".")
-            if src.endswith(".zip"):
-                cmd = f"unzip -q '{src}' -d '{dest}'"
-            else:
-                cmd = f"tar -xzf '{src}' -C '{dest}'"
-            desc = f"Extracts contents of archive '{src}' into '{dest}'."
+            raw_src = args.get("source", "")
+            raw_dst = args.get("dest", ".")
+            cmd = f"tar -xzf '{raw_src}' -C '{raw_dst}'"
+            desc = f"Extracts compressed archive '{raw_src}' into directory '{raw_dst}'."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.MODIFYING.value
             result["risk_score"] = 0.30
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.30}]
-            result["steps"].append(f"Extracting archive '{src}'...")
+            result["steps"].append(f"Extracting archive '{raw_src}'...")
             if execute:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
                 result["output"] = {"success": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
-                result["summary"] = f"Extracted archive '{src}' (exit code {p.returncode})."
+                result["summary"] = f"Extracted archive '{raw_src}' (exit code {p.returncode})."
             else:
-                result["summary"] = f"Ready to extract archive '{src}'."
-
-        elif intent.type == IntentType.NETWORK_CURL:
-            url = args.get("url", "https://google.com")
-            cmd = f"curl -fsSL -I '{url}'"
-            desc = f"Queries HTTP response headers from '{url}'."
-            result["command"] = cmd
-            result["command_description"] = desc
-            result["safety_level"] = SafetyLevel.READ_ONLY.value
-            result["risk_score"] = 0.05
-            result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
-            result["steps"].append(f"Probing HTTP endpoint '{url}'...")
-            if execute:
-                import subprocess
-                try:
-                    p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-                    result["output"] = {"success": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
-                    result["summary"] = p.stdout[:2000] if p.stdout else f"HTTP request to '{url}' completed."
-                except Exception as e:
-                    result["output"] = {"success": False, "error": str(e)}
-                    result["summary"] = f"HTTP request error: {e}"
-            else:
-                result["summary"] = f"Ready to query HTTP headers from '{url}'."
+                result["summary"] = f"Ready to extract archive '{raw_src}'."
 
         elif intent.type == IntentType.SYSTEM_WHOAMI:
             cmd = "whoami && id"
-            desc = "Displays current Linux operator username, user ID, and group memberships."
+            desc = "Displays current user identity, UID, GID, and group memberships."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.READ_ONLY.value
             result["risk_score"] = 0.05
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
-            result["steps"].append("Inspecting active user session...")
-            if execute:
-                import subprocess
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout}
-                result["summary"] = f"User Identity: {p.stdout.strip()}"
-            else:
-                result["summary"] = "Ready to inspect active user identity."
+            result["steps"].append("Querying effective user identity and group memberships...")
+            import getpass
+            result["output"] = {"user": getpass.getuser(), "uid": os.getuid(), "gid": os.getgid()}
+            result["summary"] = f"User: {getpass.getuser()} (UID {os.getuid()}, GID {os.getgid()})"
 
         elif intent.type == IntentType.SYSTEM_ENV:
-            cmd = "printenv | sort"
-            desc = "Lists all environment variables in the active user environment."
+            cmd = "env"
+            desc = "Lists active environment variables."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.READ_ONLY.value
             result["risk_score"] = 0.05
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append("Reading environment variables...")
-            if execute:
-                import subprocess
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                result["output"] = {"success": p.returncode == 0, "stdout": p.stdout}
-                result["summary"] = p.stdout[:2000] if p.stdout else "Environment variables listed."
-            else:
-                result["summary"] = "Ready to list environment variables."
+            result["output"] = dict(os.environ)
+            result["summary"] = f"Environment variables: {len(os.environ)} active keys."
 
         elif intent.type in (IntentType.SHELL_RUN, IntentType.GENERIC_COMMAND):
-            # Check if LLM provider is available to synthesize a command
+            from ops_assistant.nlp.nl_compiler import NaturalLanguageCompiler, generate_natural_explanation
+            # 1. Check NaturalLanguageCompiler first
+            nl_compiled = NaturalLanguageCompiler.compile(query)
+            
+            # 2. Check if LLM provider is available to synthesize a command
             ai_synthesis = None
-            if isinstance(self.llm_provider, GeminiProvider):
+            if not nl_compiled and isinstance(self.llm_provider, GeminiProvider):
                 avail, _ = self.llm_provider.is_available()
                 if avail:
                     ai_synthesis = self.llm_provider.generate_command(query)
 
-            if ai_synthesis and ai_synthesis.get("command"):
+            if nl_compiled and nl_compiled.get("command"):
+                raw_cmd = nl_compiled["command"]
+                desc = nl_compiled.get("description") or f"Executes: '{raw_cmd}'."
+                val = CommandSafetyValidator.validate(raw_cmd)
+                safety_lvl = nl_compiled.get("safety_level") or val.level.value
+                risk_sc = float(nl_compiled.get("risk_score") or val.risk_score)
+                result["explanation_paragraph"] = nl_compiled.get("explanation_paragraph")
+            elif ai_synthesis and ai_synthesis.get("command"):
                 raw_cmd = ai_synthesis["command"]
                 desc = ai_synthesis.get("summary") or f"Executes: '{raw_cmd}'."
                 val = CommandSafetyValidator.validate(raw_cmd)
                 safety_lvl = ai_synthesis.get("safety_level") or val.level.value
                 risk_sc = float(ai_synthesis.get("risk_score") or val.risk_score)
+                result["explanation_paragraph"] = ai_synthesis.get("summary")
             else:
                 raw_cmd = (args.get("command") or query).strip()
                 raw_cmd = re.sub(r"^\$\s*", "", raw_cmd)
@@ -2511,5 +2490,17 @@ class OpsAssistantAgent:
                     for c in report.explanation.proposed_commands
                 ]
 
-        return result
+        if not result.get("explanation_paragraph"):
+            try:
+                from ops_assistant.nlp.nl_compiler import generate_natural_explanation
+                exec_out = result.get("output") or {}
+                out_str = exec_out.get("stdout", "") if isinstance(exec_out, dict) else str(exec_out)
+                err_str = exec_out.get("stderr", "") if isinstance(exec_out, dict) else ""
+                ret_code = exec_out.get("returncode", 0) if isinstance(exec_out, dict) else 0
+                result["explanation_paragraph"] = generate_natural_explanation(
+                    query, result.get("command", ""), ret_code, out_str, err_str
+                )
+            except Exception:
+                result["explanation_paragraph"] = result.get("summary", "")
 
+        return result

@@ -19,19 +19,25 @@ def _expand_path(raw_path: str) -> Path:
     return Path(os.path.expandvars(os.path.expanduser(raw_path))).resolve()
 
 
-def open_folder(path: str = "~") -> Dict[str, Any]:
+def open_folder(path: str = "~", create_if_missing: bool = False) -> Dict[str, Any]:
     """
     Open a directory in the default system file manager (e.g. Nautilus, Dolphin, Thunar).
     """
     p = _expand_path(path)
     if not p.exists():
-        return {
-            "success": False,
-            "path": str(p),
-            "error": f"Directory does not exist: {p}",
-            "action": "open_folder"
-        }
-    if not p.is_dir():
+        if create_if_missing:
+            try:
+                p.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                p = Path.home()
+        else:
+            return {
+                "success": False,
+                "path": str(p),
+                "error": f"Directory does not exist: {p}",
+                "action": "open_folder"
+            }
+    elif not p.is_dir():
         p = p.parent
 
     # Try xdg-open first, fallback to known Linux file managers
