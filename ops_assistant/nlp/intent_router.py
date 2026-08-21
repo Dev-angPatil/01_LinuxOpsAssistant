@@ -1197,6 +1197,21 @@ class IntentRouter:
         if intent.type != IntentType.UNKNOWN and intent.confidence >= 0.7:
             return intent
 
+        # Stage 1.5: Natural Language Compiler semantic pass
+        try:
+            from ops_assistant.nlp.nl_compiler import NaturalLanguageCompiler
+            nl_compiled = NaturalLanguageCompiler.compile(clean_text)
+            if nl_compiled:
+                target_intent_type = IntentType(nl_compiled.get("intent", "generic_command"))
+                return Intent(
+                    target_intent_type,
+                    args=nl_compiled,
+                    raw=text,
+                    confidence=0.98
+                )
+        except Exception:
+            pass
+
         # Stage 2: Diagnostic query heuristic pass
         if self._looks_diagnostic(clean_text):
             return Intent(IntentType.DIAGNOSE, raw=text, confidence=0.85)

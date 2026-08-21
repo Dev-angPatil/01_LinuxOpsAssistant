@@ -551,6 +551,20 @@
         <span id="cc-voice-fallback-msg">Voice input unavailable.</span>
       </div>
 
+      <!-- ── AI EXPLANATION & IMPACT SUMMARY CARD (ABOVE INPUT) ── -->
+      <div id="cc-explanation-banner" class="hidden mb-3 p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs text-cyan-100 shadow-lg shadow-cyan-950/20">
+        <div class="flex items-center justify-between gap-2 mb-1.5">
+          <div class="flex items-center gap-1.5 text-cyan-400 font-semibold text-[11px] uppercase tracking-wider">
+            <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i>
+            <span>AI Natural Language Explanation</span>
+          </div>
+          <button onclick="document.getElementById('cc-explanation-banner').classList.add('hidden')" class="text-zinc-400 hover:text-zinc-200 transition text-[10px] p-0.5">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <p id="cc-explanation-text" class="text-zinc-200 text-xs leading-relaxed font-normal"></p>
+      </div>
+
       <!-- ── TEXT MODE PANEL (ENLARGED) ── -->
       <div id="cc-text-panel" class="flex items-end gap-2.5">
         <div class="flex-1 relative">

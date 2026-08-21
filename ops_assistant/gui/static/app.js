@@ -2506,14 +2506,37 @@ const CommandCenter = (function () {
     const icon = data.success
       ? `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>`
       : `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>`;
+    
+    const paragraphText = data.paragraph || data.summary || 'Command execution finished.';
+    
+    const paragraphHtml = paragraphText ? `
+      <div class="mt-2.5 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-100 leading-relaxed shadow-sm">
+        <div class="flex items-center gap-1.5 text-cyan-300 font-semibold mb-1 text-[11px] uppercase tracking-wider">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Natural Language Explanation & Impact</span>
+        </div>
+        <p class="text-zinc-200 text-xs font-normal leading-relaxed">${escapeHtml(paragraphText)}</p>
+      </div>` : '';
+
     const raw = data.raw_output ? `
       <details class="cc-result-details mt-2 p-2 bg-[#08090e] rounded-lg border border-white/[0.06]">
         <summary class="text-xs text-zinc-400 font-mono cursor-pointer hover:text-zinc-200 select-none">Technical Details ▾</summary>
         <pre class="cc-result-raw text-xs font-mono mt-1 text-zinc-300 overflow-x-auto whitespace-pre-wrap p-2 bg-black/40 rounded">${escapeHtml(data.raw_output)}</pre>
       </details>` : '';
+
     el.innerHTML = `
       <div class="flex items-start gap-2">${icon}<p class="text-xs text-zinc-200 leading-relaxed font-medium">${escapeHtml(data.summary || 'Done.')}</p></div>
+      ${paragraphHtml}
       ${raw}`;
+
+    // Update Persistent Explanation Banner directly above Command Input Textarea
+    const banner = document.getElementById('cc-explanation-banner');
+    const bannerText = document.getElementById('cc-explanation-text');
+    if (banner && bannerText && paragraphText) {
+      bannerText.textContent = paragraphText;
+      banner.classList.remove('hidden');
+    }
+
     if (window.lucide) lucide.createIcons();
   }
 

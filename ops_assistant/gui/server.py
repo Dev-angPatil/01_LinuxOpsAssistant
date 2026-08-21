@@ -911,9 +911,21 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             summary = f"{done_count} step(s) completed, {fail_count} failed."
             success = False
 
+        from ops_assistant.nlp.nl_compiler import generate_natural_explanation
+        first_cmd = plan_steps[0].get("command", "") if plan_steps else ""
+        query_text = sess.get("text", first_cmd)
+        explanation_paragraph = generate_natural_explanation(
+            query=query_text,
+            command=first_cmd,
+            returncode=0 if success else 1,
+            stdout=raw_output,
+            stderr=raw_output if not success else ""
+        )
+
         emit("result", {
             "success": success,
             "summary": summary,
+            "paragraph": explanation_paragraph,
             "raw_output": raw_output,
             "exit_code": 0 if success else 1,
         })

@@ -873,6 +873,7 @@ class OpsAssistantAgent:
 
         return {
             "understanding": understanding,
+            "explanation_paragraph": result.get("explanation_paragraph") or understanding,
             "plan_steps": plan_steps,
             "requires_confirmation": requires_confirmation,
             "safety_level": safety_level_val,
@@ -919,12 +920,14 @@ class OpsAssistantAgent:
 
         if intent.type == IntentType.DESKTOP_OPEN_FOLDER:
             path = args.get("path", "~")
-            cmd = f"xdg-open '{path}'"
-            desc = f"Opens directory '{path}' in the default desktop file manager."
+            cmd = args.get("command") or f"xdg-open '{path}'"
+            desc = args.get("description") or f"Opens directory '{path}' in the default desktop file manager."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Resolving path '{path}' for system file manager...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_folder(path)
                 result["output"] = res
@@ -936,12 +939,14 @@ class OpsAssistantAgent:
 
         elif intent.type == IntentType.DESKTOP_OPEN_FILE:
             path = args.get("path", "")
-            cmd = f"xdg-open '{path}'"
-            desc = f"Opens file '{path}' using its associated desktop application."
+            cmd = args.get("command") or f"xdg-open '{path}'"
+            desc = args.get("description") or f"Opens file '{path}' using its associated desktop application."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Resolving file '{path}' for default application...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_file(path)
                 result["output"] = res
@@ -953,12 +958,14 @@ class OpsAssistantAgent:
 
         elif intent.type == IntentType.DESKTOP_OPEN_IMAGE:
             path = args.get("path", "")
-            cmd = f"xdg-open '{path}'"
-            desc = f"Displays image '{path}' in the default system image viewer."
+            cmd = args.get("command") or f"xdg-open '{path}'"
+            desc = args.get("description") or f"Displays image '{path}' in the default system image viewer."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Opening image '{path}' with system viewer...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_image(path)
                 result["output"] = res
@@ -970,12 +977,14 @@ class OpsAssistantAgent:
 
         elif intent.type == IntentType.DESKTOP_OPEN_BROWSER:
             url = args.get("url", "https://google.com")
-            cmd = f"xdg-open '{url}'"
-            desc = f"Opens web address '{url}' in the default internet browser."
+            cmd = args.get("command") or f"xdg-open '{url}'"
+            desc = args.get("description") or f"Opens web address '{url}' in the default internet browser."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
             result["steps"].append(f"Opening web URL '{url}' in default browser...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 res = desktop_ops.open_browser(url)
                 result["output"] = res
@@ -2008,8 +2017,8 @@ class OpsAssistantAgent:
             raw_path = args.get("path", "new_directory")
             expanded = os.path.expandvars(os.path.expanduser(raw_path.strip().strip("\"'")))
             abs_path = os.path.abspath(os.path.join(get_working_dir(), expanded)) if not os.path.isabs(expanded) else os.path.abspath(expanded)
-            cmd = f"mkdir -p '{abs_path}'"
-            desc = f"Creates directory '{abs_path}' including any parent directories."
+            cmd = args.get("command") or f"mkdir -p '{abs_path}'"
+            desc = args.get("description") or f"Creates directory '{abs_path}' including any parent directories."
             result["command"] = cmd
             result["command_description"] = desc
             result["safety_level"] = SafetyLevel.MODIFYING.value
@@ -2017,6 +2026,8 @@ class OpsAssistantAgent:
             result["rollback_command"] = f"rmdir '{abs_path}'"
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.MODIFYING.value, "risk_score": 0.20, "rollback_command": f"rmdir '{abs_path}'"}]
             result["steps"].append(f"Creating directory '{abs_path}'...")
+            if args.get("explanation_paragraph"):
+                result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
                 import subprocess
                 p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -2344,19 +2355,31 @@ class OpsAssistantAgent:
                 result["summary"] = "Ready to list environment variables."
 
         elif intent.type in (IntentType.SHELL_RUN, IntentType.GENERIC_COMMAND):
-            # Check if LLM provider is available to synthesize a command
+            from ops_assistant.nlp.nl_compiler import NaturalLanguageCompiler, generate_natural_explanation
+            # 1. Check NaturalLanguageCompiler first
+            nl_compiled = NaturalLanguageCompiler.compile(query)
+            
+            # 2. Check if LLM provider is available to synthesize a command
             ai_synthesis = None
-            if isinstance(self.llm_provider, GeminiProvider):
+            if not nl_compiled and isinstance(self.llm_provider, GeminiProvider):
                 avail, _ = self.llm_provider.is_available()
                 if avail:
                     ai_synthesis = self.llm_provider.generate_command(query)
 
-            if ai_synthesis and ai_synthesis.get("command"):
+            if nl_compiled and nl_compiled.get("command"):
+                raw_cmd = nl_compiled["command"]
+                desc = nl_compiled.get("description") or f"Executes: '{raw_cmd}'."
+                val = CommandSafetyValidator.validate(raw_cmd)
+                safety_lvl = nl_compiled.get("safety_level") or val.level.value
+                risk_sc = float(nl_compiled.get("risk_score") or val.risk_score)
+                result["explanation_paragraph"] = nl_compiled.get("explanation_paragraph")
+            elif ai_synthesis and ai_synthesis.get("command"):
                 raw_cmd = ai_synthesis["command"]
                 desc = ai_synthesis.get("summary") or f"Executes: '{raw_cmd}'."
                 val = CommandSafetyValidator.validate(raw_cmd)
                 safety_lvl = ai_synthesis.get("safety_level") or val.level.value
                 risk_sc = float(ai_synthesis.get("risk_score") or val.risk_score)
+                result["explanation_paragraph"] = ai_synthesis.get("summary")
             else:
                 raw_cmd = (args.get("command") or query).strip()
                 raw_cmd = re.sub(r"^\$\s*", "", raw_cmd)
@@ -2427,6 +2450,19 @@ class OpsAssistantAgent:
                     }
                     for c in report.explanation.proposed_commands
                 ]
+
+        if not result.get("explanation_paragraph"):
+            try:
+                from ops_assistant.nlp.nl_compiler import generate_natural_explanation
+                exec_out = result.get("output") or {}
+                out_str = exec_out.get("stdout", "") if isinstance(exec_out, dict) else str(exec_out)
+                err_str = exec_out.get("stderr", "") if isinstance(exec_out, dict) else ""
+                ret_code = exec_out.get("returncode", 0) if isinstance(exec_out, dict) else 0
+                result["explanation_paragraph"] = generate_natural_explanation(
+                    query, result.get("command", ""), ret_code, out_str, err_str
+                )
+            except Exception:
+                result["explanation_paragraph"] = result.get("summary", "")
 
         return result
 
