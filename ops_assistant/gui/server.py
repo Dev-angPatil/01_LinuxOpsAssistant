@@ -9,6 +9,8 @@ import os
 import sys
 import json
 import time
+import uuid
+import queue
 import shutil
 import urllib.parse
 import webbrowser
@@ -29,6 +31,36 @@ from ops_assistant.models import SafetyLevel
 
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+# ---------------------------------------------------------------------------
+# CommandCenter Session Store — thread-safe in-memory dict, 5-min TTL
+# ---------------------------------------------------------------------------
+_COMMAND_SESSIONS: Dict[str, Any] = {}
+_SESSIONS_LOCK = threading.Lock()
+_SESSION_TTL = 300  # seconds
+
+
+def _create_session(data: Dict[str, Any]) -> str:
+    session_id = str(uuid.uuid4())
+    with _SESSIONS_LOCK:
+        _COMMAND_SESSIONS[session_id] = {
+            "created_at": time.time(),
+            "events_queue": queue.Queue(),
+            "events_log": [],
+            **data,
+        }
+    return session_id
+
+
+def _get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    with _SESSIONS_LOCK:
+        sess = _COMMAND_SESSIONS.get(session_id)
+        if sess is None:
+            return None
+        if time.time() - sess.get("created_at", 0) > _SESSION_TTL:
+            del _COMMAND_SESSIONS[session_id]
+            return None
+        return sess
 
 
 class OpsAssistantHandler(BaseHTTPRequestHandler):
@@ -82,8 +114,11 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             self._serve_static_file("index.html", "text/html")
             return
-        elif path.startswith("/static/"):
-            rel_name = path[len("/static/"):]
+        elif path.startswith("/static/") or path.startswith("/assets/"):
+            if path.startswith("/static/"):
+                rel_name = path[len("/static/"):]
+            else:
+                rel_name = "assets/" + path[len("/assets/"):]
             ext = os.path.splitext(rel_name)[1].lower()
             mime_map = {
                 ".css": "text/css",
@@ -93,6 +128,7 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
                 ".svg": "image/svg+xml",
                 ".png": "image/png",
                 ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
                 ".ico": "image/x-icon"
             }
             mime = mime_map.get(ext, "application/octet-stream")
@@ -248,6 +284,11 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             detector = DistroDetector()
             d_info = detector.detect()
             self._send_json(d_info.to_dict() if hasattr(d_info, "to_dict") else d_info.__dict__)
+            return
+
+        elif path.startswith("/api/command/stream/"):
+            session_id = path[len("/api/command/stream/"):]
+            self._handle_command_stream_sse(session_id)
             return
 
         else:
@@ -558,6 +599,63 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             self._send_json(res)
             return
 
+        # 15. CommandCenter — Intent interpretation (plan without execution)
+        elif path == "/api/command/interpret":
+            text = body.get("text", "").strip()
+            if not text:
+                self._send_error("text field is required")
+                return
+            interpretation = self.agent.interpret_command(text)
+            session_id = _create_session({
+                "text": text,
+                "understanding": interpretation["understanding"],
+                "plan_steps": interpretation["plan_steps"],
+                "requires_confirmation": interpretation["requires_confirmation"],
+                "safety_level": interpretation["safety_level"],
+                "intent": interpretation["intent"],
+            })
+            self._send_json({
+                "session_id": session_id,
+                "understanding": interpretation["understanding"],
+                "plan_steps": interpretation["plan_steps"],
+                "requires_confirmation": interpretation["requires_confirmation"],
+                "safety_level": interpretation["safety_level"],
+                "intent": interpretation["intent"],
+                "confidence": interpretation.get("confidence", 1.0),
+            })
+            return
+
+        # 16. CommandCenter — Execute a confirmed plan, stream results via SSE
+        elif path == "/api/command/execute":
+            session_id = body.get("session_id", "").strip()
+            confirmed = bool(body.get("confirmed", False))
+            if not session_id:
+                self._send_error("session_id is required")
+                return
+            sess = _get_session(session_id)
+            if not sess:
+                self._send_error("Session not found or expired", status=404)
+                return
+            # Server-side confirmation gate — HIGH_RISK / DESTRUCTIVE require confirmed=true
+            if sess.get("requires_confirmation") and not confirmed:
+                self._send_json({
+                    "blocked": True,
+                    "error": "This action requires explicit confirmation (HIGH_RISK or DESTRUCTIVE). "
+                             "Set confirmed: true to proceed.",
+                    "safety_level": sess.get("safety_level"),
+                    "requires_confirmation": True,
+                }, status=403)
+                return
+            # Launch execution in a background thread; results stream via SSE
+            t = threading.Thread(
+                target=self._execute_plan_async,
+                args=(session_id, sess),
+                daemon=True,
+            )
+            t.start()
+            self._send_json({"success": True, "session_id": session_id, "message": "Execution started"})
+            return
+
         else:
             self._send_error("Endpoint not found", status=404)
 
@@ -571,14 +669,142 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
         try:
             with open(target, "rb") as f:
                 content = f.read()
+            content_type = f"{mime}; charset=utf-8" if ("text" in mime or "javascript" in mime or "json" in mime) else mime
             self.send_response(200)
-            self.send_header("Content-Type", f"{mime}; charset=utf-8")
+            self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(content)))
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(content)
         except Exception as e:
             self._send_error(str(e), status=500)
+
+    # ------------------------------------------------------------------
+    # CommandCenter SSE stream — drains per-session event queue
+    # ------------------------------------------------------------------
+    def _handle_command_stream_sse(self, session_id: str):
+        sess = _get_session(session_id)
+        if not sess:
+            self._send_error("Session not found or expired", status=404)
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        q: queue.Queue = sess["events_queue"]
+        # Replay any events already logged (client connected after execution started)
+        for ev in list(sess.get("events_log", [])):
+            evt_type = ev["type"]
+            data_str = json.dumps(ev["data"])
+            try:
+                self.wfile.write(f"event: {evt_type}\ndata: {data_str}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                return
+
+        try:
+            while True:
+                try:
+                    event = q.get(timeout=25)
+                except queue.Empty:
+                    # Keepalive comment
+                    self.wfile.write(b": keepalive\n\n")
+                    self.wfile.flush()
+                    continue
+
+                if event is None:
+                    # Sentinel — execution complete
+                    self.wfile.write(b"event: done\ndata: {}\n\n")
+                    self.wfile.flush()
+                    break
+
+                evt_type = event["type"]
+                data_str = json.dumps(event["data"])
+                self.wfile.write(f"event: {evt_type}\ndata: {data_str}\n\n".encode("utf-8"))
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    # ------------------------------------------------------------------
+    # CommandCenter plan executor — runs in a background thread
+    # ------------------------------------------------------------------
+    def _execute_plan_async(self, session_id: str, sess: Dict[str, Any]):
+        import subprocess as _sp
+
+        q: queue.Queue = sess["events_queue"]
+        log: List[Dict[str, Any]] = sess["events_log"]
+
+        def emit(evt_type: str, data: Dict[str, Any]):
+            event = {"type": evt_type, "data": data, "ts": time.time()}
+            log.append(event)
+            q.put(event)
+
+        # 1. Emit understanding
+        emit("understanding", {"text": sess.get("understanding", "")})
+
+        plan_steps: List[Dict[str, Any]] = sess.get("plan_steps", [])
+
+        # 2. Emit all steps as "pending" first (so the stepper renders immediately)
+        for step in plan_steps:
+            emit("plan_step", {**step, "status": "pending"})
+
+        # 3. Execute each step and stream status transitions
+        for step in plan_steps:
+            cmd = step.get("command", "").strip()
+            emit("plan_step", {**step, "status": "running"})
+
+            if not cmd or cmd.startswith("ops-assistant "):
+                # No real shell command — treat as instant success
+                emit("plan_step", {**step, "status": "done", "exit_code": 0, "output": "Completed (no shell command)"})
+                continue
+
+            try:
+                proc = _sp.run(
+                    cmd, shell=True, capture_output=True, text=True, timeout=30
+                )
+                status = "done" if proc.returncode == 0 else "failed"
+                output = (proc.stdout + proc.stderr).strip()
+                emit("plan_step", {**step, "status": status, "exit_code": proc.returncode, "output": output[:2000]})
+            except _sp.TimeoutExpired:
+                emit("plan_step", {**step, "status": "failed", "exit_code": -1, "output": "Command timed out after 30 s"})
+            except Exception as exc:
+                emit("plan_step", {**step, "status": "failed", "exit_code": -1, "output": str(exc)})
+
+        # 4. Build final result from log
+        done_count = sum(1 for e in log if e["type"] == "plan_step" and e["data"].get("status") == "done")
+        fail_count = sum(1 for e in log if e["type"] == "plan_step" and e["data"].get("status") == "failed")
+        raw_output = "\n".join(
+            e["data"].get("output", "") for e in log
+            if e["type"] == "plan_step" and e["data"].get("status") in ("done", "failed") and e["data"].get("output")
+        )
+
+        if not plan_steps:
+            summary = "No executable steps were generated for this command."
+            success = True
+        elif fail_count == 0:
+            summary = (
+                f"All {done_count} step(s) completed successfully."
+                if done_count > 1
+                else "Step completed successfully."
+            )
+            success = True
+        else:
+            summary = f"{done_count} step(s) completed, {fail_count} failed."
+            success = False
+
+        emit("result", {
+            "success": success,
+            "summary": summary,
+            "raw_output": raw_output,
+            "exit_code": 0 if success else 1,
+        })
+
+        # Sentinel to signal SSE client the stream is complete
+        q.put(None)
 
     def _handle_telemetry_sse(self):
         self.send_response(200)

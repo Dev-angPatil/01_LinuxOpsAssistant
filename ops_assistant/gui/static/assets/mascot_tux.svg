@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="tuxBody" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#27272a"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </radialGradient>
+    <radialGradient id="tuxBelly" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e4e4e7"/>
+    </radialGradient>
+    <linearGradient id="cyberGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Glow Aura -->
+  <circle cx="60" cy="60" r="54" fill="#06b6d4" opacity="0.15" filter="blur(4px)"/>
+  <circle cx="60" cy="60" r="50" fill="#18181b" stroke="#06b6d4" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Feet -->
+  <ellipse cx="44" cy="98" rx="16" ry="8" fill="#f59e0b"/>
+  <ellipse cx="76" cy="98" rx="16" ry="8" fill="#f59e0b"/>
+  <!-- Body -->
+  <ellipse cx="60" cy="64" rx="32" ry="36" fill="url(#tuxBody)"/>
+  <!-- Belly -->
+  <ellipse cx="60" cy="68" rx="22" ry="26" fill="url(#tuxBelly)"/>
+  <!-- Wings / Flippers -->
+  <ellipse cx="28" cy="65" rx="8" ry="20" fill="#18181b" transform="rotate(20 28 65)"/>
+  <ellipse cx="92" cy="65" rx="8" ry="20" fill="#18181b" transform="rotate(-20 92 65)"/>
+  <!-- Cyber Visor / HUD -->
+  <rect x="36" y="38" width="48" height="14" rx="7" fill="url(#cyberGlow)" opacity="0.9"/>
+  <line x1="40" y1="45" x2="80" y2="45" stroke="#ffffff" stroke-width="1.5" opacity="0.8"/>
+  <circle cx="48" cy="45" r="2.5" fill="#ffffff"/>
+  <circle cx="72" cy="45" r="2.5" fill="#ffffff"/>
+  <!-- Beak -->
+  <polygon points="54,52 66,52 60,62" fill="#f97316"/>
+  <!-- Cyber Headset Antenna -->
+  <line x1="38" y1="40" x2="30" y2="30" stroke="#06b6d4" stroke-width="2"/>
+  <circle cx="30" cy="30" r="3" fill="#06b6d4"/>
+</svg>

@@ -660,6 +660,72 @@ class OpsAssistantAgent:
             reasoning_engine="NeuroSymbolic-Causality-XAI"
         )
 
+    # ------------------------------------------------------------------
+    # CommandCenter — Intent interpretation (no execution)
+    # ------------------------------------------------------------------
+    # Safety levels that require explicit user confirmation before execution.
+    # Only HIGH_RISK and DESTRUCTIVE actions are gated; MODIFYING runs freely.
+    _CONFIRMATION_REQUIRED_LEVELS = {"HIGH_RISK", "DESTRUCTIVE"}
+
+    def interpret_command(self, text: str) -> Dict[str, Any]:
+        """
+        Classify and plan a natural-language command without executing anything.
+
+        Returns a dict with:
+          understanding       – plain-language restatement of parsed intent
+          plan_steps          – ordered list of {index, description, command,
+                                safety_level, risk_score}
+          requires_confirmation – True when safety_level is HIGH_RISK or DESTRUCTIVE
+          safety_level        – SafetyLevel.value of the most dangerous planned step
+          intent              – IntentType.value
+          confidence          – float 0-1
+        """
+        result = self.execute_agent_action(text, execute=False)
+
+        # Build plain-language understanding string
+        raw_summary = result.get("summary", "").strip()
+        if raw_summary and not raw_summary.lower().startswith("ready to"):
+            understanding = raw_summary
+        else:
+            intent_label = result.get("intent", "perform an action").replace("_", " ")
+            understanding = f"You want me to {intent_label}: {text.rstrip('.')}."
+
+        # Normalise plan steps from planned_commands (preferred) or single command
+        planned = result.get("planned_commands") or []
+        if not planned and result.get("command"):
+            planned = [{
+                "command": result["command"],
+                "description": result.get("command_description") or result.get("summary", ""),
+                "safety_level": result.get("safety_level", SafetyLevel.READ_ONLY.value),
+                "risk_score": result.get("risk_score", 0.05),
+            }]
+
+        plan_steps: List[Dict[str, Any]] = [
+            {
+                "index": i,
+                "description": cmd.get("description") or cmd.get("command", ""),
+                "command": cmd.get("command", ""),
+                "safety_level": cmd.get("safety_level", SafetyLevel.READ_ONLY.value),
+                "risk_score": float(cmd.get("risk_score", 0.05)),
+            }
+            for i, cmd in enumerate(planned)
+        ]
+
+        safety_level = result.get("safety_level", SafetyLevel.READ_ONLY.value)
+        safety_level_val = (
+            safety_level.value if hasattr(safety_level, "value") else str(safety_level)
+        )
+        requires_confirmation = safety_level_val in ("HIGH_RISK", "DESTRUCTIVE")
+
+        return {
+            "understanding": understanding,
+            "plan_steps": plan_steps,
+            "requires_confirmation": requires_confirmation,
+            "safety_level": safety_level_val,
+            "intent": result.get("intent", "unknown"),
+            "confidence": result.get("confidence", 1.0),
+        }
+
     def execute_agent_action(self, query: str, context: Optional[Dict[str, Any]] = None, execute: bool = True) -> Dict[str, Any]:
         """
         Unified Natural Language Agent Execution Engine for CLI & GUI.
