@@ -286,6 +286,39 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             self._send_json(d_info.to_dict() if hasattr(d_info, "to_dict") else d_info.__dict__)
             return
 
+        elif path == "/api/history/sessions":
+            from ops_assistant.db.history_db import get_history_db
+            sessions = get_history_db().list_sessions(limit=50)
+            self._send_json({"sessions": sessions, "count": len(sessions)})
+            return
+
+        elif path == "/api/history/session":
+            params = urllib.parse.parse_qs(parsed.query)
+            sid = params.get("id", [""])[0]
+            from ops_assistant.db.history_db import get_history_db
+            items = get_history_db().get_session_history(sid)
+            self._send_json({"session_id": sid, "history": items, "count": len(items)})
+            return
+
+        elif path == "/api/config/gemini":
+            from ops_assistant.config import get_gemini_api_key, get_config
+            key = get_gemini_api_key()
+            cfg = get_config()
+            masked = f"{key[:4]}...{key[-4:]}" if (key and len(key) > 8) else ("Configured" if key else "")
+            self._send_json({
+                "configured": bool(key),
+                "masked_key": masked,
+                "model": cfg.get("gemini_model", "gemini-2.0-flash"),
+                "provider": cfg.get("provider", "auto")
+            })
+            return
+
+        elif path == "/api/system/cwd":
+            from ops_assistant.config import get_working_dir
+            wd = get_working_dir()
+            self._send_json({"cwd": wd, "home": str(Path.home())})
+            return
+
         elif path.startswith("/api/command/stream/"):
             session_id = path[len("/api/command/stream/"):]
             self._handle_command_stream_sse(session_id)
@@ -656,6 +689,58 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             self._send_json({"success": True, "session_id": session_id, "message": "Execution started"})
             return
 
+        # 17. Config & History Management
+        elif path == "/api/config/gemini":
+            from ops_assistant.config import set_gemini_api_key, get_config, save_config
+            from ops_assistant.agent import GeminiProvider
+            api_key = body.get("api_key", "").strip()
+            model = body.get("model", "gemini-2.0-flash").strip()
+            if api_key:
+                set_gemini_api_key(api_key)
+            cfg = get_config()
+            if model:
+                cfg["gemini_model"] = model
+            if body.get("set_provider"):
+                cfg["provider"] = "gemini"
+            save_config(cfg)
+            # Reinitialize agent provider
+            self.agent.llm_provider = GeminiProvider(api_key=api_key or None, model=model)
+            self._send_json({"success": True, "message": "Gemini configuration updated successfully."})
+            return
+
+        elif path == "/api/history/delete":
+            sid = body.get("session_id", "").strip()
+            from ops_assistant.db.history_db import get_history_db
+            get_history_db().delete_session(sid)
+            self._send_json({"success": True, "session_id": sid})
+            return
+
+        elif path == "/api/history/clear":
+            from ops_assistant.db.history_db import get_history_db
+            get_history_db().clear_all()
+            self._send_json({"success": True, "message": "History cleared."})
+            return
+
+        elif path == "/api/command/explain":
+            cmd = body.get("command", "").strip()
+            if not cmd:
+                self._send_error("Command field is required")
+                return
+            explanation = self.agent.explain_command(cmd)
+            self._send_json(explanation)
+            return
+
+        elif path == "/api/system/cwd":
+            from ops_assistant.config import set_working_dir, get_working_dir
+            new_dir = body.get("path", "").strip()
+            if new_dir:
+                ok = set_working_dir(new_dir)
+                if not ok:
+                    self._send_error(f"Directory not found: {new_dir}")
+                    return
+            self._send_json({"success": True, "cwd": get_working_dir()})
+            return
+
         else:
             self._send_error("Endpoint not found", status=404)
 
@@ -696,35 +781,26 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         q: queue.Queue = sess["events_queue"]
-        # Replay any events already logged (client connected after execution started)
-        for ev in list(sess.get("events_log", [])):
-            evt_type = ev["type"]
-            data_str = json.dumps(ev["data"])
-            try:
-                self.wfile.write(f"event: {evt_type}\ndata: {data_str}\n\n".encode("utf-8"))
-                self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                return
-
         try:
             while True:
                 try:
-                    event = q.get(timeout=25)
+                    event = q.get(timeout=20.0)
                 except queue.Empty:
-                    # Keepalive comment
-                    self.wfile.write(b": keepalive\n\n")
+                    # Heartbeat comment to keep connection alive
+                    self.wfile.write(b": ping\n\n")
                     self.wfile.flush()
                     continue
 
                 if event is None:
-                    # Sentinel — execution complete
-                    self.wfile.write(b"event: done\ndata: {}\n\n")
+                    # Stream complete sentinel
+                    self.wfile.write(b"event: complete\ndata: {}\n\n")
                     self.wfile.flush()
                     break
 
-                evt_type = event["type"]
-                data_str = json.dumps(event["data"])
-                self.wfile.write(f"event: {evt_type}\ndata: {data_str}\n\n".encode("utf-8"))
+                evt_type = event.get("type", "message")
+                payload = json.dumps(event.get("data", {}))
+                msg = f"event: {evt_type}\ndata: {payload}\n\n".encode("utf-8")
+                self.wfile.write(msg)
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -733,8 +809,17 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
     # CommandCenter plan executor — runs in a background thread
     # ------------------------------------------------------------------
     def _execute_plan_async(self, session_id: str, sess: Dict[str, Any]):
+        """
+        Background worker that executes each step in a CommandCenter plan
+        sequentially, updates the session log, and pushes events into the
+        per-session queue for live SSE delivery to the browser.
+        """
         import subprocess as _sp
+        import time
+        from ops_assistant.config import get_working_dir
+        from ops_assistant.db.history_db import get_history_db
 
+        hdb = get_history_db()
         q: queue.Queue = sess["events_queue"]
         log: List[Dict[str, Any]] = sess["events_log"]
 
@@ -753,6 +838,7 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             emit("plan_step", {**step, "status": "pending"})
 
         # 3. Execute each step and stream status transitions
+        active_cwd = get_working_dir()
         for step in plan_steps:
             cmd = step.get("command", "").strip()
             emit("plan_step", {**step, "status": "running"})
@@ -762,13 +848,42 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
                 emit("plan_step", {**step, "status": "done", "exit_code": 0, "output": "Completed (no shell command)"})
                 continue
 
+            t_start = time.time()
             try:
                 proc = _sp.run(
-                    cmd, shell=True, capture_output=True, text=True, timeout=30
+                    cmd, shell=True, capture_output=True, text=True, timeout=30, cwd=active_cwd
                 )
+                elapsed_ms = (time.time() - t_start) * 1000.0
                 status = "done" if proc.returncode == 0 else "failed"
                 output = (proc.stdout + proc.stderr).strip()
-                emit("plan_step", {**step, "status": status, "exit_code": proc.returncode, "output": output[:2000]})
+
+                diag = None
+                if proc.returncode != 0:
+                    diag = self.agent.explain_error(cmd, proc.returncode, stderr=proc.stderr, stdout=proc.stdout)
+
+                # Persist to database
+                hdb.log_command(
+                    session_id=session_id,
+                    query=sess.get("text", cmd),
+                    command=cmd,
+                    intent=sess.get("intent", "action"),
+                    safety_level=step.get("safety_level", "MODIFYING"),
+                    risk_score=float(step.get("risk_score", 0.1)),
+                    returncode=proc.returncode,
+                    stdout=proc.stdout,
+                    stderr=proc.stderr,
+                    elapsed_ms=elapsed_ms,
+                    explanation=step.get("description"),
+                    rollback_command=step.get("rollback_command")
+                )
+
+                emit("plan_step", {
+                    **step,
+                    "status": status,
+                    "exit_code": proc.returncode,
+                    "output": output[:2000],
+                    "error_diagnosis": diag
+                })
             except _sp.TimeoutExpired:
                 emit("plan_step", {**step, "status": "failed", "exit_code": -1, "output": "Command timed out after 30 s"})
             except Exception as exc:

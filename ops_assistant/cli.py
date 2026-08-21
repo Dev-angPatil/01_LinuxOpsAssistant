@@ -2151,13 +2151,235 @@ def run_repl(agent: OpsAssistantAgent, executor: SafeExecutor, distro_override: 
 
 
 
+def render_nl_action_execution(
+    agent: OpsAssistantAgent,
+    executor: SafeExecutor,
+    query: str,
+    distro_override: Optional[str] = None,
+    interactive_exec: bool = False,
+    export_json: Optional[str] = None,
+    export_md: Optional[str] = None
+):
+    """
+    Unified CLI dispatcher for natural language and Linux commands.
+    Distinguishes diagnostic failure queries from operational commands,
+    displays XAI explanation, safety level, flag breakdown, changes,
+    prompts for confirmation on destructive/high-risk actions, and executes.
+    """
+    router = IntentRouter(llm_provider=agent.llm_provider)
+    intent = router.classify(query)
+
+    if intent.type == IntentType.DIAGNOSE:
+        rep = agent.diagnose(query, distro_override=distro_override)
+        render_diagnostic_report(rep, executor, interactive_exec=interactive_exec)
+        if export_json:
+            export_report(rep, export_json, fmt="json")
+        if export_md:
+            export_report(rep, export_md, fmt="md")
+        return
+
+    if intent.type == IntentType.COMMAND_EXPLAIN:
+        cmd_to_explain = intent.args.get("command") or query
+        exp = agent.explain_command(cmd_to_explain)
+        if HAS_RICH and console:
+            console.print(Panel(
+                f"[bold cyan]Linux Command Explanation (XAI)[/bold cyan]\n"
+                f"[bold yellow]$ {exp.get('command')}[/bold yellow]\n\n"
+                f"[bold white]{exp.get('summary')}[/bold white]\n"
+                f"[dim]Base binary:[/dim] [magenta]{exp.get('base_binary')}[/magenta] | "
+                f"[dim]Requires sudo:[/dim] [yellow]{exp.get('requires_sudo')}[/yellow]",
+                border_style="cyan"
+            ))
+            if exp.get("flags"):
+                table = Table(title="Decoded Options & Flags", show_header=True, header_style="bold magenta")
+                table.add_column("Flag / Option", style="bold yellow")
+                table.add_column("Purpose / Explanation", style="white")
+                for f in exp["flags"]:
+                    table.add_row(f.get("flag", ""), f.get("purpose", ""))
+                console.print(table)
+        else:
+            print("\n" + "=" * 68)
+            print(f"  LINUX COMMAND EXPLANATION (XAI)")
+            print(f"  Command: {exp.get('command')}")
+            print(f"  Summary: {exp.get('summary')}")
+            print("=" * 68)
+            for f in exp.get("flags", []):
+                print(f"  • {f.get('flag')}: {f.get('purpose')}")
+            print("=" * 68 + "\n")
+        return
+
+    # Operational or direct shell command
+    res = agent.execute_agent_action(query, context={"distro": distro_override}, execute=False)
+    planned_cmds = res.get("planned_commands") or []
+    if not planned_cmds and res.get("command"):
+        planned_cmds = [{
+            "command": res["command"],
+            "description": res.get("command_description") or res.get("summary", ""),
+            "safety_level": res.get("safety_level", SafetyLevel.READ_ONLY.value),
+            "risk_score": res.get("risk_score", 0.05),
+            "rollback_command": res.get("rollback_command")
+        }]
+
+    if HAS_RICH and console:
+        console.print(Panel(
+            f"[bold cyan]Linux Action Copilot[/bold cyan]\n"
+            f"[dim]Understanding:[/dim] [bold white]{res.get('summary') or query}[/bold white]\n"
+            f"[dim]Intent:[/dim] [bold magenta]{res.get('intent', 'action')}[/bold magenta] | "
+            f"[dim]Safety:[/dim] {format_safety_badge(SafetyLevel(res.get('safety_level', SafetyLevel.READ_ONLY.value)))} | "
+            f"[dim]Risk Score:[/dim] [bold red]{res.get('risk_score', 0.05):.2f}[/bold red]",
+            border_style="cyan"
+        ))
+
+        table = Table(title="Planned Execution Steps", show_header=True, header_style="bold magenta")
+        table.add_column("#", width=3)
+        table.add_column("Command", style="bold yellow")
+        table.add_column("Safety", justify="center")
+        table.add_column("Impact / Description", style="dim")
+        table.add_column("Rollback", style="dim")
+
+        for idx, c in enumerate(planned_cmds, 1):
+            s_lvl = SafetyLevel(c.get("safety_level", SafetyLevel.READ_ONLY.value))
+            table.add_row(
+                str(idx),
+                c.get("command", ""),
+                format_safety_badge(s_lvl),
+                c.get("description", ""),
+                c.get("rollback_command") or "N/A"
+            )
+        console.print(table)
+    else:
+        print("\n" + "=" * 68)
+        print(f"  LINUX ACTION COPILOT — [{res.get('intent', 'action')}]")
+        print(f"  Understanding: {res.get('summary') or query}")
+        print(f"  Safety: [{res.get('safety_level', 'READ_ONLY')}] | Risk: {res.get('risk_score', 0.05):.2f}")
+        print("=" * 68)
+        for idx, c in enumerate(planned_cmds, 1):
+            print(f"  [{idx}] $ {c.get('command')}")
+            print(f"      Impact: {c.get('description')}")
+            if c.get("rollback_command"):
+                print(f"      Rollback: {c.get('rollback_command')}")
+        print("=" * 68 + "\n")
+
+    # Safety Gating: Prompt for confirmation on HIGH_RISK or DESTRUCTIVE
+    safety_val = str(res.get("safety_level", "READ_ONLY"))
+    if safety_val == "DESTRUCTIVE":
+        if HAS_RICH and console:
+            console.print(Panel(
+                f"[bold white on red]🛑 DESTRUCTIVE COMMAND CONFIRMATION[/bold white on red]\n"
+                f"This action targets critical files or system storage: [bold]{res.get('command')}[/bold]\n"
+                f"Are you sure you want to execute this destructive command?",
+                border_style="red"
+            ))
+            confirmed = Confirm.ask("Execute destructive command?", default=False)
+        else:
+            print(f"🛑 DESTRUCTIVE COMMAND CONFIRMATION: {res.get('command')}")
+            ans = input("Are you sure you want to execute this destructive command? [y/N]: ").strip().lower()
+            confirmed = ans in ("y", "yes")
+
+        if not confirmed:
+            print("Operation cancelled by operator.")
+            return
+
+    elif safety_val == "HIGH_RISK":
+        if HAS_RICH and console:
+            console.print(Panel(
+                f"[bold yellow]⚠️ HIGH-RISK OPERATION CONFIRMATION[/bold yellow]\n"
+                f"Command: [bold]{res.get('command')}[/bold]\n"
+                f"This action will modify system configuration, processes, or storage.",
+                border_style="yellow"
+            ))
+            confirmed = Confirm.ask("Proceed with execution?", default=True)
+        else:
+            print(f"⚠️ HIGH-RISK OPERATION: {res.get('command')}")
+            ans = input("Proceed with execution? [Y/n]: ").strip().lower()
+            confirmed = ans not in ("n", "no")
+
+        if not confirmed:
+            print("Operation cancelled by operator.")
+            return
+
+    elif interactive_exec:
+        if HAS_RICH and console:
+            confirmed = Confirm.ask(f"Execute '{res.get('command')}'?", default=True)
+        else:
+            ans = input(f"Execute '{res.get('command')}'? [Y/n]: ").strip().lower()
+            confirmed = ans not in ("n", "no")
+        if not confirmed:
+            print("Operation cancelled.")
+            return
+
+    # Execute planned commands
+    from ops_assistant.db.history_db import get_history_db
+    hdb = get_history_db()
+
+    for c in planned_cmds:
+        cmd_str = c.get("command", "").strip()
+        if not cmd_str or cmd_str.startswith("ops-assistant "):
+            continue
+        if HAS_RICH and console:
+            console.print(f"[bold cyan]▶ Executing:[/bold cyan] [bold yellow]{cmd_str}[/bold yellow]")
+        else:
+            print(f"Executing: {cmd_str}")
+
+        exec_res = executor.execute(cmd_str, rollback_cmd=c.get("rollback_command"))
+        ret_code = exec_res.get("returncode", -1)
+        stderr_txt = exec_res.get("stderr", "").strip()
+        stdout_txt = exec_res.get("stdout", "").strip()
+        elapsed_ms = exec_res.get("elapsed_ms", 0.0)
+
+        # Log into unified persistent history database
+        hdb.log_command(
+            query=query,
+            command=cmd_str,
+            intent=res.get("intent"),
+            safety_level=c.get("safety_level", "READ_ONLY"),
+            risk_score=float(c.get("risk_score", 0.05)),
+            returncode=ret_code,
+            stdout=stdout_txt,
+            stderr=stderr_txt,
+            elapsed_ms=elapsed_ms,
+            explanation=c.get("description"),
+            rollback_command=c.get("rollback_command")
+        )
+
+        if HAS_RICH and console:
+            status_badge = "[bold green]SUCCESS (0)[/bold green]" if ret_code == 0 else f"[bold red]FAILED ({ret_code})[/bold red]"
+            console.print(f"  Status: {status_badge} (elapsed: [bold]{elapsed_ms:.2f}ms[/bold])")
+            if stdout_txt:
+                console.print(Panel(stdout_txt, title="STDOUT", border_style="dim"))
+            if stderr_txt and ret_code != 0:
+                console.print(Panel(stderr_txt, title="STDERR", border_style="red"))
+                err_diag = agent.explain_error(cmd_str, ret_code, stderr=stderr_txt, stdout=stdout_txt)
+                console.print(Panel(
+                    f"[bold yellow]Diagnosis:[/bold yellow] {err_diag.get('diagnosis')}\n"
+                    f"[bold green]Recommendation:[/bold green] {err_diag.get('recommendation')}",
+                    title="💡 Error Explanation & Fix",
+                    border_style="yellow"
+                ))
+        else:
+            print(f"  Exit code: {ret_code} (elapsed: {elapsed_ms:.2f}ms)")
+            if stdout_txt:
+                print(stdout_txt)
+            if stderr_txt and ret_code != 0:
+                print(f"  STDERR: {stderr_txt}")
+                err_diag = agent.explain_error(cmd_str, ret_code, stderr=stderr_txt, stdout=stdout_txt)
+                print(f"  💡 Diagnosis: {err_diag.get('diagnosis')}")
+                print(f"  💡 Recommendation: {err_diag.get('recommendation')}")
+
+        if c.get("rollback_command") and exec_res.get("executed"):
+            if HAS_RICH and console:
+                console.print(f"  [dim magenta]↩ Registered rollback: `{c['rollback_command']}`[/dim magenta]")
+            else:
+                print(f"  ↩ Registered rollback: {c['rollback_command']}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="AI-Powered Linux Operations Assistant CLI"
     )
     parser.add_argument("query", nargs="?", type=str, help="Natural language diagnostic query", default=None)
     parser.add_argument("--distro", "-d", type=str, help="Simulate / override Linux distribution family (debian, rhel, arch, alpine, suse)", default=None)
-    parser.add_argument("--provider", "-p", type=str, choices=["auto", "deterministic", "gguf", "ollama"], default="auto", help="Reasoning backend engine (auto, deterministic, gguf, ollama)")
+    parser.add_argument("--provider", "-p", type=str, choices=["auto", "gemini", "deterministic", "gguf", "ollama"], default="auto", help="Reasoning backend engine (auto, gemini, deterministic, gguf, ollama)")
     parser.add_argument("--model-path", type=str, help="Path to custom local GGUF model file", default=None)
     parser.add_argument("--list-models", action="store_true", help="List registered and downloaded edge GGUF models")
     parser.add_argument("--download-model", type=str, help="Download registered GGUF model (e.g. qwen2.5-coder-0.5b)", default=None)
@@ -2261,12 +2483,15 @@ def main():
         else:
             print("✓ No failed system units found.")
     elif args.query:
-        rep = agent.diagnose(args.query, distro_override=args.distro)
-        render_diagnostic_report(rep, executor, interactive_exec=args.interactive)
-        if args.export_json:
-            export_report(rep, args.export_json, fmt="json")
-        if args.export_md:
-            export_report(rep, args.export_md, fmt="md")
+        render_nl_action_execution(
+            agent=agent,
+            executor=executor,
+            query=args.query,
+            distro_override=args.distro,
+            interactive_exec=args.interactive,
+            export_json=args.export_json,
+            export_md=args.export_md
+        )
     else:
         run_repl(agent, executor, distro_override=args.distro)
 

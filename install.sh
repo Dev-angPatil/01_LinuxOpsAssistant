@@ -541,6 +541,7 @@ if [ "$PROVIDER" = "deterministic" ]; then
 from ops_assistant.config import set_setup_completed, get_config, ConfigManager
 set_setup_completed(provider='deterministic')
 cfg = get_config()
+cfg['system_permissions_granted'] = True
 if '$TARGET_DISTRO':
     cfg['distro_override'] = '$TARGET_DISTRO'
 ConfigManager().save(cfg)
@@ -562,6 +563,7 @@ cfg = get_config()
 cfg['provider'] = 'ollama'
 cfg['ollama_model'] = '$OLLAMA_MODEL'
 cfg['setup_completed'] = True
+cfg['system_permissions_granted'] = True
 if '$TARGET_DISTRO':
     cfg['distro_override'] = '$TARGET_DISTRO'
 ConfigManager().save(cfg)
@@ -621,6 +623,7 @@ set_setup_completed(
 )
 
 cfg = get_config()
+cfg['system_permissions_granted'] = True
 if '$TARGET_DISTRO':
     cfg['distro_override'] = '$TARGET_DISTRO'
 ConfigManager().save(cfg)

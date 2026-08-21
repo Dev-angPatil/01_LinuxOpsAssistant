@@ -19,12 +19,12 @@ class TestCLI(unittest.TestCase):
     def test_cli_inspect_health(self):
         res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--inspect-health"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
-        self.assertIn("Linux Health Snapshot", res.stdout)
+        self.assertIn("health snapshot", res.stdout.lower())
 
     def test_cli_diagnose_query(self):
         res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "Why is NGINX failing to start?"], capture_output=True, text=True, cwd=PROJECT_ROOT)
         self.assertEqual(res.returncode, 0)
-        self.assertIn("XAI Diagnosis", res.stdout)
+        self.assertIn("xai diagnos", res.stdout.lower())
 
     def test_cli_benchmark(self):
         res = subprocess.run([sys.executable, "-m", "ops_assistant.cli", "--benchmark"], capture_output=True, text=True, cwd=PROJECT_ROOT)

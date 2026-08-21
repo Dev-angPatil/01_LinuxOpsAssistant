@@ -1524,27 +1524,55 @@ const HistorySidebar = {
     localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
     this.renderList();
   },
-  loadSessions() {
+  async loadSessions() {
+    try {
+      const res = await fetch('/api/history/sessions');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sessions && data.sessions.length > 0) {
+          this.sessions = data.sessions.map(s => ({
+            id: s.id,
+            title: s.title || s.query || 'Session',
+            timestamp: s.created_at ? new Date(s.created_at).getTime() : Date.now()
+          }));
+          localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
+          this.renderList();
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend history sync unavailable, using local history:', err);
+    }
     try {
       const raw = localStorage.getItem('cc-history-sessions');
       this.sessions = raw ? JSON.parse(raw) : [];
     } catch (e) { this.sessions = []; }
     this.renderList();
   },
-  deleteSession(id, e) {
+  async deleteSession(id, e) {
     if (e) e.stopPropagation();
     this.sessions = this.sessions.filter(s => s.id !== id);
     localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
     this.renderList();
     SoundFX.play('click');
+    try {
+      await fetch('/api/history/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: id })
+      });
+    } catch (err) {}
   },
-  clearAll() {
+  async clearAll() {
     if (confirm('Clear all recent chat history?')) {
       this.sessions = [];
       localStorage.removeItem('cc-history-sessions');
       this.renderList();
       SoundFX.play('click');
       showToast('Chat history cleared', 'info', 2000);
+      try {
+        await fetch('/api/history/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      } catch (err) {}
     }
   },
   filter(query) {
@@ -2159,7 +2187,7 @@ const CommandCenter = (function () {
     _stopWaveform();
     _setMicState('idle');
     if (submit) {
-      const text = state.finalTranscript.trim();
+      const text = (state.finalTranscript + ' ' + (state.interimTranscript || '')).trim();
       state.finalTranscript = ''; state.interimTranscript = '';
       const preview = document.getElementById('cc-voice-preview');
       if (preview) preview.classList.add('hidden');
@@ -2442,7 +2470,7 @@ const CommandCenter = (function () {
                   onclick="CommandCenter._cancelExecution('${escapeHtml(sid)}')">
             <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Cancel</span>
           </button>
-          <button class="btn btn-primary px-4 py-1.5 text-xs font-semibold"
+          <button class="btn btn-primary px-4 py-1.5 text-xs font-semibold ${safetyLevel === 'DESTRUCTIVE' ? 'bg-rose-600 hover:bg-rose-500 border-rose-500' : ''}"
                   onclick="CommandCenter._confirmExecution('${escapeHtml(sid)}')">
             <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Confirm &amp; Execute</span>
           </button>

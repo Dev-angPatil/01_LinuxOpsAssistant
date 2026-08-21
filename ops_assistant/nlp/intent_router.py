@@ -135,6 +135,36 @@ class IntentType(Enum):
     BACKUP_LIST          = "backup_list"
     BACKUP_RESTORE       = "backup_restore"
 
+    # Extended File & Directory Operations
+    FILE_CREATE          = "file_create"
+    FILE_DELETE          = "file_delete"
+    FILE_READ            = "file_read"
+    DIR_CREATE           = "dir_create"
+    DIR_DELETE           = "dir_delete"
+    DIR_LIST             = "dir_list"
+    PERM_CHANGE          = "perm_change"
+    ARCHIVE_CREATE       = "archive_create"
+    ARCHIVE_EXTRACT      = "archive_extract"
+    NETWORK_CURL         = "network_curl"
+    SYSTEM_WHOAMI        = "system_whoami"
+    SYSTEM_ENV           = "system_env"
+    GENERIC_COMMAND      = "generic_command"
+
+    # Command & Error Explanation
+    COMMAND_EXPLAIN      = "command_explain"
+
+    # Project Operations
+    PROJECT_INSTALL_DEPS = "project_install_deps"
+    PROJECT_CREATE_VENV  = "project_create_venv"
+
+    # Specialized Storage & Maintenance
+    STORAGE_CLEAN_TRASH  = "storage_clean_trash"
+    SYSTEM_CHECK_CPU     = "system_check_cpu"
+    SYSTEM_CHECK_RAM     = "system_check_ram"
+    SYSTEM_CHECK_DISK    = "system_check_disk"
+    SYSTEM_UPDATE        = "system_update"
+    SYSTEM_FIND_LARGE    = "system_find_large"
+
     # Pass-through shell
     SHELL_RUN          = "shell_run"
 
@@ -202,10 +232,27 @@ def _extract_port(m: re.Match) -> Dict[str, Any]:
 
 def _extract_url(m: re.Match) -> Dict[str, Any]:
     try:
-        url = (m.group("url") or "").strip()
-        return {"url": url} if url else {}
+        url = (m.group("url") or "").strip() if "url" in m.groupdict() and m.group("url") else ""
+        return {"url": url or "https://google.com"}
+    except Exception:
+        return {"url": "https://google.com"}
+
+
+def _extract_cmd(m: re.Match) -> Dict[str, Any]:
+    try:
+        cmd = (m.group("cmd") or "").strip().strip("\"'`")
+        return {"command": cmd}
     except Exception:
         return {}
+
+
+def _extract_project_args(m: re.Match) -> Dict[str, Any]:
+    try:
+        path = (m.group("path") or "").strip().strip("\"'") if "path" in m.groupdict() and m.group("path") else "."
+        name = (m.group("name") or "").strip().strip("\"'") if "name" in m.groupdict() and m.group("name") else "venv"
+        return {"path": path, "venv_name": name}
+    except Exception:
+        return {"path": ".", "venv_name": "venv"}
 
 
 def _extract_move_copy(m: re.Match) -> Dict[str, Any]:
@@ -296,6 +343,55 @@ def _extract_backup_args(m: re.Match) -> Dict[str, Any]:
         return {}
 
 
+def _extract_file_create(m: re.Match) -> Dict[str, Any]:
+    try:
+        path = (m.group("path") or "").strip().strip("\"'")
+        content = (m.group("content") or "").strip().strip("\"'") if "content" in m.groupdict() and m.group("content") else ""
+        return {"path": path, "content": content}
+    except Exception:
+        return {}
+
+
+def _extract_file_delete(m: re.Match) -> Dict[str, Any]:
+    try:
+        path = (m.group("path") or "").strip().strip("\"'")
+        return {"path": path} if path else {}
+    except Exception:
+        return {}
+
+
+def _extract_dir_path(m: re.Match) -> Dict[str, Any]:
+    try:
+        path = (m.group("path") or "").strip().strip("\"'")
+        return {"path": path} if path else {"path": "."}
+    except Exception:
+        return {"path": "."}
+
+
+def _extract_perm_change(m: re.Match) -> Dict[str, Any]:
+    try:
+        path = (m.group("path") or "").strip().strip("\"'")
+        mode = (m.group("mode") or "").strip().strip("\"'") if "mode" in m.groupdict() and m.group("mode") else "+x"
+        owner = (m.group("owner") or "").strip().strip("\"'") if "owner" in m.groupdict() and m.group("owner") else ""
+        res: Dict[str, Any] = {"path": path}
+        if mode:
+            res["mode"] = mode
+        if owner:
+            res["owner"] = owner
+        return res
+    except Exception:
+        return {}
+
+
+def _extract_archive(m: re.Match) -> Dict[str, Any]:
+    try:
+        src = (m.group("src") or "").strip().strip("\"'")
+        dest = (m.group("dest") or "").strip().strip("\"'") if "dest" in m.groupdict() and m.group("dest") else ""
+        return {"src": src, "dest": dest}
+    except Exception:
+        return {}
+
+
 _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
 
     # -----------------------------------------------------------------------
@@ -381,10 +477,68 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.DESKTOP_OPEN_BROWSER, [
+        (r"\b(?:open|launch|start)\s+(?:my\s+)?(?:web\s+)?(?:browser|chrome|firefox|brave|chromium)\b", _extract_url),
         (r"\b(?:open|launch|browse)\s+(?:in\s+)?(?:browser|web|chrome|firefox)\s+(?P<url>[^\s]+)", _extract_url),
         (r"\b(?:open|launch|browse)\s+(?:website|url|link|page)\s+(?P<url>[^\s]+)", _extract_url),
         (r"\b(?:open|browse\s+to)\s+(?P<url>https?:\/\/[^\s]+)", _extract_url),
         (r"\bopen\s+(?P<url>(?:www\.)?[a-zA-Z0-9\-]+\.[a-z]{2,}(?:\/[^\s]*)?)\s+in\s+browser\b", _extract_url),
+        (r"^(?:open|launch)\s+browser$", _extract_url),
+    ]),
+
+    # -----------------------------------------------------------------------
+    # Command & Error Explanation
+    # -----------------------------------------------------------------------
+    (IntentType.COMMAND_EXPLAIN, [
+        (r"^(?:explain|what\s+does|how\s+does)\s+(?:this\s+)?(?:linux\s+)?(?:command|cmd)?\s*[:\?]?\s*(?P<cmd>.+)$", _extract_cmd),
+        (r"^(?:explain|decode|breakdown)\s+(?P<cmd>(?:tar|chmod|chown|find|grep|awk|sed|curl|wget|ps|kill|pkill|systemctl|journalctl|df|free|ip|iptables|ufw|docker|git|cp|mv|rm|mkdir|cat|ls|head|tail)\b.+)$", _extract_cmd),
+        (r"^what\s+does\s+(?P<cmd>[a-zA-Z0-9_\-\.\/]+(?:\s+-[a-zA-Z0-9_\-\.\/]+)*.*?)\s+do\??$", _extract_cmd),
+    ]),
+
+    # -----------------------------------------------------------------------
+    # Project & Developer Operations
+    # -----------------------------------------------------------------------
+    (IntentType.PROJECT_INSTALL_DEPS, [
+        (r"\b(?:install|setup|fetch|download)\s+(?:project\s+|all\s+)?dependencies\b", _extract_project_args),
+        (r"\b(?:install|setup)\s+(?:the\s+)?requirements(?:\.txt)?\b", _extract_project_args),
+        (r"\b(?:run\s+|execute\s+)?(?:npm|pip|cargo|yarn|pnpm|bundle)\s+install\b", _extract_project_args),
+        (r"\binstall\s+dependencies\s+(?:in|for)\s+(?P<path>[\w\.\-\/~]+)", _extract_project_args),
+    ]),
+
+    (IntentType.PROJECT_CREATE_VENV, [
+        (r"\b(?:create|make|setup)\s+(?:a\s+)?(?:python\s+)?(?:virtual\s*env(?:ironment)?|venv)(?:\s+(?:named|called)\s+(?P<name>[\w\.\-]+))?\b", _extract_project_args),
+        (r"\bpython3?\s+-m\s+venv\s+(?P<name>[\w\.\-]+)\b", _extract_project_args),
+        (r"\bcreate\s+(?:a\s+)?venv\s+(?:in|at)\s+(?P<path>[\w\.\-\/~]+)", _extract_project_args),
+    ]),
+
+    # -----------------------------------------------------------------------
+    # Specialized System Resource & Maintenance Checks
+    # -----------------------------------------------------------------------
+    (IntentType.SYSTEM_CHECK_CPU, [
+        (r"\b(?:check|show|get|view|inspect)\s+(?:my\s+)?(?:cpu|processor)(?:\s+usage|\s+load|\s+status|\s+utilization)?\b", None),
+        (r"\bhow\s+is\s+(?:the\s+|my\s+)?cpu\s+(?:doing|load|usage)\b", None),
+        (r"^(?:cpu|processor)$", None),
+    ]),
+
+    (IntentType.SYSTEM_CHECK_RAM, [
+        (r"\b(?:check|show|get|view|inspect)\s+(?:my\s+)?(?:ram|memory|swap)(?:\s+usage|\s+status|\s+free|\s+headroom)?\b", None),
+        (r"\bhow\s+much\s+(?:ram|memory)\s+(?:is\s+free|available|used)\b", None),
+        (r"^(?:free|ram|mem|memory)$", None),
+    ]),
+
+    (IntentType.SYSTEM_CHECK_DISK, [
+        (r"\b(?:check|show|get|view|inspect)\s+(?:my\s+)?(?:disk|storage|filesystem|drive)(?:\s+usage|\s+space|\s+status|\s+capacity)?\b", None),
+        (r"\bhow\s+much\s+disk\s+(?:space\s+)?(?:is\s+free|available|used)\b", None),
+        (r"^(?:df|disk|storage)$", None),
+    ]),
+
+    (IntentType.STORAGE_CLEAN_TRASH, [
+        (r"\b(?:clean|empty|clear|purge|trash)\s+(?:my\s+)?trash(?:\s+can|\s+bin|\s+folder|\s+directory)?\b", None),
+        (r"\bempty\s+the\s+trash\b", None),
+    ]),
+
+    (IntentType.SYSTEM_UPDATE, [
+        (r"\b(?:update|upgrade)\s+(?:my\s+)?(?:system|os|linux|distro|all\s+packages)\b", None),
+        (r"\b(?:run\s+)?system\s+update\b", None),
     ]),
 
     # -----------------------------------------------------------------------
@@ -589,9 +743,11 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     # Processes
     # -----------------------------------------------------------------------
     (IntentType.PROCESS_LIST, [
-        (r"\b(show|list|view|what) (processes?|procs?|tasks?)\b", None),
+        (r"\b(show|list|view|what|check|display) (processes?|procs?|tasks?|memory|ram|mem|swap)\b", None),
+        (r"\b(memory|ram) (usage|status|info|free|summary)\b", None),
+        (r"\bhow much (memory|ram) (is |)(used|free|available)\b", None),
         (r"\bwhat(\'s| is) running\b", None),
-        (r"^(top|htop|ps)$", None),                   # exact command only
+        (r"^(top|htop|ps|free)$", None),                   # exact command only
         (r"\b(most) (cpu|memory|ram|mem) (using|usage|consuming)\b", None),
         (r"\brunning processes?\b", None),
     ]),
@@ -656,13 +812,16 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     # Packages
     # -----------------------------------------------------------------------
     (IntentType.PACKAGE_INSTALL, [
-        (r"\b(install|get|add) (the |package |)(?P<pkg>[\w\-\.\+]+)\b", _extract_package),
+        (r"\b(install|add) (the )?package (?P<pkg>[\w\-\.\+]+)\b", _extract_package),
+        (r"\binstall (?P<pkg>[\w\-\.\+]+)\b", _extract_package),
         (r"\bdownload package (?P<pkg>[\w\-\.\+]+)\b", _extract_package),
         (r"\b(apt|yum|dnf|pacman|apk)\s+(install|add)\s+(?P<pkg>[\w\-\.\+]+)\b", _extract_package),
     ]),
 
     (IntentType.PACKAGE_REMOVE, [
-        (r"\b(remove|uninstall|delete|purge) (the |package |)(?P<pkg>[\w\-\.\+]+)\b", _extract_package),
+        (r"\b(remove|uninstall|purge) (the )?package (?P<pkg>[\w\-\.\+]+)\b", _extract_package),
+        (r"\b(uninstall|purge) (?P<pkg>[\w\-\.\+]+)\b", _extract_package),
+        (r"\b(apt|yum|dnf|pacman|apk)\s+(remove|purge|uninstall)\s+(?P<pkg>[\w\-\.\+]+)\b", _extract_package),
     ]),
 
     (IntentType.PACKAGE_UPDATE, [
@@ -673,7 +832,7 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     (IntentType.PACKAGE_SEARCH, [
-        (r"\b(search|find|look for) (package |)(?P<pkg>[\w\-\.\+]+)\b", _extract_package),
+        (r"\b(search|find|look for) package (?P<pkg>[\w\-\.\+]+)\b", _extract_package),
         (r"\bis (?P<pkg>[\w\-\.\+]+) (a package|available|installed)\b", _extract_package),
     ]),
 
@@ -861,6 +1020,78 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     ]),
 
     # -----------------------------------------------------------------------
+    # Extended File & Directory Operations
+    # -----------------------------------------------------------------------
+    (IntentType.FILE_CREATE, [
+        (r"\b(create|make|touch) (a )?(new )?file (?P<path>[^\s]+)( with (content|text) (?P<content>.+))?\b", _extract_file_create),
+        (r"\bwrite (?P<content>.+) to (file )?(?P<path>[^\s]+)\b", _extract_file_create),
+        (r"\becho ['\"]?(?P<content>.+?)['\"]?\s*>\s*(?P<path>[^\s]+)\b", _extract_file_create),
+        (r"^touch (?P<path>[^\s]+)$", _extract_file_create),
+    ]),
+
+    (IntentType.FILE_DELETE, [
+        (r"\b(delete|remove|erase|del) (the )?file (?P<path>[^\s]+)\b", _extract_file_delete),
+        (r"^rm (-f )?(?P<path>[^\s]+)$", _extract_file_delete),
+    ]),
+
+    (IntentType.FILE_READ, [
+        (r"\b(read|view|cat|display|show content(s)? of) (the )?(file )?(?P<path>[^\s]+)\b", _extract_file_delete),
+        (r"^cat (?P<path>[^\s]+)$", _extract_file_delete),
+        (r"^head( -n \d+)? (?P<path>[^\s]+)$", _extract_file_delete),
+        (r"^tail( -n \d+)? (?P<path>[^\s]+)$", _extract_file_delete),
+    ]),
+
+    (IntentType.DIR_CREATE, [
+        (r"\b(create|make) (a )?(new )?(folder|directory|dir) (?P<path>[^\s]+)\b", _extract_dir_path),
+        (r"^mkdir( -p)? (?P<path>[^\s]+)$", _extract_dir_path),
+    ]),
+
+    (IntentType.DIR_DELETE, [
+        (r"\b(delete|remove|erase|del) (the )?(folder|directory|dir) (?P<path>[^\s]+)\b", _extract_dir_path),
+        (r"^rm -rf? (?P<path>[^\s]+)$", _extract_dir_path),
+        (r"^rmdir (?P<path>[^\s]+)$", _extract_dir_path),
+    ]),
+
+    (IntentType.DIR_LIST, [
+        (r"\b(list|show|view) (all )?(files|directories|contents)( in | for | of )?(?P<path>[^\s]+)?\b", _extract_dir_path),
+        (r"^ls( -[a-zA-Z]+)?( (?P<path>[^\s]+))?$", _extract_dir_path),
+    ]),
+
+    (IntentType.PERM_CHANGE, [
+        (r"\bmake (script |file )?(?P<path>[^\s]+) (an )?executable\b", _extract_perm_change),
+        (r"\bchmod (?P<mode>[^\s]+) (?P<path>[^\s]+)\b", _extract_perm_change),
+        (r"\bchange (permissions?|perms?|mode) (of|on) (?P<path>[^\s]+) to (?P<mode>[^\s]+)\b", _extract_perm_change),
+        (r"\bchown (?P<owner>[^\s]+) (?P<path>[^\s]+)\b", _extract_perm_change),
+    ]),
+
+    (IntentType.ARCHIVE_CREATE, [
+        (r"\b(compress|archive|tar|zip) (?P<src>[^\s]+)( to (?P<dest>[^\s]+))?\b", _extract_archive),
+        (r"\bcreate (a )?(tar|zip|tar\.gz|tgz) (archive|file) (?P<dest>[^\s]+) (from|of) (?P<src>[^\s]+)\b", _extract_archive),
+    ]),
+
+    (IntentType.ARCHIVE_EXTRACT, [
+        (r"\b(unzip|extract|untar|decompress) (?P<src>[^\s]+)( to (?P<dest>[^\s]+))?\b", _extract_archive),
+        (r"^tar -x[a-zA-Z]* (?P<src>[^\s]+)$", _extract_archive),
+        (r"^unzip (?P<src>[^\s]+)$", _extract_archive),
+    ]),
+
+    (IntentType.NETWORK_CURL, [
+        (r"\bcurl (?P<url>https?://[^\s]+)\b", _extract_url),
+        (r"\b(http|fetch|get) (?P<url>https?://[^\s]+)\b", _extract_url),
+    ]),
+
+    (IntentType.SYSTEM_WHOAMI, [
+        (r"^whoami$", None),
+        (r"\b(what|which) (user|account) am i\b", None),
+        (r"\bcurrent (user|username)\b", None),
+    ]),
+
+    (IntentType.SYSTEM_ENV, [
+        (r"\b(show|list|print|view|get) (environment variables?|env|env vars?)\b", None),
+        (r"^(printenv|env)$", None),
+    ]),
+
+    # -----------------------------------------------------------------------
     # Fallthrough → diagnostic engine (existing behaviour)
     # -----------------------------------------------------------------------
     (IntentType.DIAGNOSE, [
@@ -881,6 +1112,20 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
 # ---------------------------------------------------------------------------
 
 _NUMERIC_RE = re.compile(r"^\s*(\d+)\s*$")
+
+_COMMON_SHELL_BINARIES = {
+    "ls", "cat", "less", "more", "head", "tail", "grep", "egrep", "fgrep", "awk", "sed",
+    "touch", "mkdir", "rm", "rmdir", "cp", "mv", "chmod", "chown", "chgrp", "ln",
+    "pwd", "cd", "find", "locate", "which", "whereis", "file", "stat", "du", "df", "free",
+    "ps", "top", "htop", "kill", "pkill", "killall", "pgrep", "systemctl", "journalctl",
+    "service", "dmesg", "uname", "uptime", "hostname", "whoami", "who", "w", "id",
+    "ping", "curl", "wget", "traceroute", "netstat", "ss", "ip", "ifconfig", "route",
+    "tar", "zip", "unzip", "gzip", "gunzip", "xz", "git", "docker", "podman",
+    "apt", "apt-get", "dpkg", "dnf", "yum", "pacman", "apk", "zypper", "rpm",
+    "echo", "printf", "date", "cal", "crontab", "sudo", "su", "env", "printenv",
+    "lscpu", "lsblk", "lspci", "lsusb", "timedatectl", "localectl", "hostnamectl",
+    "xdg-open", "gio", "tree", "diff", "wc", "sort", "uniq", "cut", "tr", "tee"
+}
 
 
 # ---------------------------------------------------------------------------
@@ -924,7 +1169,7 @@ class IntentRouter:
         Parameters
         ----------
         text : str
-            Raw user input from the REPL.
+            Raw user input from the REPL, CLI, or Voice Assistant.
         remediation_context : bool
             When True, numeric inputs like "1", "2" are classified as
             REMEDIATION_EXEC_N rather than passed to the diagnostic engine.
@@ -932,6 +1177,9 @@ class IntentRouter:
         text = text.strip()
         if not text:
             return Intent(IntentType.UNKNOWN, raw=text, confidence=0.0)
+
+        # Strip optional leading shell prompt prefix
+        clean_text = re.sub(r"^\$\s*", "", text)
 
         # Numeric shortcut (remediation menu)
         if remediation_context:
@@ -945,21 +1193,38 @@ class IntentRouter:
                 )
 
         # Stage 1: deterministic regex pass
-        intent = self._regex_classify(text)
+        intent = self._regex_classify(clean_text)
         if intent.type != IntentType.UNKNOWN and intent.confidence >= 0.7:
             return intent
 
-        # Stage 2: LLM fallback (if provider loaded)
+        # Stage 2: Diagnostic query heuristic pass
+        if self._looks_diagnostic(clean_text):
+            return Intent(IntentType.DIAGNOSE, raw=text, confidence=0.85)
+
+        # Stage 3: Check if clean_text is a direct shell command
+        tokens = clean_text.split()
+        first_word = tokens[0].lower() if tokens else ""
+        if first_word in _COMMON_SHELL_BINARIES or (first_word == "sudo" and len(tokens) > 1 and tokens[1].lower() in _COMMON_SHELL_BINARIES) or any(sym in clean_text for sym in ("|", "&&", ";", ">", ">>")):
+            return Intent(
+                IntentType.SHELL_RUN,
+                args={"command": clean_text},
+                raw=text,
+                confidence=0.95
+            )
+
+        # Stage 4: LLM fallback (if provider loaded)
         if self._llm is not None:
             llm_intent = self._llm_classify(text)
             if llm_intent is not None:
                 return llm_intent
 
-        # Stage 3: if still unknown, check if it looks diagnostic
-        if self._looks_diagnostic(text):
-            return Intent(IntentType.DIAGNOSE, raw=text, confidence=0.6, ambiguous=True)
-
-        return intent  # UNKNOWN
+        # Stage 5: Synthesize as general natural language Linux command
+        return Intent(
+            IntentType.GENERIC_COMMAND,
+            args={"command": clean_text, "raw_query": text},
+            raw=text,
+            confidence=0.85
+        )
 
     def classify_remediation_action(self, text: str, n_commands: int) -> Intent:
         """
@@ -1033,10 +1298,10 @@ class IntentRouter:
     def _looks_diagnostic(self, text: str) -> bool:
         """Heuristic: does this look like a diagnostic query rather than a command?"""
         diagnostic_words = {
-            "why", "what", "how", "fail", "crash", "slow", "debug",
+            "why", "what", "how", "fail", "crash", "slow", "debug", "diagnos",
             "issue", "problem", "not working", "broken", "down", "died", "killed",
-            "high cpu", "high memory", "memory leak", "oom", "timeout"
-            # NOTE: "error" is intentionally omitted — it routes to LOGS_ERRORS not DIAGNOSE
+            "high cpu", "high memory", "memory leak", "oom", "timeout",
+            "out of memory", "permission denied", "connection refused", "cannot", "unable"
         }
         text_lower = text.lower()
         return any(w in text_lower for w in diagnostic_words)
