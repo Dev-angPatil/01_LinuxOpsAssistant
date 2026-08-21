@@ -294,7 +294,32 @@ else
     else
         log_info "Cloning repository into $INSTALL_DIR..."
         mkdir -p "$(dirname "$INSTALL_DIR")"
-        git clone "$REPO_URL" "$INSTALL_DIR"
+        
+        CLONE_URL="$REPO_URL"
+        if [ -n "${GITHUB_TOKEN:-${GH_TOKEN:-}}" ]; then
+            AUTH_TOKEN="${GITHUB_TOKEN:-$GH_TOKEN}"
+            CLONE_URL="https://${AUTH_TOKEN}@github.com/Dev-angPatil/01_LinuxOpsAssistant.git"
+        fi
+        
+        if ! git clone "$CLONE_URL" "$INSTALL_DIR" 2>/dev/null; then
+            # Fallback 1: Try SSH if user has GitHub SSH keys configured
+            SSH_URL="git@github.com:Dev-angPatil/01_LinuxOpsAssistant.git"
+            log_warn "HTTPS clone failed. Trying SSH authentication ($SSH_URL)..."
+            if ! git clone "$SSH_URL" "$INSTALL_DIR" 2>/dev/null; then
+                # Fallback 2: Interactive Token Prompt for Private Repositories
+                echo ""
+                log_warn "Repository access denied (Repository may be Private)."
+                echo -e "${YELLOW}Enter a GitHub Personal Access Token (PAT) with read access, or press Enter to abort:${RESET}"
+                read -r -s -p "GitHub Token (input hidden): " USER_GH_TOKEN
+                echo ""
+                if [ -n "$USER_GH_TOKEN" ]; then
+                    git clone "https://${USER_GH_TOKEN}@github.com/Dev-angPatil/01_LinuxOpsAssistant.git" "$INSTALL_DIR"
+                else
+                    log_error "Authentication failed. Unable to clone private repository."
+                    exit 1
+                fi
+            fi
+        fi
     fi
 fi
 
