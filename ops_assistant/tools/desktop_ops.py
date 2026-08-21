@@ -25,13 +25,11 @@ def open_folder(path: str = "~") -> Dict[str, Any]:
     """
     p = _expand_path(path)
     if not p.exists():
-        return {
-            "success": False,
-            "path": str(p),
-            "error": f"Directory does not exist: {p}",
-            "action": "open_folder"
-        }
-    if not p.is_dir():
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            p = Path.home()
+    elif not p.is_dir():
         p = p.parent
 
     # Try xdg-open first, fallback to known Linux file managers
