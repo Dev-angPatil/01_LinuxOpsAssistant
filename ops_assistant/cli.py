@@ -165,17 +165,17 @@ def render_models_list(downloader: Optional[ModelDownloader] = None):
     models = dl.list_available_models()
 
     if HAS_RICH and console:
-        table = Table(title="Edge GGUF Models Registry & Local Status", show_header=True, header_style="bold cyan")
-        table.add_column("Model Key", style="bold yellow")
-        table.add_column("Model Name")
-        table.add_column("Size", justify="right")
-        table.add_column("Status", justify="center")
-        table.add_column("GGUF Header", justify="center")
-        table.add_column("Local Path", style="dim")
+        table = Table(title=f"Edge AI Models Registry (Storage: {dl.target_dir})", show_header=True, header_style="bold cyan")
+        table.add_column("Key / Alias", style="bold yellow", width=22)
+        table.add_column("Model Name", style="bold white")
+        table.add_column("Size", justify="right", width=10)
+        table.add_column("Status on Disk", justify="center", width=18)
+        table.add_column("GGUF Header", justify="center", width=16)
+        table.add_column("Local File Path", style="dim")
 
         for key, info in models.items():
             is_dl = info["is_downloaded"]
-            status = "[bold green]DOWNLOADED[/bold green]" if is_dl else "[dim yellow]NOT DOWNLOADED[/dim yellow]"
+            status = "[bold green]✓ DOWNLOADED[/bold green]" if is_dl else "[dim yellow]NOT DOWNLOADED[/dim yellow]"
             size_str = f"{info['local_size_bytes'] / (1024*1024):.1f} MB" if is_dl else f"~{info['size_bytes'] / (1024*1024):.1f} MB"
 
             gguf_info = "N/A"
@@ -192,20 +192,78 @@ def render_models_list(downloader: Optional[ModelDownloader] = None):
                 info["local_path"]
             )
         console.print(table)
+        console.print("\n[dim]To download Qwen2.5-Coder:[/dim] [bold green]ops-assistant --download-model qwen[/bold green]")
+        console.print("[dim]To check active AI engine:[/dim]  [bold cyan]ops-assistant --model-status[/bold cyan]\n")
     else:
-        print("\n--- Edge GGUF Models Registry ---")
+        print(f"\n--- Edge AI Models Registry (Storage: {dl.target_dir}) ---")
         for key, info in models.items():
             is_dl = info["is_downloaded"]
             status = "DOWNLOADED" if is_dl else "NOT DOWNLOADED"
-            print(f"• {key}: {info['name']} [{status}] -> {info['local_path']}")
-        print("")
+            print(f"• {key:22s} : {info['name']} [{status}] -> {info['local_path']}")
+        print("\nDownload Qwen: ops-assistant --download-model qwen")
+        print("Model Status:  ops-assistant --model-status\n")
+
+
+def render_model_status():
+    """Displays active AI engine status, local model download state, and hardware config."""
+    from ops_assistant.config import get_config
+    from ops_assistant.agent import GeminiProvider
+
+    cfg = get_config()
+    provider = cfg.get("provider", "deterministic")
+    model_key = cfg.get("model_key", "deterministic")
+    model_path = cfg.get("model_path", "")
+    
+    dl = ModelDownloader()
+    avail = dl.list_available_models()
+    installed = [k for k, v in avail.items() if v["is_downloaded"]]
+
+    gemini_avail, _ = GeminiProvider().is_available()
+
+    if HAS_RICH and console:
+        table = Table(title="Active AI Engine & Model Status Overview", show_header=True, header_style="bold cyan")
+        table.add_column("Property", style="bold yellow", width=26)
+        table.add_column("Current Configuration / State", style="white")
+
+        table.add_row("Active AI Engine", f"[bold green]{provider.upper()}[/bold green]")
+        table.add_row("Active Model Key", f"[cyan]{model_key}[/cyan]")
+        table.add_row("Model File Path", model_path or "[dim]N/A (Fast-Path Deterministic Mode)[/dim]")
+        
+        if provider == "gguf" and model_path:
+            p_exists = Path(model_path).exists()
+            p_size = f"{Path(model_path).stat().st_size / (1024*1024):.1f} MB" if p_exists else "0 MB"
+            status_badge = f"[bold green]✓ DOWNLOADED & VERIFIED ({p_size})[/bold green]" if p_exists else "[bold red]✗ FILE MISSING[/bold red]"
+            table.add_row("GGUF Weights on Disk", status_badge)
+        else:
+            table.add_row("Installed Local GGUF Models", f"{len(installed)} available: {', '.join(installed) if installed else 'None (0 MB disk)'}")
+
+        table.add_row("Cloud Gemini API", "[bold green]✓ Configured (API Key Active)[/bold green]" if gemini_avail else "[dim]Not configured (Optional)[/dim]")
+        table.add_row("Deterministic Fast-Path", "[bold green]✓ Sub-50ms Offline Rule Compiler Active[/bold green]")
+        table.add_row("Models Storage Directory", str(dl.target_dir))
+        
+        console.print(table)
+        console.print("[dim]Download Qwen anytime:[/dim] [bold green]ops-assistant --download-model qwen[/bold green]\n")
+    else:
+        print("\n=== ACTIVE AI ENGINE & MODEL STATUS ===")
+        print(f"• Active AI Engine: {provider.upper()}")
+        print(f"• Configured Model: {model_key}")
+        print(f"• Model File Path : {model_path or 'N/A'}")
+        print(f"• Installed GGUF  : {', '.join(installed) if installed else 'None'}")
+        print(f"• Cloud Gemini API: {'Configured' if gemini_avail else 'Not configured'}")
+        print(f"• Models Directory: {dl.target_dir}")
+        print("• Download Qwen   : ops-assistant --download-model qwen\n")
 
 
 def download_model_cli(model_key: str, downloader: Optional[ModelDownloader] = None):
-    """Downloads a registered GGUF model from Hugging Face with progress reporting."""
-    dl = downloader or ModelDownloader()
+    """Downloads a registered GGUF model from Hugging Face with progress reporting and auto-activation."""
+    from ops_assistant.model_manager.downloader import resolve_model_key
+    from ops_assistant.config import set_setup_completed, get_config, ConfigManager
+    from ops_assistant.hardware.advisor import HardwareAdvisor, MODEL_CATALOG
 
-    print(f"Downloading model '{model_key}' into {dl.target_dir}...")
+    dl = downloader or ModelDownloader()
+    resolved_key = resolve_model_key(model_key)
+
+    print(f"Downloading model '{model_key}' (resolved to '{resolved_key}') into {dl.target_dir}...")
 
     def on_progress(downloaded: int, total: int, speed: float):
         pct = (downloaded / total * 100) if total > 0 else 0.0
@@ -215,10 +273,25 @@ def download_model_cli(model_key: str, downloader: Optional[ModelDownloader] = N
         sys.stdout.flush()
 
     try:
-        path = dl.download_model(model_key=model_key, progress_callback=on_progress)
+        path = dl.download_model(model_key=resolved_key, progress_callback=on_progress)
         print(f"\n✓ Successfully downloaded and saved to: {path}")
         header = dl.verify_gguf_header(path)
         print(f"✓ GGUF Header Validation: Valid={header.get('valid')} (Version {header.get('version')}, {header.get('tensor_count')} tensors)")
+
+        # Automatically update config to activate this model
+        adv = HardwareAdvisor()
+        prof = adv.profiler.profile()
+        caps = adv.generate_capability_matrix(prof)
+        set_setup_completed(
+            provider="gguf",
+            model_key=resolved_key,
+            model_path=str(path),
+            hardware_tier=prof.compute_tier,
+            threads=caps.recommended_threads,
+            ctx_size=caps.recommended_ctx_size,
+            gpu_layers=caps.recommended_gpu_layers,
+        )
+        print(f"✓ AI Engine Activated: Local Neural Model '{resolved_key}' is now active on disk.\n")
     except Exception as e:
         print(f"\n❌ Error downloading model: {e}")
 
@@ -2382,7 +2455,8 @@ def main():
     parser.add_argument("--provider", "-p", type=str, choices=["auto", "gemini", "deterministic", "gguf", "ollama"], default="auto", help="Reasoning backend engine (auto, gemini, deterministic, gguf, ollama)")
     parser.add_argument("--model-path", type=str, help="Path to custom local GGUF model file", default=None)
     parser.add_argument("--list-models", action="store_true", help="List registered and downloaded edge GGUF models")
-    parser.add_argument("--download-model", type=str, help="Download registered GGUF model (e.g. qwen2.5-coder-0.5b)", default=None)
+    parser.add_argument("--download-model", type=str, help="Download registered GGUF model (e.g. qwen2.5-coder-1.5b, qwen)", default=None)
+    parser.add_argument("--model-status", "--status", action="store_true", help="Display active AI engine, model download status, and configuration")
     parser.add_argument("--inspect-health", action="store_true", help="Display full system health snapshot & PSI metrics")
     parser.add_argument("--diagnose-failed", action="store_true", help="Scan and diagnose failed systemd services")
     parser.add_argument("--profile-hardware", action="store_true", help="Profile CPU, RAM, GPU, and Storage to recommend optimal AI models and tuning")
@@ -2434,6 +2508,10 @@ def main():
 
     if args.list_models:
         render_models_list()
+        return
+
+    if args.model_status:
+        render_model_status()
         return
 
     if args.download_model:

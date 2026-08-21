@@ -929,7 +929,7 @@ class OpsAssistantAgent:
             if args.get("explanation_paragraph"):
                 result["explanation_paragraph"] = args["explanation_paragraph"]
             if execute:
-                res = desktop_ops.open_folder(path)
+                res = desktop_ops.open_folder(path, create_if_missing=True)
                 result["output"] = res
                 result["summary"] = res.get("message") or res.get("error", "Opened folder")
             else:

@@ -19,16 +19,24 @@ def _expand_path(raw_path: str) -> Path:
     return Path(os.path.expandvars(os.path.expanduser(raw_path))).resolve()
 
 
-def open_folder(path: str = "~") -> Dict[str, Any]:
+def open_folder(path: str = "~", create_if_missing: bool = False) -> Dict[str, Any]:
     """
     Open a directory in the default system file manager (e.g. Nautilus, Dolphin, Thunar).
     """
     p = _expand_path(path)
     if not p.exists():
-        try:
-            p.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            p = Path.home()
+        if create_if_missing:
+            try:
+                p.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                p = Path.home()
+        else:
+            return {
+                "success": False,
+                "error": f"Path does not exist: {path}",
+                "path": str(p),
+                "action": "open_folder"
+            }
     elif not p.is_dir():
         p = p.parent
 
@@ -48,27 +56,31 @@ def open_folder(path: str = "~") -> Dict[str, Any]:
             "action": "open_folder"
         }
     except FileNotFoundError:
-        # Fallbacks
-        for fm in ("nautilus", "dolphin", "thunar", "pcmanfm", "caja", "nemo"):
-            if shutil.which(fm):
-                proc = subprocess.Popen(
-                    [fm, str(p)],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True
-                )
-                return {
-                    "success": True,
-                    "path": str(p),
-                    "pid": proc.pid,
-                    "file_manager": fm,
-                    "message": f"Opened directory in {fm}: {p}",
-                    "action": "open_folder"
-                }
+        # Fallback to desktop-specific file managers
+        managers = ["nautilus", "dolphin", "thunar", "nemo", "pcmanfm", "caja", "io.elementary.files"]
+        for mgr in managers:
+            if shutil.which(mgr):
+                try:
+                    proc = subprocess.Popen(
+                        [mgr, str(p)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True
+                    )
+                    return {
+                        "success": True,
+                        "path": str(p),
+                        "manager": mgr,
+                        "pid": proc.pid,
+                        "message": f"Opened directory with {mgr}: {p}",
+                        "action": "open_folder"
+                    }
+                except Exception:
+                    continue
         return {
             "success": False,
             "path": str(p),
-            "error": "No supported desktop file manager (xdg-open/nautilus/dolphin/thunar) found.",
+            "error": "No supported file manager found (xdg-open, nautilus, dolphin, thunar, nemo, pcmanfm).",
             "action": "open_folder"
         }
     except Exception as e:

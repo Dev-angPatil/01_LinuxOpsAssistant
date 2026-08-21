@@ -73,6 +73,10 @@ while [[ $# -gt 0 ]]; do
             NON_INTERACTIVE=true
             shift
             ;;
+        --qwen|--download-qwen)
+            CLI_MODEL="qwen2.5-coder-1.5b"
+            shift
+            ;;
         --model)
             CLI_MODEL="$2"
             shift 2
@@ -105,7 +109,8 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  -y, --yes, --non-interactive  Run unattended installation accepting recommendations"
-            echo "  --model <key>                 Select model directly (e.g. deterministic, qwen2.5-coder-0.5b)"
+            echo "  --qwen, --download-qwen       Automatically download & activate Qwen2.5-Coder model (986 MB)"
+            echo "  --model <key>                 Select model directly (e.g. qwen2.5-coder-1.5b, deterministic)"
             echo "  --deterministic               Configure for deterministic fast-path mode (0 MB)"
             echo "  --ollama [model]              Configure for local Ollama backend (default: llama3:8b)"
             echo "  --distro <id>                 Set target distro override (ubuntu, rhel, arch, alpine, opensuse)"
@@ -464,6 +469,19 @@ elif [ "$NON_INTERACTIVE" = true ]; then
         PROVIDER="deterministic"
     fi
 else
+    # Check download status of models in $INSTALL_DIR/models
+    MODELS_DIR="$INSTALL_DIR/models"
+    mkdir -p "$MODELS_DIR"
+
+    check_dl() {
+        local fname="$1"
+        if [ -f "$MODELS_DIR/$fname" ] && [ "$(stat -c%s "$MODELS_DIR/$fname" 2>/dev/null || echo 0)" -gt 1000000 ]; then
+            echo -e "${GREEN}[✓ INSTALLED]${RESET}"
+        else
+            echo -e "${DIM}[NOT DOWNLOADED]${RESET}"
+        fi
+    }
+
     # Print Model Comparison Table
     echo ""
     echo -e "${BOLD}${CYAN}================================================================================================${RESET}"
@@ -471,43 +489,47 @@ else
     echo -e "${DIM}               Select an AI model tailored to your workload or use Deterministic-Only mode              ${RESET}"
     echo -e "${BOLD}${CYAN}================================================================================================${RESET}"
     echo ""
-    printf " ${BOLD}%-3s %-32s %-16s %-12s %-28s${RESET}\n" "No." "Model / Engine" "Disk Size" "Req. RAM" "Unlocked Features & Capabilities"
+    printf " ${BOLD}%-3s %-32s %-14s %-12s %-16s %-20s${RESET}\n" "No." "Model / Engine" "Disk Size" "Req. RAM" "Status on Disk" "Unlocked Capabilities"
     echo -e "${DIM}────────────────────────────────────────────────────────────────────────────────────────────────${RESET}"
 
     D_REC=""; if [ "$REC_KEY" = "deterministic" ]; then D_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "1." "${GREEN}Deterministic-Only Engine${RESET}$D_REC" "0 MB (None)" "<50 MB" "Sub-50ms, 16 Core Taxonomies, XAI, CoW Sandbox"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "1." "${GREEN}Deterministic-Only Engine${RESET}$D_REC" "0 MB (None)" "<50 MB" "${GREEN}[✓ READY]${RESET}" "Sub-50ms, 16 Core Taxonomies, XAI"
 
     S_REC=""; if [ "$REC_KEY" = "smollm2-360m" ]; then S_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "2." "SmolLM2-360M-Instruct$S_REC" "218 MB" "800 MB" "Ultra-lightweight edge triage & micro-VM queries"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "2." "SmolLM2-360M-Instruct$S_REC" "218 MB" "800 MB" "$(check_dl 'smollm2-360m-instruct-q4_k_m.gguf')" "Ultra-lightweight edge triage"
 
     Q0_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-0.5b" ]; then Q0_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "3." "Qwen2.5-Coder-0.5B$Q0_REC" "379 MB" "1.2 GB" "Fast command syntax parsing & log triage"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "3." "Qwen2.5-Coder-0.5B$Q0_REC" "379 MB" "1.2 GB" "$(check_dl 'qwen2.5-coder-0.5b-instruct-q4_k_m.gguf')" "Fast command syntax parsing"
 
     Q1_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-1.5b" ]; then Q1_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "4." "Qwen2.5-Coder-1.5B$Q1_REC" "986 MB" "2.5 GB" "Balanced speed/precision, awk/sed/grep synthesis"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "4." "${CYAN}Qwen2.5-Coder-1.5B${RESET}$Q1_REC" "986 MB" "2.5 GB" "$(check_dl 'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf')" "Balanced precision, awk/sed/grep"
+
+    Q3_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-3b" ]; then Q3_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "5." "${CYAN}Qwen2.5-Coder-3B${RESET}$Q3_REC" "1.95 GB" "4.5 GB" "$(check_dl 'qwen2.5-coder-3b-instruct-q4_k_m.gguf')" "High-efficiency coding & reasoning"
 
     L3_REC=""; if [ "$REC_KEY" = "llama-3.2-3b" ]; then L3_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "5." "Llama-3.2-3B-Instruct$L3_REC" "1.92 GB" "4.5 GB" "Multi-step incident reasoning & structured JSON"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "6." "Llama-3.2-3B-Instruct$L3_REC" "1.92 GB" "4.5 GB" "$(check_dl 'llama-3.2-3b-instruct-q4_k_m.gguf')" "Multi-step incident reasoning"
 
     Q7_REC=""; if [ "$REC_KEY" = "qwen2.5-coder-7b" ]; then Q7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "6." "Qwen2.5-Coder-7B-Instruct$Q7_REC" "4.36 GB" "8.5 GB" "Deep Linux internals, SELinux, bash scripting"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "7." "${CYAN}Qwen2.5-Coder-7B${RESET}$Q7_REC" "4.36 GB" "8.5 GB" "$(check_dl 'qwen2.5-coder-7b-instruct-q4_k_m.gguf')" "Deep Linux internals, bash scripting"
 
     M7_REC=""; if [ "$REC_KEY" = "mistral-7b-instruct" ]; then M7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "7." "Mistral-7B-Instruct-v0.3$M7_REC" "4.07 GB" "8.0 GB" "Multi-daemon log correlation & interactive REPL"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "8." "Mistral-7B-Instruct-v0.3$M7_REC" "4.07 GB" "8.0 GB" "$(check_dl 'mistral-7b-instruct-v0.3-q4_k_m.gguf')" "Multi-daemon log correlation"
 
     D7_REC=""; if [ "$REC_KEY" = "deepseek-r1-distill-qwen-7b" ]; then D7_REC=" ${GREEN}[RECOMMENDED]${RESET}"; fi
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "8." "DeepSeek-R1-Distill-7B$D7_REC" "4.58 GB" "9.0 GB" "Chain-of-Thought (CoT) root cause formal proofs"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "9." "DeepSeek-R1-Distill-7B$D7_REC" "4.58 GB" "9.0 GB" "$(check_dl 'deepseek-r1-distill-qwen-7b-q4_k_m.gguf')" "CoT root cause formal proofs"
 
-    printf " ${BOLD}%-3s${RESET} %-32b %-16s %-12s %-28s\n" "9." "${BLUE}Local Ollama Instance${RESET}" "Self-hosted" "Custom" "Connects to existing http://localhost:11434"
+    printf " ${BOLD}%-3s${RESET} %-32b %-14s %-12s %-26b %-20s\n" "10." "${BLUE}Local Ollama Instance${RESET}" "Self-hosted" "Custom" "${BLUE}[LOCAL API]${RESET}" "Connects to http://localhost:11434"
 
     echo -e "${DIM}────────────────────────────────────────────────────────────────────────────────────────────────${RESET}"
     echo -e " ${BOLD}Host Detection:${RESET} ${YELLOW}${TOTAL_RAM_GB} GB RAM${RESET} | ${CYAN}${GPU_NAME}${RESET} | ${WHITE}${FREE_DISK_GB} GB Disk Free${RESET}"
     echo -e " ${BOLD}System Recommendation:${RESET} ${GREEN}${REC_NAME}${RESET} (${REC_REASON})"
     echo ""
 
-    echo -e "${BOLD}Select your preferred AI Engine / Model [1-9]:${RESET}"
+    echo -e "${BOLD}Select your preferred AI Engine / Model [1-10]:${RESET}"
     echo -e "  ${DIM}• Press [Enter] to accept the recommended model (${GREEN}${REC_KEY}${DIM})${RESET}"
-    read -r -p "Enter choice [1-9] (default = recommended): " MODEL_CHOICE || MODEL_CHOICE=""
+    echo -e "  ${DIM}• To use Qwen2.5-Coder directly, type [4] or [5] or run with --qwen${RESET}"
+    read -r -p "Enter choice [1-10] (default = recommended): " MODEL_CHOICE || MODEL_CHOICE=""
 
     if [ -z "$MODEL_CHOICE" ]; then
         CHOSEN_MODEL="$REC_KEY"
@@ -517,11 +539,12 @@ else
             2) CHOSEN_MODEL="smollm2-360m" ;;
             3) CHOSEN_MODEL="qwen2.5-coder-0.5b" ;;
             4) CHOSEN_MODEL="qwen2.5-coder-1.5b" ;;
-            5) CHOSEN_MODEL="llama-3.2-3b" ;;
-            6) CHOSEN_MODEL="qwen2.5-coder-7b" ;;
-            7) CHOSEN_MODEL="mistral-7b-instruct" ;;
-            8) CHOSEN_MODEL="deepseek-r1-distill-qwen-7b" ;;
-            9) CHOSEN_MODEL="ollama"; PROVIDER="ollama" ;;
+            5) CHOSEN_MODEL="qwen2.5-coder-3b" ;;
+            6) CHOSEN_MODEL="llama-3.2-3b" ;;
+            7) CHOSEN_MODEL="qwen2.5-coder-7b" ;;
+            8) CHOSEN_MODEL="mistral-7b-instruct" ;;
+            9) CHOSEN_MODEL="deepseek-r1-distill-qwen-7b" ;;
+            10) CHOSEN_MODEL="ollama"; PROVIDER="ollama" ;;
             *) log_warn "Invalid selection. Defaulting to recommended model: $REC_KEY"; CHOSEN_MODEL="$REC_KEY" ;;
         esac
     fi
@@ -746,14 +769,34 @@ echo -e "${BOLD}${GREEN}                INSTALLATION & SETUP COMPLETED SUCCESSFU
 echo -e "${CYAN}==============================================================================${RESET}"
 echo ""
 
+echo -e "${BOLD}${WHITE}AI ENGINE & LOCAL MODEL CONFIGURATION SUMMARY:${RESET}"
+echo -e "${DIM}------------------------------------------------------------------------------${RESET}"
+if [ "$PROVIDER" = "gguf" ]; then
+    echo -e " • ${BOLD}Active AI Engine:${RESET}  ${GREEN}Local Neural AI Model (100% Offline GGUF)${RESET}"
+    echo -e " • ${BOLD}Selected Model:${RESET}    ${CYAN}$CHOSEN_MODEL${RESET}"
+    echo -e " • ${BOLD}Weights Location:${RESET}  ${WHITE}$INSTALL_DIR/models/${RESET}"
+    echo -e " • ${BOLD}Download Status:${RESET}   ${GREEN}[✓ DOWNLOADED & READY ON DISK]${RESET}"
+    echo -e " • ${BOLD}Inference Type:${RESET}    ${WHITE}Local CPU / GPU via llama.cpp (Zero External Telemetry)${RESET}"
+elif [ "$PROVIDER" = "ollama" ]; then
+    echo -e " • ${BOLD}Active AI Engine:${RESET}  ${BLUE}Local Ollama Service ($OLLAMA_MODEL)${RESET}"
+else
+    echo -e " • ${BOLD}Active AI Engine:${RESET}  ${YELLOW}Fast-Path Rule Engine (<50ms, 0 MB Memory Footprint)${RESET}"
+    echo -e " • ${BOLD}Local GGUF Model:${RESET}  ${DIM}[NOT DOWNLOADED]${RESET}"
+    echo -e " • ${BOLD}Download Qwen:${RESET}     Run ${GREEN}ops-assistant --download-model qwen${RESET} anytime to enable local neural AI"
+fi
+echo -e "${DIM}------------------------------------------------------------------------------${RESET}"
+echo ""
+
 # Quick health snapshot test
 log_info "Running quick post-install health verification..."
 "$VENV_PY" -m ops_assistant.cli --inspect-health || true
 
 echo ""
 echo -e "${BOLD}${WHITE}Quick Command Reference:${RESET}"
-echo -e "  ${GREEN}ops-assistant${RESET} ${DIM}\"Why is port 80 failing to bind?\"${RESET}  # Diagnostic query"
-echo -e "  ${GREEN}ops-assistant -i${RESET}                                   # Interactive Sysadmin REPL"
+echo -e "  ${GREEN}ops-assistant${RESET} ${DIM}\"inside Divya create folder DBMS\"${RESET}  # Natural Language Command"
+echo -e "  ${GREEN}ops-assistant${RESET} ${DIM}\"open YouTube\"${RESET}                    # Open Desktop Apps / Sites"
+echo -e "  ${GREEN}ops-assistant --list-models${RESET}                        # View downloaded AI models status"
+echo -e "  ${GREEN}ops-assistant --download-model qwen${RESET}                # Download Qwen2.5-Coder model"
 echo -e "  ${GREEN}ops-assistant --inspect-health${RESET}                     # Real-time PSI & Health Dashboard"
 echo -e "  ${GREEN}ops-assistant --diagnose-failed${RESET}                    # Scan & diagnose crashed services"
 echo -e "  ${GREEN}ops-assistant --gui${RESET}                                # Launch Web Dashboard GUI"

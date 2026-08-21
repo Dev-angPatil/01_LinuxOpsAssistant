@@ -61,6 +61,18 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "tier": ModelTier.TIER_2.value,
         "description": "Balanced 1.5B model offering high-precision diagnosis and command synthesis.",
     },
+    "qwen2.5-coder-3b": {
+        "key": "qwen2.5-coder-3b",
+        "name": "Qwen2.5-Coder-3B-Instruct (Q4_K_M)",
+        "filename": "qwen2.5-coder-3b-instruct-q4_k_m.gguf",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf",
+        "size_bytes": 2050000000,  # ~1.95 GB
+        "ram_required_mb": 4500.0,
+        "vram_recommended_mb": 2500.0,
+        "min_cores": 4,
+        "tier": ModelTier.TIER_3.value,
+        "description": "High-efficiency 3B coding and reasoning model for edge servers.",
+    },
     "llama-3.2-3b": {
         "key": "llama-3.2-3b",
         "name": "Llama-3.2-3B-Instruct (Q4_K_M)",
