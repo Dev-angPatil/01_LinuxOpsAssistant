@@ -365,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
   startTelemetrySSE();
   loadInitialData();
   renderQueryHistory();
+  loadHistoryFromBackend();
 
   updateTacticalClock();
   setInterval(updateTacticalClock, 1000);
@@ -877,6 +878,25 @@ function getStoredHistory() {
   return DEFAULT_HISTORY;
 }
 
+async function loadHistoryFromBackend() {
+  try {
+    const res = await fetch('/api/history/sessions');
+    const data = await res.json();
+    if (data && Array.isArray(data.sessions) && data.sessions.length > 0) {
+      const mapped = data.sessions.map(s => ({
+        id: s.id || s.session_id,
+        prompt: s.title || s.query || s.first_query || 'Mission Operation',
+        intent: s.intent || 'ACTION',
+        time: s.created_at ? new Date(s.created_at).toLocaleTimeString() : '',
+        safety: s.safety_level || 'MODIFYING',
+        command_count: s.command_count || 1
+      }));
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(mapped));
+      renderQueryHistory();
+    }
+  } catch (e) {}
+}
+
 function saveQueryToHistory(promptText, intent = 'QUERY', safety = 'READ_ONLY') {
   if (!promptText || !promptText.trim()) return;
   const history = getStoredHistory().filter(h => h.prompt.toLowerCase() !== promptText.trim().toLowerCase());
@@ -890,7 +910,7 @@ function saveQueryToHistory(promptText, intent = 'QUERY', safety = 'READ_ONLY') 
     safety: safety || 'READ_ONLY'
   });
 
-  const trimmed = history.slice(0, 35);
+  const trimmed = history.slice(0, 50);
   try {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
   } catch (e) {}
@@ -944,13 +964,15 @@ function renderQueryHistory(filterText = '') {
           </div>
           <p class="text-xs sm:text-sm text-slate-200 font-mono truncate group-hover:text-white transition-colors">${escaped}</p>
         </div>
-        <button 
-          type="button" 
-          onclick="event.stopPropagation(); quickPrompt('${escaped.replace(/'/g, "\\'")}');" 
-          title="Execute Mission Query" 
-          class="opacity-0 group-hover:opacity-100 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-          <i data-lucide="play" class="w-4 h-4 text-cyan-300"></i>
-        </button>
+        <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+          <button 
+            type="button" 
+            onclick="event.stopPropagation(); quickPrompt('${escaped.replace(/'/g, "\\'")}');" 
+            title="Execute Mission Query" 
+            class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+            <i data-lucide="play" class="w-4 h-4 text-cyan-300"></i>
+          </button>
+        </div>
       </div>
     `;
   });
@@ -963,13 +985,14 @@ function filterHistoryList(query) {
   renderQueryHistory(query);
 }
 
-function clearQueryHistory() {
+async function clearQueryHistory() {
   playScifiSound('click');
   try {
     localStorage.removeItem(HISTORY_STORAGE_KEY);
+    await fetch('/api/history/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   } catch (e) {}
   renderQueryHistory();
-  showToast('Mission history cleared', 'info', 2000);
+  showToast('Mission history cleared from database', 'info', 2000);
 }
 
 function loadHistoryPrompt(promptText) {
@@ -1243,6 +1266,10 @@ function renderAgentResponseCard(card, data) {
               <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn-editorial-secondary !py-1.5 !px-3 text-xs">
                 <i data-lucide="flask-conical" class="w-3 h-3"></i>
                 <span>Dry-Run</span>
+              </button>
+              <button onclick="explainCommandModal('${escapeHtml(c.command)}')" class="btn-editorial-secondary !py-1.5 !px-3 text-xs" title="Explain Flags and Linux Semantics">
+                <i data-lucide="help-circle" class="w-3 h-3 text-cyan-300"></i>
+                <span>Explain</span>
               </button>
             </div>
           </div>
@@ -2044,4 +2071,175 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ==========================================================================
+// EXPLAINABLE AI (XAI) MODAL & SEMANTIC DECONSTRUCTION
+// ==========================================================================
+let currentExplainCommandStr = '';
+
+async function explainCommandModal(cmd) {
+  if (!cmd || !cmd.trim()) return;
+  playScifiSound('click');
+  currentExplainCommandStr = cmd.trim();
+
+  const cmdEl = document.getElementById('modal-explain-command');
+  const sumEl = document.getElementById('modal-explain-summary');
+  const safEl = document.getElementById('modal-explain-safety');
+  const binEl = document.getElementById('modal-explain-binary');
+  const flgEl = document.getElementById('modal-explain-flags');
+
+  if (cmdEl) cmdEl.textContent = currentExplainCommandStr;
+  if (sumEl) sumEl.innerHTML = '<span class="text-slate-400">Deconstructing command flags and semantics...</span>';
+  if (safEl) safEl.textContent = 'ANALYZING';
+  if (binEl) binEl.textContent = '...';
+  if (flgEl) flgEl.innerHTML = '';
+
+  openModal('modal-explain');
+
+  try {
+    const res = await fetch('/api/command/explain', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: currentExplainCommandStr })
+    });
+    const data = await res.json();
+
+    if (sumEl) {
+      sumEl.textContent = data.ai_summary || data.summary || 'Command deconstruction complete.';
+    }
+    if (safEl) {
+      safEl.textContent = data.safety_level || 'READ_ONLY';
+      safEl.className = 'font-bold text-sm ' + getSafetyTextColor(data.safety_level || 'READ_ONLY');
+    }
+    if (binEl) {
+      binEl.textContent = data.command_binary || data.binary || currentExplainCommandStr.split(' ')[0];
+    }
+    if (flgEl) {
+      const flags = data.flags || [];
+      if (flags.length === 0) {
+        flgEl.innerHTML = '<div class="text-xs text-slate-400 font-mono italic">No explicit flag modifiers passed.</div>';
+      } else {
+        flgEl.innerHTML = flags.map(f => `
+          <div class="p-3 rounded-xl bg-black/40 border border-white/10 flex items-start space-x-3 text-xs">
+            <span class="font-mono font-bold text-cyan-300 px-2 py-0.5 rounded bg-cyan-950/40 border border-cyan-800/40 shrink-0">${escapeHtml(f.flag || f.name || '-')}</span>
+            <div class="space-y-0.5 flex-1">
+              <span class="font-semibold text-white block">${escapeHtml(f.description || f.meaning || 'Flag modifier')}</span>
+              ${f.safety_impact ? `<span class="text-[10px] text-amber-300 font-mono block">Impact: ${escapeHtml(f.safety_impact)}</span>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    if (sumEl) sumEl.innerHTML = `<span class="text-rose-400">Failed to deconstruct: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+function copyExplainCommand() {
+  if (currentExplainCommandStr) {
+    navigator.clipboard.writeText(currentExplainCommandStr);
+    showToast('Command copied to clipboard', 'info', 1500);
+  }
+}
+
+// ==========================================================================
+// SETTINGS MODAL & GEMINI CONFIGURATION
+// ==========================================================================
+async function openSettingsModal() {
+  playScifiSound('click');
+  openModal('modal-settings');
+
+  // Load Gemini Config
+  try {
+    const res = await fetch('/api/config/gemini');
+    const data = await res.json();
+    const statusBadge = document.getElementById('settings-gemini-status');
+    const modelSelect = document.getElementById('settings-gemini-model');
+    const keyInput = document.getElementById('settings-gemini-key');
+
+    if (statusBadge) {
+      if (data.configured) {
+        statusBadge.textContent = `Configured (${data.masked_key || 'API Key Saved'})`;
+        statusBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+      } else {
+        statusBadge.textContent = 'Not Configured';
+        statusBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
+      }
+    }
+    if (modelSelect && data.model) {
+      modelSelect.value = data.model;
+    }
+    if (keyInput) {
+      keyInput.value = '';
+    }
+  } catch (e) {}
+
+  // Load Working Directory
+  try {
+    const res = await fetch('/api/system/cwd');
+    const data = await res.json();
+    const cwdInput = document.getElementById('settings-cwd-input');
+    if (cwdInput && data.cwd) {
+      cwdInput.value = data.cwd;
+    }
+  } catch (e) {}
+
+  if (window.lucide) lucide.createIcons();
+}
+
+async function saveGeminiSettings() {
+  playScifiSound('click');
+  const keyInput = document.getElementById('settings-gemini-key');
+  const modelSelect = document.getElementById('settings-gemini-model');
+  const apiKey = keyInput ? keyInput.value.trim() : '';
+  const model = modelSelect ? modelSelect.value : 'gemini-2.0-flash';
+
+  try {
+    const res = await fetch('/api/config/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey, model: model, set_provider: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Gemini Copilot configuration updated', 'success', 2500);
+      closeModal('modal-settings');
+    } else {
+      showToast('Failed to save settings: ' + (data.error || 'Unknown error'), 'error');
+    }
+  } catch (e) {
+    showToast('Error saving settings: ' + e.message, 'error');
+  }
+}
+
+async function saveWorkingDir() {
+  playScifiSound('click');
+  const cwdInput = document.getElementById('settings-cwd-input');
+  const newPath = cwdInput ? cwdInput.value.trim() : '';
+  if (!newPath) return;
+
+  try {
+    const res = await fetch('/api/system/cwd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: newPath })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Working directory set: ' + data.cwd, 'success', 2500);
+    } else {
+      showToast('Failed to set directory: ' + (data.error || 'Not found'), 'error');
+    }
+  } catch (e) {
+    showToast('Error setting directory: ' + e.message, 'error');
+  }
+}
+
+function togglePasswordVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  if (input) {
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
 }

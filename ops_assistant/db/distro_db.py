@@ -3,8 +3,9 @@
 import os
 import json
 import sqlite3
+import threading
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 DEFAULT_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "distro_knowledge.json"
 DEFAULT_DB_PATH = Path.home() / ".config" / "ops_assistant" / "distro_knowledge.db"
@@ -22,14 +23,16 @@ class DistroKnowledgeBase:
             if self.db_path != ":memory:":
                 os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
 
+        self._lock = threading.Lock()
         self.data_source_path = str(data_source_path or DEFAULT_DATA_PATH)
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        self._profiles_cache: Dict[str, Dict[str, Any]] = {}
-        self._commands_cache: Dict[Tuple[str, str, str], str] = {}
-        self._all_families_cache: Optional[List[str]] = None
-        self._init_schema()
-        self._seed_if_empty()
+        with self._lock:
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
+            self._profiles_cache: Dict[str, Dict[str, Any]] = {}
+            self._commands_cache: Dict[Tuple[str, str, str], str] = {}
+            self._all_families_cache: Optional[List[str]] = None
+            self._init_schema()
+            self._seed_if_empty()
 
     def _init_schema(self) -> None:
         """Creates the required relational tables if they do not exist."""
@@ -180,38 +183,40 @@ class DistroKnowledgeBase:
 
     def get_profile(self, family_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves profile configuration for a given distribution family with memory caching."""
-        if family_id in self._profiles_cache:
-            return self._profiles_cache[family_id]
+        with self._lock:
+            if family_id in self._profiles_cache:
+                return self._profiles_cache[family_id]
 
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM distro_profiles WHERE family_id = ?", (family_id,))
-        row = cursor.fetchone()
-        if not row:
-            return None
-        profile = {
-            "family_id": row["family_id"],
-            "display_name": row["display_name"],
-            "os_release_ids": json.loads(row["os_release_ids"]),
-            "os_release_id_like": json.loads(row["os_release_id_like"]),
-            "detection_file": row["detection_file"],
-            "init_system": row["init_system"],
-            "default_firewall": row["default_firewall"],
-            "security_subsystem": row["security_subsystem"],
-            "log_paths": json.loads(row["log_paths"]),
-            "network_config_paths": json.loads(row["network_config_paths"])
-        }
-        self._profiles_cache[family_id] = profile
-        return profile
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT * FROM distro_profiles WHERE family_id = ?", (family_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            profile = {
+                "family_id": row["family_id"],
+                "display_name": row["display_name"],
+                "os_release_ids": json.loads(row["os_release_ids"]),
+                "os_release_id_like": json.loads(row["os_release_id_like"]),
+                "detection_file": row["detection_file"],
+                "init_system": row["init_system"],
+                "default_firewall": row["default_firewall"],
+                "security_subsystem": row["security_subsystem"],
+                "log_paths": json.loads(row["log_paths"]),
+                "network_config_paths": json.loads(row["network_config_paths"])
+            }
+            self._profiles_cache[family_id] = profile
+            return profile
 
     def get_all_families(self) -> List[str]:
         """Returns all supported distribution family IDs with memory caching."""
-        if self._all_families_cache is not None:
-            return self._all_families_cache
+        with self._lock:
+            if self._all_families_cache is not None:
+                return self._all_families_cache
 
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT family_id FROM distro_profiles")
-        self._all_families_cache = [row[0] for row in cursor.fetchall()]
-        return self._all_families_cache
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT family_id FROM distro_profiles")
+            self._all_families_cache = [row[0] for row in cursor.fetchall()]
+            return self._all_families_cache
 
     def get_command(
         self,
@@ -221,55 +226,58 @@ class DistroKnowledgeBase:
         **kwargs: Any
     ) -> Optional[str]:
         """Resolves a parameterized command template for a distro family with caching."""
-        cache_key = (family_id, category, action)
-        if cache_key in self._commands_cache:
-            template = self._commands_cache[cache_key]
-        else:
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                SELECT command_template FROM distro_commands
-                WHERE family_id = ? AND category = ? AND action = ?
-            """, (family_id, category, action))
-            row = cursor.fetchone()
-            if not row:
-                return None
-            template = row[0]
-            self._commands_cache[cache_key] = template
+        with self._lock:
+            cache_key = (family_id, category, action)
+            if cache_key in self._commands_cache:
+                template = self._commands_cache[cache_key]
+            else:
+                cursor = self.conn.cursor()
+                cursor.execute("""
+                    SELECT command_template FROM distro_commands
+                    WHERE family_id = ? AND category = ? AND action = ?
+                """, (family_id, category, action))
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                template = row[0]
+                self._commands_cache[cache_key] = template
 
-        if kwargs:
-            try:
-                return template.format(**kwargs)
-            except KeyError:
-                return template
-        return template
+            if kwargs:
+                try:
+                    return template.format(**kwargs)
+                except KeyError:
+                    return template
+            return template
 
     def get_locks(self, family_id: str) -> List[Dict[str, Any]]:
         """Returns all package manager lock files and competing processes for a distro."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT lock_file, lock_processes FROM distro_locks WHERE family_id = ?", (family_id,))
-        rows = cursor.fetchall()
-        return [
-            {"lock_file": r[0], "lock_processes": json.loads(r[1])}
-            for r in rows
-        ]
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT lock_file, lock_processes FROM distro_locks WHERE family_id = ?", (family_id,))
+            rows = cursor.fetchall()
+            return [
+                {"lock_file": r[0], "lock_processes": json.loads(r[1])}
+                for r in rows
+            ]
 
     def get_error_signatures(self, family_id: str) -> List[Dict[str, Any]]:
         """Returns common error patterns and remediations for a distro family."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT signature_id, pattern, remediation, explanation
-            FROM distro_error_signatures WHERE family_id = ?
-        """, (family_id,))
-        rows = cursor.fetchall()
-        return [
-            {
-                "id": r["signature_id"],
-                "pattern": r["pattern"],
-                "remediation": r["remediation"],
-                "explanation": r["explanation"]
-            }
-            for r in rows
-        ]
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                SELECT signature_id, pattern, remediation, explanation
+                FROM distro_error_signatures WHERE family_id = ?
+            """, (family_id,))
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": r["signature_id"],
+                    "pattern": r["pattern"],
+                    "remediation": r["remediation"],
+                    "explanation": r["explanation"]
+                }
+                for r in rows
+            ]
 
     def get_log_paths(self, family_id: str) -> Dict[str, str]:
         """Returns the dictionary of log paths for the distro family."""
@@ -285,4 +293,5 @@ class DistroKnowledgeBase:
 
     def close(self) -> None:
         """Closes the underlying SQLite database connection."""
-        self.conn.close()
+        with self._lock:
+            self.conn.close()

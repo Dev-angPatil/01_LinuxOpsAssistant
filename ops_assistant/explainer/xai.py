@@ -139,6 +139,60 @@ class XAIExplainer:
             "-servername": "Passes SNI (Server Name Indication) extension for virtual hosting.",
             "x509": "Displays certificate fields, expiration dates, and issuer fingerprints."
         },
+        "tar": {
+            "-c": "Creates a new archive.",
+            "-x": "Extracts files from an archive.",
+            "-v": "Verbosely lists files being processed.",
+            "-f": "Specifies the archive filename.",
+            "-z": "Filters the archive through gzip compression (.tar.gz).",
+            "-j": "Filters the archive through bzip2 compression (.tar.bz2).",
+            "-J": "Filters the archive through xz compression (.tar.xz).",
+            "-C": "Changes to directory before performing archive extraction.",
+            "-czvf": "Combined: Create, Gzip compress, Verbose progress, Archive File target.",
+            "-xzvf": "Combined: Extract, Gzip decompress, Verbose progress, Archive File target."
+        },
+        "chmod": {
+            "+x": "Adds executable execution permission to the target file.",
+            "-x": "Removes executable execution permission from the target file.",
+            "-R": "Recursively changes file permissions across subdirectories.",
+            "755": "Owner: Read+Write+Exec (rwx); Group & Others: Read+Exec (r-x).",
+            "644": "Owner: Read+Write (rw-); Group & Others: Read only (r--).",
+            "600": "Owner: Read+Write (rw-); Group & Others: No access (---).",
+            "777": "Grants full Read+Write+Exec permissions to all users (HIGH RISK)."
+        },
+        "chown": {
+            "-R": "Recursively changes user/group ownership across all subdirectories.",
+            "-v": "Outputs diagnostic details for every file processed."
+        },
+        "find": {
+            "-name": "Searches for files matching the specified filename glob pattern.",
+            "-type": "Restricts search by file type (f: regular file, d: directory, l: symlink).",
+            "-size": "Filters files by size (e.g. +100M for files greater than 100 Megabytes).",
+            "-mtime": "Filters files modified within N days.",
+            "-exec": "Executes specified command on each matched file.",
+            "-delete": "Deletes matched files directly (DESTRUCTIVE)."
+        },
+        "grep": {
+            "-r": "Recursively searches subdirectories.",
+            "-rn": "Recursively searches with line numbers.",
+            "-i": "Performs case-insensitive pattern matching.",
+            "-v": "Inverts match to select non-matching lines.",
+            "-E": "Treats pattern as extended regular expression (regex).",
+            "-l": "Prints only filenames of files containing matches."
+        },
+        "kill": {
+            "-9": "Sends SIGKILL signal to immediately terminate process without cleanup (non-catchable).",
+            "-15": "Sends SIGTERM signal to request graceful process termination.",
+            "-KILL": "Sends SIGKILL signal for immediate termination.",
+            "-TERM": "Sends SIGTERM signal for graceful shutdown."
+        },
+        "pkill": {
+            "-f": "Matches against full command line instead of just process name.",
+            "-9": "Forces immediate SIGKILL termination of all matching processes."
+        },
+        "xdg-open": {
+            "default": "Opens a file or URL in the user's preferred desktop application."
+        },
         "docker": {
             "ps": "Lists running container instances.",
             "logs": "Fetches stdout and stderr streams from specified container.",
@@ -261,4 +315,143 @@ class XAIExplainer:
             proposed_commands=proposals,
             mitigation_steps=steps
         )
+
+
+class CommandExplainer:
+    """Dedicated module for deconstructing and explaining any Linux command in plain English."""
+
+    def __init__(self):
+        self.xai = XAIExplainer()
+
+    @classmethod
+    def explain(cls, command_str: str) -> Dict[str, Any]:
+        xai = XAIExplainer()
+        cmd = command_str.strip()
+        flags = xai.deconstruct_command(cmd)
+        tokens = cmd.split()
+        base_cmd = tokens[0] if tokens else ""
+        if base_cmd == "sudo" and len(tokens) > 1:
+            base_cmd = tokens[1]
+
+        # Determine general description
+        general_descriptions = {
+            "tar": "Archives or extracts compressed files (tarballs).",
+            "chmod": "Modifies file system access permissions (read, write, execute).",
+            "chown": "Changes file or directory user and group ownership.",
+            "find": "Searches directory hierarchy for files matching filters (name, size, age).",
+            "grep": "Searches text or files for matching regular expression patterns.",
+            "ps": "Reports a snapshot of the current active system processes.",
+            "top": "Displays real-time dynamic view of system processor activity.",
+            "htop": "Interactive real-time process viewer and system resource monitor.",
+            "kill": "Sends a termination or control signal to a specific process by PID.",
+            "pkill": "Sends a termination signal to processes based on name matching.",
+            "systemctl": "Controls the systemd system and service manager.",
+            "journalctl": "Queries and displays logs from systemd journald logging daemon.",
+            "df": "Reports file system disk space usage and availability.",
+            "free": "Displays amount of free and used physical memory (RAM) and swap.",
+            "ip": "Configures and monitors network interfaces, IP addresses, and routing tables.",
+            "curl": "Transfers data to or from a server using supported network protocols.",
+            "wget": "Non-interactive network downloader for HTTP, HTTPS, and FTP.",
+            "mkdir": "Creates new directories in the file system.",
+            "rm": "Removes files or directories from storage.",
+            "cp": "Copies files and directories.",
+            "mv": "Moves or renames files and directories.",
+            "cat": "Concatenates and displays file contents in the terminal.",
+            "touch": "Creates an empty file or updates the timestamps of an existing file.",
+            "xdg-open": "Opens a file or URL in the user's preferred desktop application."
+        }
+
+        desc = general_descriptions.get(base_cmd, f"Executes system binary '{base_cmd}'.")
+        flag_list = [{"flag": f.flag, "purpose": f.purpose} for f in flags]
+
+        return {
+            "command": cmd,
+            "base_command": base_cmd,
+            "base_binary": base_cmd,
+            "description": desc,
+            "requires_sudo": cmd.startswith("sudo ") or "chmod" in cmd or "chown" in cmd,
+            "flags": flag_list,
+            "flags_detected": flag_list,
+            "plain_summary": f"`{cmd}` — {desc}" + (f" ({len(flag_list)} options decoded)" if flag_list else ""),
+            "summary": f"`{cmd}` — {desc}" + (f" ({len(flag_list)} options decoded)" if flag_list else "")
+        }
+
+
+class ErrorExplainer:
+    """Diagnoses and provides actionable solutions for non-zero Linux shell execution errors."""
+
+    EXIT_CODE_MAP = {
+        1: "General catchall error code.",
+        2: "Misuse of shell builtins or syntax error.",
+        126: "Command invoked cannot execute (permission denied or not executable).",
+        127: "Command not found (binary not installed or missing from PATH).",
+        128: "Invalid exit argument.",
+        130: "Process terminated by user via SIGINT (Ctrl+C).",
+        137: "Process forcibly killed by SIGKILL (often triggered by Linux Out-Of-Memory OOM-killer).",
+        139: "Process crashed due to Segmentation Fault (SIGSEGV).",
+        143: "Process terminated gracefully by SIGTERM."
+    }
+
+    @classmethod
+    def explain(cls, command: str, returncode: int, stderr: str = "", stdout: str = "") -> Dict[str, Any]:
+        return cls.explain_error(command, returncode, stderr, stdout)
+
+    @classmethod
+    def explain_error(cls, command: str, returncode: int, stderr: str = "", stdout: str = "") -> Dict[str, Any]:
+        combined_err = (stderr + "\n" + stdout).strip()
+        code_desc = cls.EXIT_CODE_MAP.get(returncode, f"Subprocess exited with non-zero return code {returncode}.")
+
+        diagnosis = "Execution failed."
+        recommendation = "Check command syntax and system state."
+        err_class = "UNKNOWN_ERROR"
+
+        # Heuristic pattern diagnosis
+        if returncode == 127 or "command not found" in combined_err.lower() or "not found" in combined_err.lower():
+            err_class = "COMMAND_NOT_FOUND"
+            tokens = command.split()
+            bin_name = tokens[0] if tokens else "command"
+            if bin_name == "sudo" and len(tokens) > 1:
+                bin_name = tokens[1]
+            if bin_name == "open":
+                diagnosis = "On Linux, the 'open' command is not installed by default. Linux uses 'xdg-open' or direct browser launchers."
+                recommendation = f"Use 'xdg-open' or run with OpsAssistant natural language: 'open browser'."
+            else:
+                diagnosis = f"Binary '{bin_name}' is not installed on this system or not in your PATH."
+                recommendation = f"Install the missing package using your distro package manager (e.g. 'sudo pacman -S {bin_name}' or 'sudo apt install {bin_name}')."
+
+        elif returncode == 126 or "permission denied" in combined_err.lower():
+            err_class = "PERMISSION_DENIED"
+            diagnosis = "The process lacks filesystem permissions to read/write/execute the target file or requires root privileges."
+            recommendation = "Prepend 'sudo' to run as root, or adjust file permissions with 'chmod +x <file>'."
+
+        elif "address already in use" in combined_err.lower() or "port already in use" in combined_err.lower():
+            err_class = "PORT_CONFLICT"
+            diagnosis = "A TCP/UDP port is already occupied by another running daemon."
+            recommendation = "Run 'sudo ss -tulpn' to identify which process PID holds the port, then stop it or change the port configuration."
+
+        elif "no space left on device" in combined_err.lower():
+            err_class = "DISK_EXHAUSTION"
+            diagnosis = "The storage disk partition or inode table is 100% exhausted."
+            recommendation = "Run 'df -h' to check disk capacity and 'ops-assistant clean space' to reclaim disk space."
+
+        elif "could not get lock" in combined_err.lower() or "lock-frontend" in combined_err.lower() or "db.lck" in combined_err.lower():
+            err_class = "LOCK_CONFLICT"
+            diagnosis = "Package manager lock is currently held by another background update process."
+            recommendation = "Wait for the active update process to finish or remove the stale lock file."
+
+        elif returncode == 137:
+            err_class = "OOM_KILL"
+            diagnosis = "The process was abruptly terminated by the Linux Out-Of-Memory (OOM) Killer."
+            recommendation = "Free up memory with 'free -h', reduce batch size, or create a swap file."
+
+        return {
+            "command": command,
+            "returncode": returncode,
+            "error_class": err_class,
+            "exit_code_description": code_desc,
+            "diagnosis": diagnosis,
+            "recommendation": recommendation,
+            "raw_stderr": stderr[:2000] if stderr else ""
+        }
+
 

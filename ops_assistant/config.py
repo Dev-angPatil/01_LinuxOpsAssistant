@@ -28,7 +28,10 @@ def get_config_file() -> Path:
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "setup_completed": False,
-    "provider": "auto",  # auto, deterministic, gguf, ollama
+    "system_permissions_granted": False,
+    "provider": "auto",  # auto, gemini, deterministic, gguf, ollama
+    "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
+    "gemini_model": os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
     "active_model_key": None,
     "active_model_path": None,
     "hardware_tier": None,
@@ -38,6 +41,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ollama_endpoint": "http://localhost:11434/api/generate",
     "ollama_model": "llama3:8b",
     "auto_check_updates": True,
+    "working_directory": str(Path.home()),
 }
 
 
@@ -49,16 +53,23 @@ class ConfigManager:
 
     def load(self) -> Dict[str, Any]:
         """Load configuration from disk, falling back to defaults."""
+        merged = dict(DEFAULT_CONFIG)
+        if os.environ.get("GEMINI_API_KEY"):
+            merged["gemini_api_key"] = os.environ.get("GEMINI_API_KEY")
+        if os.environ.get("GEMINI_MODEL"):
+            merged["gemini_model"] = os.environ.get("GEMINI_MODEL")
+
         if not self.config_file.exists():
-            return dict(DEFAULT_CONFIG)
+            return merged
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-            merged = dict(DEFAULT_CONFIG)
             merged.update(saved)
+            if os.environ.get("GEMINI_API_KEY"):
+                merged["gemini_api_key"] = os.environ.get("GEMINI_API_KEY")
             return merged
         except Exception:
-            return dict(DEFAULT_CONFIG)
+            return merged
 
     def save(self, config: Dict[str, Any]) -> bool:
         """Persist configuration dictionary to disk."""
@@ -84,10 +95,12 @@ class ConfigManager:
         threads: Optional[int] = None,
         ctx_size: Optional[int] = None,
         gpu_layers: Optional[int] = None,
+        permissions_granted: bool = True,
     ) -> Dict[str, Any]:
         """Mark setup as completed with specified settings."""
         cfg = self.load()
         cfg["setup_completed"] = True
+        cfg["system_permissions_granted"] = permissions_granted
         cfg["provider"] = provider
         if model_key:
             cfg["active_model_key"] = model_key
@@ -134,3 +147,26 @@ def is_setup_completed() -> bool:
 
 def set_setup_completed(**kwargs) -> Dict[str, Any]:
     return _config_manager.set_setup_completed(**kwargs)
+
+
+def get_gemini_api_key() -> Optional[str]:
+    cfg = get_config()
+    key = cfg.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY")
+    return key.strip() if key else None
+
+
+def set_gemini_api_key(key: str) -> bool:
+    return _config_manager.set("gemini_api_key", key.strip())
+
+
+def get_working_dir() -> str:
+    cfg = get_config()
+    wd = cfg.get("working_directory") or os.getcwd()
+    return os.path.expanduser(wd)
+
+
+def set_working_dir(path: str) -> bool:
+    expanded = os.path.abspath(os.path.expanduser(path))
+    if os.path.isdir(expanded):
+        return _config_manager.set("working_directory", expanded)
+    return False

@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-47%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-174%20passed-brightgreen.svg)]()
 [![Latency](https://img.shields.io/badge/latency-%3C50ms-success.svg)]()
 [![Accuracy](https://img.shields.io/badge/accuracy-100%25-brightgreen.svg)]()
 [![Distro Support](https://img.shields.io/badge/distros-Debian%20%7C%20RHEL%20%7C%20Arch%20%7C%20Alpine%20%7C%20SUSE-purple.svg)]()
@@ -19,27 +19,34 @@ The **AI-Powered Linux Operations Assistant** (`ops-assistant`) is an autonomous
 
 ## ✨ Key Architectural Innovations
 
-1. **Dynamic Causality DAG Engine (`ops_assistant.explainer.causality_dag`)**:
+1. **Multi-Tier Intelligent AI Copilot (`ops_assistant.agent`)**:
+   - **Layer 1 (Deterministic Fast-Path)**: Sub-50ms regex AST engine with 0 MB memory footprint.
+   - **Layer 2 (Google Gemini API)**: High-speed cloud copilot (`gemini-2.0-flash`, `gemini-1.5-pro`) with structured JSON outputs.
+   - **Layer 3 (Local GGUF / Ollama)**: Fully offline edge inference via `llama-cpp-python` with hardware-aware auto-tuning.
+
+2. **Avant-Garde Web GUI Cockpit (`ops_assistant.gui`)**:
+   - 2-column cockpit layout with collapsible tactical reasoning stream (`Ctrl+J`) and real-time Chart.js telemetry.
+   - Top-right slide-over Mission History Drawer (`Ctrl+H`) backed by persistent SQLite database.
+   - On-demand XAI modal deconstructing bash command flags and Linux semantics.
+
+3. **Dynamic Causality DAG Engine (`ops_assistant.explainer.causality_dag`)**:
    - Constructs directed causal graphs $G = (V, E)$ to isolate true root causes with topological in-degree minimization ($\text{InDegree}=0$), suppressing symptom cascade noise (e.g. `KERNEL_OOM` $\rightarrow$ `PROCESS_KILLED` $\rightarrow$ `SOCKET_CLOSED` $\rightarrow$ `UPSTREAM_502`).
 
-2. **Kernel Pressure Stall Information (PSI) Ingestion (`ops_assistant.collectors.psi_collector`)**:
-   - Directly parses `/proc/pressure/{cpu,memory,io}` 10s/60s/300s stall averages, detecting memory pressure and I/O starvation before unrecoverable kernel panics occur.
+4. **Persistent SQLite History & Audit Database (`ops_assistant.db.history_db`)**:
+   - Persists all command runs, return codes, execution latencies, stdout/stderr, and rollback commands in `~/.config/ops_assistant/history.db`.
 
-3. **Ephemeral Namespace CoW Sandbox Probe (`ops_assistant.tools.sandbox_probe`)**:
+5. **Multi-Ecosystem Project Operations (`ops_assistant.tools.project_ops`)**:
+   - Auto-detects Python, Node.js, Rust, Go, Ruby, and PHP project manifests and configures isolated virtual environments automatically.
+
+6. **Ephemeral Namespace CoW Sandbox Probe (`ops_assistant.tools.sandbox_probe`)**:
    - Empirically dry-runs candidate remediation commands inside isolated User + Mount namespaces (`unshare` + OverlayFS) to verify syntax, arguments, and safety prior to presenting them to the operator.
 
-4. **Multi-Distro Knowledge Base & Dynamic Adaptation (`ops_assistant.db.distro_db`)**:
-   - Backed by an embedded SQLite knowledge engine mapping commands, lock paths, and error patterns across Debian/Ubuntu, RHEL/Rocky/Fedora, Arch Linux, Alpine Linux (OpenRC/apk), and openSUSE/SLES (zypper/firewalld).
-
-5. **AST Safety Guardrails & 4-Tier Risk Matrix (`ops_assistant.tools.safety`)**:
+7. **AST Safety Guardrails & 4-Tier Risk Matrix (`ops_assistant.tools.safety`)**:
    - Classifies commands into `READ_ONLY` (0.05), `MODIFYING` (0.35), `HIGH_RISK` (0.70), and `DESTRUCTIVE` (1.00).
    - Hard-blocks destructive commands (`rm -rf /`, fork bombs, raw block writes) with zero execution leaks.
 
-6. **Transparent Explainable AI (XAI) & Rollbacks (`ops_assistant.explainer.xai`)**:
+8. **Transparent Explainable AI (XAI) & Rollbacks (`ops_assistant.explainer.xai`)**:
    - Provides plain-English flag-by-flag breakdowns across 35+ core Linux utilities and synthesizes inverse rollback commands (`systemctl start <-> stop`, `ufw allow <-> delete allow`).
-
-7. **Deterministic-First Dual-Engine Intelligence (`ops_assistant.agent`)**:
-   - Achieves sub-50ms offline deterministic triage across 16 core failure taxonomies, with pluggable local open-weight LLM fallback (Ollama / GGUF) for unclassified edge queries.
 
 ---
 
@@ -106,14 +113,14 @@ ops-assistant --demo
 
 ## 🧪 Comprehensive Test Suite
 
-Run the full automated test suite containing 47 unit and integration tests:
+Run the full automated test suite containing 174 unit and integration tests:
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
 ```text
-Ran 47 tests in 8.4s
+Ran 174 tests in 28.0s
 OK (100% Pass Rate)
 ```
 

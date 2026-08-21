@@ -120,3 +120,26 @@ graph TD
 - **Dynamic Distro Detector**:
   - Parses `/etc/os-release`, `/etc/issue`, and legacy fallbacks (`/etc/redhat-release`, `/etc/arch-release`, `/etc/alpine-release`).
   - Adapts remediation commands automatically (e.g., OpenRC on Alpine, firewalld on RHEL/openSUSE, pacman on Arch, ufw on Ubuntu).
+
+### 9. **3-Layer Intelligent AI Copilot Architecture (`ops_assistant.agent`)**
+- **Layer 1: Deterministic Fast-Path Engine**:
+  - Sub-50ms deterministic AST parsing and regex router with 0 MB memory footprint.
+- **Layer 2: Google Gemini Cloud Copilot (`GeminiProvider`)**:
+  - REST integration with `gemini-2.0-flash` / `gemini-1.5-pro` via structured JSON output schemas for complex natural language synthesis and root cause diagnosis.
+- **Layer 3: Local In-Process GGUF / Ollama Engine (`LlamaCppProvider` & `OllamaProvider`)**:
+  - Local offline inference with auto-tuned context length, CPU threads, and GPU layer offload.
+
+### 10. **Persistent SQLite History & Audit Database (`ops_assistant.db.history_db`)**
+- Persists all command invocations, execution latencies, return codes, stdout/stderr, intent classifications, and rollback steps in `~/.config/ops_assistant/history.db`.
+- Shared across CLI sessions and Web GUI workers with multi-threaded SQLite lock synchronization.
+
+### 11. **Multi-Ecosystem Project Operations (`ops_assistant.tools.project_ops`)**
+- Automatic detection of project manifests (Python `requirements.txt`/`pyproject.toml`, Node.js `package.json`, Rust `Cargo.toml`, Go `go.mod`, Ruby `Gemfile`, PHP `composer.json`).
+- Automated virtual environment initialization (`.venv`, `venv`) and package installation.
+
+### 12. **Avant-Garde Web GUI Cockpit (`ops_assistant.gui.*`)**
+- **Cockpit Layout**: Left column tactical stream + Right column telemetry visualizer.
+- **Slide-Over History Drawer (`Ctrl+H`)**: Top-right slide-over history drawer showing persistent session queries, execution badges, and instant reload into the prompt.
+- **Collapsible Tactical Stream (`Ctrl+J`)**: Instant toggle to maximize dashboard space.
+- **Explainable AI (XAI) Modal**: On-demand flag-by-flag semantic deconstruction of planned bash commands.
+- **Copilot & Working Directory Settings**: Configure Gemini API keys, inference models, and active workspace directory on the fly.
