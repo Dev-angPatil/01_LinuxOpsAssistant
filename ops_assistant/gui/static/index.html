@@ -81,8 +81,21 @@
       </button>
     </nav>
 
-    <!-- Right: Action Toggles (Clock pill removed) -->
-    <div class="flex items-center space-x-2.5">
+    <!-- Right: Action Controls (History Drawer + Voice TTS + SFX) -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <!-- History Drawer Toggle Button -->
+      <button 
+        id="btn-toggle-history" 
+        onclick="toggleHistoryDrawer()" 
+        title="Mission History & Past Inquiries (Ctrl+H)" 
+        class="flex items-center space-x-2 px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/35 backdrop-blur-xl text-slate-200 hover:text-white transition-all shadow-[0_4px_16px_rgba(0,0,0,0.4)] group cursor-pointer">
+        <i data-lucide="history" class="w-4.5 h-4.5 text-cyan-300 group-hover:rotate-[-20deg] transition-transform duration-300"></i>
+        <span class="text-xs sm:text-sm font-sans font-medium hidden sm:inline">History</span>
+        <span id="history-badge-count" class="hidden text-[10px] font-mono bg-cyan-400/20 text-cyan-300 px-1.5 py-0.5 rounded-full border border-cyan-400/30">0</span>
+      </button>
+
+      <div class="h-5 w-[1px] bg-white/15 mx-0.5 hidden sm:block"></div>
+
       <!-- AI Voice Speech Synthesis Toggle -->
       <button id="btn-toggle-tts" onclick="toggleVoiceSpeech()" title="Toggle AI Spoken Voice Feedback" class="p-2.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 backdrop-blur-xl transition text-slate-300 hover:text-white">
         <i data-lucide="volume-1" class="w-4.5 h-4.5"></i>
@@ -101,63 +114,21 @@
   <main class="flex-1 w-full mx-auto px-4 sm:px-8 pb-16 space-y-12">
 
     <!-- ======================================================== -->
-    <!-- TAB 1: HERO & AI OPS DECK (HOME) - 3-COLUMN COCKPIT -->
+    <!-- TAB 1: HERO & AI OPS DECK (HOME) - BALANCED 2-COLUMN COCKPIT -->
     <!-- ======================================================== -->
     <div id="tab-content-home" class="tab-content">
       
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-stretch h-[calc(100vh-140px)] min-h-[760px]">
+      <div id="home-cockpit-grid" class="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-stretch h-[calc(100vh-140px)] min-h-[760px] transition-all duration-300">
         
         <!-- ======================================================== -->
-        <!-- LEFT PANEL: FULL-HEIGHT INQUIRIES & MISSION HISTORY -->
+        <!-- LEFT/MAIN ARENA: HERO, SEARCH DECK & ZERO-G ORB -->
         <!-- ======================================================== -->
-        <aside class="lg:col-span-3 xl:col-span-3 h-full flex flex-col">
-          <div class="avant-card-elevated p-6 space-y-4 h-full flex flex-col">
-            
-            <!-- Header with Title and Clear Action -->
-            <div class="flex items-center justify-between border-b border-white/10 pb-3.5 shrink-0">
-              <div class="flex items-center space-x-2.5">
-                <div class="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_14px_rgba(255,255,255,0.15)]">
-                  <i data-lucide="history" class="w-4.5 h-4.5 text-white"></i>
-                </div>
-                <div>
-                  <h3 class="font-editorial italic text-lg sm:text-xl text-white">Mission History</h3>
-                  <p class="text-xs text-slate-400 font-sans">Recent Inquiries &amp; Ops</p>
-                </div>
-              </div>
-              <button onclick="clearQueryHistory()" title="Clear Inquiries History" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
-            </div>
-
-            <!-- Search Filter for History -->
-            <div class="relative shrink-0">
-              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-              <input 
-                type="text" 
-                id="history-filter-input" 
-                placeholder="Filter past inquiries..." 
-                oninput="filterHistoryList(this.value)"
-                class="editorial-input w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm font-sans text-slate-200"
-              />
-            </div>
-
-            <!-- Full-Height Scrollable History List -->
-            <div id="history-items-container" class="space-y-2.5 flex-1 overflow-y-auto pr-1">
-              <!-- Dynamically populated via app.js -->
-            </div>
-
-          </div>
-        </aside>
-
-        <!-- ======================================================== -->
-        <!-- CENTER ARENA: HERO, SEARCH DECK & ZERO-G ORB -->
-        <!-- ======================================================== -->
-        <section class="lg:col-span-6 xl:col-span-6 flex flex-col items-center text-center space-y-5 h-full overflow-y-auto px-2">
+        <section id="home-main-arena" class="lg:col-span-7 xl:col-span-7 flex flex-col items-center text-center space-y-5 h-full overflow-y-auto px-3 py-1 custom-scrollbar transition-all duration-300">
           
           <!-- Status Pill Badge -->
           <div class="inline-flex items-center space-x-2.5 px-5 py-2 rounded-full bg-white/[0.06] border border-white/20 backdrop-blur-xl text-xs sm:text-sm text-slate-200 shadow-[0_0_25px_rgba(255,255,255,0.08)] shrink-0">
-            <span class="px-2.5 py-0.5 rounded-full bg-white text-black font-bold text-xs uppercase tracking-wider">New</span>
-            <span class="text-slate-200 font-sans font-medium">Autonomous Linux Operations Engine Arrives 2026</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-white text-black font-bold text-xs uppercase tracking-wider">Online</span>
+            <span class="text-slate-200 font-sans font-medium">Autonomous Linux Operations Engine • Real-Time AST &amp; Kernel PSI</span>
           </div>
 
           <!-- Grand Editorial Headline -->
@@ -167,7 +138,7 @@
           </h1>
 
           <!-- Subtitle -->
-          <p class="max-w-xl mx-auto text-sm sm:text-base text-slate-300 font-sans-airy font-normal leading-relaxed text-center shrink-0">
+          <p class="max-w-2xl mx-auto text-sm sm:text-base text-slate-300 font-sans-airy font-normal leading-relaxed text-center shrink-0">
             Discover Linux autonomy in ways once unimaginable. Deterministic AST validation and real-time causality DAGs bring deep orchestration within reach.
           </p>
 
@@ -261,19 +232,19 @@
           </div>
 
           <!-- ZERO-G IRIDESCENT LIQUID GLASS ORB & FLOATING METRIC CARDS -->
-          <div class="relative w-full max-w-md mx-auto mt-4 min-h-[300px] flex items-center justify-center shrink-0">
+          <div class="relative w-full max-w-lg mx-auto mt-2 min-h-[290px] flex items-center justify-center shrink-0">
             
             <!-- Background Iridescent Glass Orb -->
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
               <img 
                 src="/static/orb.jpg" 
                 alt="Zero-G Iridescent Liquid Glass Sphere" 
-                class="w-[240px] sm:w-[280px] h-[240px] sm:h-[280px] object-contain rounded-full zero-g-orb opacity-90"
+                class="w-[230px] sm:w-[270px] h-[230px] sm:h-[270px] object-contain rounded-full zero-g-orb opacity-90"
               />
             </div>
 
             <!-- Suspended Floating Glass Telemetry Cards -->
-            <div class="relative z-10 w-full grid grid-cols-2 gap-3 max-w-sm mx-auto px-2">
+            <div class="relative z-10 w-full grid grid-cols-2 gap-4 max-w-md mx-auto px-3">
               
               <!-- Floating Card 1: Telemetry Latency / CPU -->
               <div class="avant-card-elevated p-4 text-left space-y-1.5 backdrop-blur-3xl">
@@ -307,7 +278,7 @@
           </div>
 
           <!-- Bottom Aerospace Subsystems Bar -->
-          <div class="pt-2 space-y-1.5 shrink-0">
+          <div class="pt-1 space-y-1.5 shrink-0">
             <p class="text-xs text-slate-400 font-sans tracking-widest uppercase font-medium">
               Subsystems
             </p>
@@ -326,10 +297,12 @@
         <!-- ======================================================== -->
         <!-- RIGHT PANEL: FULL-HEIGHT LIVE WORKING & EXECUTION OUTPUT -->
         <!-- ======================================================== -->
-        <aside class="lg:col-span-3 xl:col-span-3 h-full flex flex-col">
-          <div class="avant-card-elevated p-6 space-y-4 h-full flex flex-col">
+        <aside id="home-output-aside" class="lg:col-span-5 xl:col-span-5 h-full flex flex-col transition-all duration-300">
+          
+          <!-- Expanded Card View -->
+          <div id="output-expanded-card" class="avant-card-elevated p-6 space-y-4 h-full flex flex-col">
             
-            <!-- Header with Live Indicator and Purge Stream -->
+            <!-- Header with Live Indicator, Collapse Action, and Purge Stream -->
             <div class="flex items-center justify-between border-b border-white/10 pb-3.5 shrink-0">
               <div class="flex items-center space-x-2.5">
                 <div class="w-9 h-9 rounded-full bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shadow-[0_0_14px_rgba(0,210,255,0.25)]">
@@ -340,13 +313,19 @@
                   <p class="text-xs text-cyan-300 font-sans" id="working-stream-status">Engine Ready</p>
                 </div>
               </div>
-              <button onclick="clearAgentFeed()" title="Purge Execution Stream" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-              </button>
+              
+              <div class="flex items-center space-x-1.5">
+                <button onclick="clearAgentFeed()" title="Purge Execution Stream" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="toggleLiveOutputCollapse()" title="Shrink / Collapse Live Output (Ctrl+J)" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white group">
+                  <i data-lucide="minimize-2" class="w-4 h-4 text-slate-400 group-hover:text-cyan-300 transition"></i>
+                </button>
+              </div>
             </div>
 
             <!-- Scrollable Active Feed Container filling vertical space -->
-            <div id="agent-feed-container" class="space-y-4 flex-1 overflow-y-auto pr-1">
+            <div id="agent-feed-container" class="space-y-4 flex-1 overflow-y-auto pr-1 custom-scrollbar">
               <!-- Initial Placeholder -->
               <div class="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2.5 font-sans-airy">
                 <div class="flex items-center space-x-2 text-white font-editorial italic text-sm sm:text-base">
@@ -360,6 +339,25 @@
             </div>
 
           </div>
+
+          <!-- Collapsed Vertical Ribbon View -->
+          <div id="output-collapsed-card" onclick="toggleLiveOutputCollapse()" title="Click to Expand Live Working & Output (Ctrl+J)" class="hidden avant-card-elevated p-3 h-full flex flex-col items-center justify-between cursor-pointer hover:border-cyan-400/40 hover:bg-white/[0.08] transition-all group select-none">
+            <div class="flex flex-col items-center space-y-3 pt-2">
+              <button type="button" class="w-8 h-8 rounded-full bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 group-hover:scale-110 transition shadow-[0_0_12px_rgba(0,210,255,0.3)]">
+                <i data-lucide="maximize-2" class="w-4 h-4 text-cyan-300"></i>
+              </button>
+              <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+            </div>
+
+            <div class="writing-mode-vertical py-6 flex items-center space-x-2 text-xs font-mono text-slate-300 group-hover:text-cyan-300 uppercase tracking-widest">
+              <span>Live Tactical Stream</span>
+            </div>
+
+            <div class="pb-2 text-cyan-300 group-hover:translate-x-[-2px] transition">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </div>
+          </div>
+
         </aside>
 
       </div>
@@ -911,6 +909,64 @@
       <pre id="modal-logs-content" class="p-6 bg-black/80 border border-white/15 rounded-2xl text-sm font-mono text-slate-200 overflow-y-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_20px_rgba(0,0,0,0.9)]"></pre>
     </div>
   </div>
+
+  <!-- ======================================================== -->
+  <!-- SLIDE-OVER DRAWER: MISSION HISTORY & INQUIRIES -->
+  <!-- ======================================================== -->
+  <div id="history-drawer-overlay" onclick="closeHistoryDrawer()" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+  <aside id="history-drawer" class="fixed top-0 right-0 z-50 h-full w-full sm:w-[450px] bg-[#09090e]/95 backdrop-blur-3xl border-l border-white/15 shadow-[0_0_80px_rgba(0,0,0,0.9)] transform translate-x-full transition-transform duration-300 ease-out flex flex-col pointer-events-auto">
+    
+    <!-- Drawer Header -->
+    <div class="p-6 border-b border-white/10 flex items-center justify-between shrink-0 bg-white/[0.02]">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_18px_rgba(0,210,255,0.25)]">
+          <i data-lucide="history" class="w-5 h-5 text-cyan-300"></i>
+        </div>
+        <div>
+          <h3 class="font-editorial italic text-xl text-white">Mission History</h3>
+          <p class="text-xs text-slate-400 font-sans">Recent Inquiries &amp; Ops Timeline</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="clearQueryHistory()" title="Clear Inquiries History" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-rose-400 transition" id="btn-clear-history">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+        <button onclick="closeHistoryDrawer()" title="Close History (Esc)" class="p-2 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search & Filter Input Bar -->
+    <div class="px-6 py-4 border-b border-white/5 shrink-0 bg-white/[0.01]">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        <input 
+          type="text" 
+          id="history-filter-input" 
+          placeholder="Filter past inquiries or intent..." 
+          oninput="filterHistoryList(this.value)"
+          class="editorial-input w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-sans text-slate-200"
+        />
+      </div>
+    </div>
+
+    <!-- Scrollable History Items Container -->
+    <div id="history-items-container" class="p-6 space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+      <!-- Dynamically populated via app.js -->
+    </div>
+
+    <!-- Drawer Footer Quick Tip -->
+    <div class="p-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[11px] text-slate-400 font-mono shrink-0">
+      <span class="flex items-center gap-1.5">
+        <span>Shortcut:</span>
+        <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px] border border-white/15">Ctrl+H</kbd>
+      </span>
+      <span class="text-slate-400">Click item to load</span>
+    </div>
+
+  </aside>
 
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>

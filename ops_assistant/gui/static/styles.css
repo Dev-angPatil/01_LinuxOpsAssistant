@@ -315,27 +315,67 @@ body {
   -webkit-backdrop-filter: blur(28px);
 }
 
-/* History Panel Items */
+/* History Drawer & Floating Items */
+#btn-toggle-history {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#btn-toggle-history:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px rgba(0, 210, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+#history-drawer {
+  will-change: transform;
+}
+
 .history-item {
-  padding: 0.85rem 1rem;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 0.9rem 1.1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
+  position: relative;
 }
 
 .history-item:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateX(3px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateX(-3px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 16px rgba(0, 210, 255, 0.08);
+}
+
+.history-item:active {
+  transform: scale(0.99);
 }
 
 .history-item.active {
   background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(0, 210, 255, 0.4);
-  box-shadow: 0 0 16px rgba(0, 210, 255, 0.15);
+  border-color: rgba(0, 210, 255, 0.5);
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.writing-mode-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  white-space: nowrap;
 }
 
 /* Telemetry Tables */

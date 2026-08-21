@@ -369,6 +369,13 @@ document.addEventListener('DOMContentLoaded', () => {
   updateTacticalClock();
   setInterval(updateTacticalClock, 1000);
 
+  // Restore live output collapsed state
+  try {
+    if (localStorage.getItem('linuxops_output_collapsed') === 'true') {
+      collapseLiveOutput();
+    }
+  } catch (e) {}
+
   // Setup prompt form submit
   const form = document.getElementById('agent-prompt-form');
   if (form) {
@@ -392,6 +399,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Global Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
+    // Ctrl+H or Alt+H for Mission History Drawer
+    if ((e.ctrlKey && e.key.toLowerCase() === 'h') || (e.altKey && e.key.toLowerCase() === 'h')) {
+      e.preventDefault();
+      toggleHistoryDrawer();
+      return;
+    }
+    // Ctrl+J or Alt+J to Collapse/Expand Live Output
+    if ((e.ctrlKey && e.key.toLowerCase() === 'j') || (e.altKey && e.key.toLowerCase() === 'j')) {
+      e.preventDefault();
+      toggleLiveOutputCollapse();
+      return;
+    }
     // Alt+V or Ctrl+Space for Voice Activation
     if ((e.altKey && e.key.toLowerCase() === 'v') || (e.ctrlKey && e.code === 'Space')) {
       e.preventDefault();
@@ -404,6 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (e.key === 'Escape') {
       stopVoiceActivation(false);
+      closeHistoryDrawer();
       closeModal('modal-permission');
       closeModal('modal-logs');
     }
@@ -794,7 +814,7 @@ function renderDisksTable(disks) {
 }
 
 // ==========================================================================
-// MISSION & INQUIRY HISTORY ENGINE
+// MISSION & INQUIRY HISTORY ENGINE (SLIDE-OVER DRAWER)
 // ==========================================================================
 const HISTORY_STORAGE_KEY = 'linuxops_mission_history_v1';
 
@@ -806,6 +826,45 @@ const DEFAULT_HISTORY = [
   { prompt: 'Find large files over 100MB', intent: 'AUDIT', time: '17:42:18', safety: 'READ_ONLY' },
   { prompt: 'Audit SSH security configuration', intent: 'SECURITY', time: '17:30:00', safety: 'READ_ONLY' }
 ];
+
+function toggleHistoryDrawer() {
+  const drawer = document.getElementById('history-drawer');
+  const overlay = document.getElementById('history-drawer-overlay');
+  if (!drawer || !overlay) return;
+  const isClosed = drawer.classList.contains('translate-x-full');
+  if (isClosed) {
+    openHistoryDrawer();
+  } else {
+    closeHistoryDrawer();
+  }
+}
+
+function openHistoryDrawer() {
+  playScifiSound('click');
+  const drawer = document.getElementById('history-drawer');
+  const overlay = document.getElementById('history-drawer-overlay');
+  if (drawer && overlay) {
+    drawer.classList.remove('translate-x-full');
+    overlay.classList.remove('opacity-0', 'pointer-events-none');
+    overlay.classList.add('opacity-100', 'pointer-events-auto');
+    renderQueryHistory();
+    // Auto-focus search input inside drawer after slide-in
+    setTimeout(() => {
+      const filterInput = document.getElementById('history-filter-input');
+      if (filterInput) filterInput.focus();
+    }, 120);
+  }
+}
+
+function closeHistoryDrawer() {
+  const drawer = document.getElementById('history-drawer');
+  const overlay = document.getElementById('history-drawer-overlay');
+  if (drawer && overlay) {
+    drawer.classList.add('translate-x-full');
+    overlay.classList.remove('opacity-100', 'pointer-events-auto');
+    overlay.classList.add('opacity-0', 'pointer-events-none');
+  }
+}
 
 function getStoredHistory() {
   try {
@@ -831,7 +890,7 @@ function saveQueryToHistory(promptText, intent = 'QUERY', safety = 'READ_ONLY') 
     safety: safety || 'READ_ONLY'
   });
 
-  const trimmed = history.slice(0, 30);
+  const trimmed = history.slice(0, 35);
   try {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
   } catch (e) {}
@@ -841,19 +900,34 @@ function saveQueryToHistory(promptText, intent = 'QUERY', safety = 'READ_ONLY') 
 
 function renderQueryHistory(filterText = '') {
   const container = document.getElementById('history-items-container');
-  if (!container) return;
+  const countBadge = document.getElementById('history-badge-count');
 
   const history = getStoredHistory();
+
+  // Update top-right navbar count badge
+  if (countBadge) {
+    if (history.length > 0) {
+      countBadge.textContent = history.length;
+      countBadge.classList.remove('hidden');
+    } else {
+      countBadge.classList.add('hidden');
+    }
+  }
+
+  if (!container) return;
+
   const filtered = filterText 
     ? history.filter(h => h.prompt.toLowerCase().includes(filterText.toLowerCase()) || (h.intent && h.intent.toLowerCase().includes(filterText.toLowerCase())))
     : history;
 
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 text-center text-xs text-slate-500 font-mono">
-        ${filterText ? 'No matching inquiries found' : 'No mission history yet'}
+      <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-center text-xs text-slate-400 font-mono space-y-2">
+        <i data-lucide="inbox" class="w-6 h-6 mx-auto text-slate-500"></i>
+        <p>${filterText ? 'No matching past inquiries found' : 'No mission history yet'}</p>
       </div>
     `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -862,20 +936,20 @@ function renderQueryHistory(filterText = '') {
     const escaped = escapeHtml(item.prompt);
     const intentClass = getIntentBadgeClass(item.intent);
     html += `
-      <div class="history-item flex items-center justify-between group space-x-2" onclick="loadHistoryPrompt('${escaped.replace(/'/g, "\\'")}')">
-        <div class="flex-1 min-w-0 space-y-1">
-          <div class="flex items-center space-x-1.5">
-            <span class="${intentClass} text-[9px] font-mono px-2 py-0.5 rounded-full uppercase font-bold">${escapeHtml(item.intent || 'QUERY')}</span>
-            <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(item.time || '')}</span>
+      <div class="history-item flex items-center justify-between group space-x-3" onclick="loadHistoryPrompt('${escaped.replace(/'/g, "\\'")}')">
+        <div class="flex-1 min-w-0 space-y-1.5">
+          <div class="flex items-center space-x-2">
+            <span class="${intentClass} text-[9px] font-mono px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">${escapeHtml(item.intent || 'QUERY')}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${escapeHtml(item.time || '')}</span>
           </div>
-          <p class="text-xs text-slate-200 font-mono truncate group-hover:text-white">${escaped}</p>
+          <p class="text-xs sm:text-sm text-slate-200 font-mono truncate group-hover:text-white transition-colors">${escaped}</p>
         </div>
         <button 
           type="button" 
           onclick="event.stopPropagation(); quickPrompt('${escaped.replace(/'/g, "\\'")}');" 
-          title="Re-run Mission" 
-          class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition shrink-0">
-          <i data-lucide="play" class="w-3.5 h-3.5 text-cyan-300"></i>
+          title="Execute Mission Query" 
+          class="opacity-0 group-hover:opacity-100 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+          <i data-lucide="play" class="w-4 h-4 text-cyan-300"></i>
         </button>
       </div>
     `;
@@ -906,6 +980,11 @@ function loadHistoryPrompt(promptText) {
     toggleClearPromptBtn(promptText);
     input.focus();
   }
+  // Automatically close history drawer on smaller screens or when loading into prompt
+  if (window.innerWidth < 768) {
+    closeHistoryDrawer();
+  }
+  showToast('Query loaded into command deck', 'info', 1500);
 }
 
 function toggleClearPromptBtn(val) {
@@ -939,10 +1018,79 @@ function getIntentBadgeClass(intent) {
 }
 
 // ==========================================================================
+// SHRINKABLE & EXPANDABLE LIVE WORKING OUTPUT CONTROLLER
+// ==========================================================================
+function toggleLiveOutputCollapse() {
+  playScifiSound('click');
+  const expandedCard = document.getElementById('output-expanded-card');
+  if (!expandedCard) return;
+
+  const isCurrentlyCollapsed = expandedCard.classList.contains('hidden');
+  if (isCurrentlyCollapsed) {
+    expandLiveOutput(true);
+    showToast('Tactical stream expanded', 'info', 1500);
+  } else {
+    collapseLiveOutput();
+    showToast('Tactical stream minimized', 'info', 1500);
+  }
+}
+
+function collapseLiveOutput() {
+  const aside = document.getElementById('home-output-aside');
+  const mainArena = document.getElementById('home-main-arena');
+  const expandedCard = document.getElementById('output-expanded-card');
+  const collapsedCard = document.getElementById('output-collapsed-card');
+
+  if (!aside || !mainArena || !expandedCard || !collapsedCard) return;
+
+  expandedCard.classList.add('hidden');
+  collapsedCard.classList.remove('hidden');
+
+  aside.classList.remove('lg:col-span-5', 'xl:col-span-5');
+  aside.classList.add('lg:col-span-1', 'xl:col-span-1');
+
+  mainArena.classList.remove('lg:col-span-7', 'xl:col-span-7');
+  mainArena.classList.add('lg:col-span-11', 'xl:col-span-11');
+
+  try {
+    localStorage.setItem('linuxops_output_collapsed', 'true');
+  } catch (e) {}
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function expandLiveOutput(playSound = false) {
+  if (playSound) playScifiSound('click');
+  const aside = document.getElementById('home-output-aside');
+  const mainArena = document.getElementById('home-main-arena');
+  const expandedCard = document.getElementById('output-expanded-card');
+  const collapsedCard = document.getElementById('output-collapsed-card');
+
+  if (!aside || !mainArena || !expandedCard || !collapsedCard) return;
+
+  collapsedCard.classList.add('hidden');
+  expandedCard.classList.remove('hidden');
+
+  aside.classList.remove('lg:col-span-1', 'xl:col-span-1');
+  aside.classList.add('lg:col-span-5', 'xl:col-span-5');
+
+  mainArena.classList.remove('lg:col-span-11', 'xl:col-span-11');
+  mainArena.classList.add('lg:col-span-7', 'xl:col-span-7');
+
+  try {
+    localStorage.setItem('linuxops_output_collapsed', 'false');
+  } catch (e) {}
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ==========================================================================
 // AI OPS AGENT: CHAT & TACTICAL STREAM
 // ==========================================================================
 function quickPrompt(text) {
   playScifiSound('click');
+  closeHistoryDrawer();
+  expandLiveOutput(false);
   const input = document.getElementById('agent-prompt-input');
   if (input) {
     input.value = text;
@@ -953,6 +1101,7 @@ function quickPrompt(text) {
 
 async function submitAgentPrompt(promptText) {
   playScifiSound('execute');
+  expandLiveOutput(false);
   const feed = document.getElementById('agent-feed-container');
   const input = document.getElementById('agent-prompt-input');
   const btn = document.getElementById('btn-submit-prompt');
