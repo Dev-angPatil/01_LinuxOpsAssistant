@@ -69,6 +69,23 @@ function playScifiSound(type) {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
       osc.start(now);
       osc.stop(now + 0.12);
+    } else if (type === 'voice_on') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.16);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc.start(now);
+      osc.stop(now + 0.16);
+    } else if (type === 'voice_off') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
     }
   } catch (e) {
     // Fail silently
@@ -107,6 +124,238 @@ function focusCommandDeck() {
   playScifiSound('click');
 }
 
+// ==========================================================================
+// VOICE ACTIVATION & SPEECH SYNTHESIS ENGINE
+// ==========================================================================
+let speechRecognition = null;
+let isVoiceListening = false;
+let ttsVoiceEnabled = false;
+let speechFinalTranscript = '';
+let mediaStreamAudio = null;
+
+function isSpeechRecognitionSupported() {
+  return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+}
+
+function updateVoiceUIState(listening) {
+  const micBtn = document.getElementById('btn-voice-mic');
+  const voiceLabel = document.getElementById('btn-voice-label');
+  const hudContainer = document.getElementById('voice-hud-container');
+  const statusEl = document.getElementById('voice-hud-status');
+  const interimEl = document.getElementById('voice-hud-interim');
+
+  if (micBtn) {
+    if (listening) {
+      micBtn.classList.add('listening');
+      micBtn.innerHTML = '<i data-lucide="mic" class="w-4.5 h-4.5 text-cyan-300 animate-pulse"></i><span id="btn-voice-label" class="text-cyan-300 font-bold">Listening... 🔴</span>';
+    } else {
+      micBtn.classList.remove('listening');
+      micBtn.innerHTML = '<i data-lucide="mic" class="w-4.5 h-4.5 text-cyan-300"></i><span id="btn-voice-label">Voice Command 🎙</span>';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (hudContainer) {
+    if (listening) {
+      hudContainer.classList.remove('hidden');
+      if (statusEl) statusEl.textContent = 'Listening...';
+      if (interimEl) interimEl.textContent = 'Speak your sysadmin command...';
+    } else {
+      hudContainer.classList.add('hidden');
+    }
+  }
+}
+
+async function toggleVoiceActivation() {
+  if (isVoiceListening) {
+    stopVoiceActivation(true);
+    return;
+  }
+  await startVoiceActivation();
+}
+
+async function startVoiceActivation() {
+  // Step 1: Explicitly request microphone access
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      mediaStreamAudio = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.warn('Microphone permission error:', err);
+      showToast('Microphone access required. Please allow microphone permissions in your browser.', 'error', 4000);
+      return;
+    }
+  }
+
+  // Step 2: Initialize Web Speech Recognition
+  if (isSpeechRecognitionSupported()) {
+    try {
+      const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+      speechRecognition = new SpeechRecognitionClass();
+      speechRecognition.continuous = false;
+      speechRecognition.interimResults = true;
+      speechRecognition.lang = 'en-US';
+
+      speechRecognition.onstart = () => {
+        isVoiceListening = true;
+        updateVoiceUIState(true);
+        playScifiSound('voice_on');
+        showToast('Voice activation active. Speak your command...', 'info', 2500);
+      };
+
+      speechRecognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+
+        const interimEl = document.getElementById('voice-hud-interim');
+        const inputEl = document.getElementById('agent-prompt-input');
+
+        if (interimEl) {
+          interimEl.textContent = interim || final || 'Listening...';
+        }
+
+        if (final) {
+          speechFinalTranscript = final.trim();
+          if (inputEl) {
+            inputEl.value = speechFinalTranscript;
+            toggleClearPromptBtn(speechFinalTranscript);
+          }
+        } else if (interim && inputEl) {
+          inputEl.value = interim;
+          toggleClearPromptBtn(interim);
+        }
+      };
+
+      speechRecognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        isVoiceListening = false;
+        updateVoiceUIState(false);
+        if (event.error === 'not-allowed') {
+          showToast('Microphone access was denied. Please allow microphone permissions.', 'error', 4000);
+        } else if (event.error !== 'no-speech') {
+          showToast(`Voice recognition: ${event.error}`, 'warning', 3000);
+        }
+      };
+
+      speechRecognition.onend = () => {
+        const wasListening = isVoiceListening;
+        isVoiceListening = false;
+        updateVoiceUIState(false);
+
+        if (mediaStreamAudio) {
+          mediaStreamAudio.getTracks().forEach(t => t.stop());
+          mediaStreamAudio = null;
+        }
+
+        if (wasListening && speechFinalTranscript) {
+          playScifiSound('success');
+          const inputEl = document.getElementById('agent-prompt-input');
+          const promptToRun = speechFinalTranscript;
+          speechFinalTranscript = '';
+          if (inputEl) {
+            inputEl.value = promptToRun;
+            toggleClearPromptBtn(promptToRun);
+          }
+          
+          // Auto-submit voice instruction after a short pause
+          setTimeout(() => {
+            submitAgentPrompt(promptToRun);
+          }, 350);
+        } else {
+          playScifiSound('voice_off');
+        }
+      };
+
+      speechFinalTranscript = '';
+      focusCommandDeck();
+      speechRecognition.start();
+    } catch (e) {
+      console.error('Failed to start speech recognition', e);
+      showToast('Could not start voice recognition: ' + e.message, 'error', 4000);
+      updateVoiceUIState(false);
+    }
+  } else {
+    showToast('Speech Recognition not supported in this browser. Please use Chrome, Edge, or Chromium.', 'warning', 4500);
+  }
+}
+
+function stopVoiceActivation(submit = true) {
+  if (speechRecognition && isVoiceListening) {
+    try {
+      if (submit) {
+        const inputEl = document.getElementById('agent-prompt-input');
+        if (inputEl && inputEl.value.trim()) {
+          speechFinalTranscript = inputEl.value.trim();
+        }
+      } else {
+        speechFinalTranscript = '';
+      }
+      speechRecognition.stop();
+    } catch (e) {}
+  }
+  if (mediaStreamAudio) {
+    mediaStreamAudio.getTracks().forEach(t => t.stop());
+    mediaStreamAudio = null;
+  }
+  isVoiceListening = false;
+  updateVoiceUIState(false);
+}
+
+function toggleVoiceSpeech() {
+  ttsVoiceEnabled = !ttsVoiceEnabled;
+  const btn = document.getElementById('btn-toggle-tts');
+  if (btn) {
+    btn.innerHTML = ttsVoiceEnabled 
+      ? '<i data-lucide="volume-2" class="w-4 h-4 text-cyan-300"></i>' 
+      : '<i data-lucide="volume-x" class="w-4 h-4 text-slate-500"></i>';
+    if (window.lucide) lucide.createIcons();
+  }
+  if (ttsVoiceEnabled) {
+    playScifiSound('success');
+    showToast('AI Voice Speech synthesis enabled', 'success', 2500);
+    speakText('Voice synthesis online. Linux Operations Assistant ready.');
+  } else {
+    playScifiSound('click');
+    showToast('AI Voice Speech synthesis disabled', 'info', 2000);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }
+}
+
+function speakText(text) {
+  if (!ttsVoiceEnabled || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const cleanText = text
+      .replace(/[*_#`~[\]()$]/g, '')
+      .replace(/https?:\/\/\S+/g, 'link')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanText) return;
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    
+    // Pick natural English voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(v => (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.lang.startsWith('en')));
+    if (englishVoice) utterance.voice = englishVoice;
+
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('TTS error:', e);
+  }
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
   if (window.lucide) {
@@ -115,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCharts();
   startTelemetrySSE();
   loadInitialData();
+  renderQueryHistory();
 
   updateTacticalClock();
   setInterval(updateTacticalClock, 1000);
@@ -142,11 +392,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Global Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
+    // Alt+V or Ctrl+Space for Voice Activation
+    if ((e.altKey && e.key.toLowerCase() === 'v') || (e.ctrlKey && e.code === 'Space')) {
+      e.preventDefault();
+      toggleVoiceActivation();
+      return;
+    }
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
       focusCommandDeck();
     }
     if (e.key === 'Escape') {
+      stopVoiceActivation(false);
       closeModal('modal-permission');
       closeModal('modal-logs');
     }
@@ -448,10 +705,10 @@ function initCharts() {
     maintainAspectRatio: false,
     animation: false,
     scales: {
-      y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#64748B', font: { family: 'JetBrains Mono', size: 10 } } },
-      x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#64748B', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 0 } }
+      y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono', size: 11 } } },
+      x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono', size: 11 }, maxRotation: 0 } }
     },
-    plugins: { legend: { labels: { color: '#E2E8F0', font: { family: 'Space Grotesk', size: 12, weight: 600 }, boxWidth: 12 } } }
+    plugins: { legend: { labels: { color: '#F1F5F9', font: { family: 'Space Grotesk', size: 13, weight: 600 }, boxWidth: 14 } } }
   };
 
   const ctxCpu = document.getElementById('chart-cpu');
@@ -461,8 +718,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'CPU Total %', data: [], borderColor: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.08)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'I/O Wait %', data: [], borderColor: '#94A3B8', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'CPU Total %', data: [], borderColor: '#00D2FF', backgroundColor: 'rgba(0, 210, 255, 0.12)', fill: true, tension: 0.3, borderWidth: 2.5, pointBackgroundColor: '#00D2FF', pointRadius: 2 },
+          { label: 'I/O Wait %', data: [], borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.08)', borderDash: [4, 4], fill: true, tension: 0.3, borderWidth: 2, pointBackgroundColor: '#F59E0B', pointRadius: 2 }
         ]
       },
       options: chartOptions
@@ -476,8 +733,8 @@ function initCharts() {
       data: {
         labels: [],
         datasets: [
-          { label: 'RAM Used %', data: [], borderColor: '#E2E8F0', backgroundColor: 'rgba(255, 255, 255, 0.06)', fill: true, tension: 0.25, borderWidth: 2 },
-          { label: 'Swap Used %', data: [], borderColor: '#64748B', borderDash: [3, 3], fill: false, tension: 0.25, borderWidth: 1.5 }
+          { label: 'RAM Used %', data: [], borderColor: '#A855F7', backgroundColor: 'rgba(168, 85, 247, 0.12)', fill: true, tension: 0.3, borderWidth: 2.5, pointBackgroundColor: '#A855F7', pointRadius: 2 },
+          { label: 'Swap Used %', data: [], borderColor: '#FB7185', backgroundColor: 'rgba(251, 113, 133, 0.08)', borderDash: [4, 4], fill: true, tension: 0.3, borderWidth: 2, pointBackgroundColor: '#FB7185', pointRadius: 2 }
         ]
       },
       options: chartOptions
@@ -496,11 +753,15 @@ function renderPSITable(psi) {
   let html = '<div class="grid grid-cols-3 gap-3">';
   for (const [subsys, metrics] of Object.entries(psi)) {
     const avg10 = metrics.some_avg10 || 0;
-    const colorClass = avg10 > 20 ? 'text-rose-400' : (avg10 > 5 ? 'text-amber-400' : 'text-white');
-    html += `<div class="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-1.5">
-      <span class="font-sans font-semibold uppercase text-slate-400 text-[10px] tracking-wider">${subsys}</span>
-      <div class="font-editorial italic text-2xl ${colorClass}">${avg10.toFixed(2)}%</div>
-      <p class="text-[10px] text-slate-500 font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
+    const colorClass = avg10 > 20 ? 'text-rose-400 border-rose-500/40 bg-rose-500/10' : (avg10 > 5 ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' : 'text-cyan-300 border-cyan-500/30 bg-cyan-500/5');
+    const badgeColor = avg10 > 20 ? 'text-rose-400' : (avg10 > 5 ? 'text-amber-400' : 'text-emerald-400');
+    html += `<div class="p-4 rounded-2xl border space-y-1.5 ${colorClass}">
+      <div class="flex items-center justify-between">
+        <span class="font-sans font-bold uppercase text-slate-300 text-xs tracking-wider">${subsys}</span>
+        <span class="text-[10px] font-mono font-bold uppercase ${badgeColor}">${avg10 > 20 ? 'HIGH STALL' : (avg10 > 5 ? 'ELEVATED' : 'NORMAL')}</span>
+      </div>
+      <div class="font-editorial italic text-3xl ${badgeColor}">${avg10.toFixed(2)}%</div>
+      <p class="text-xs text-slate-400 font-mono">60s: ${(metrics.some_avg60||0).toFixed(2)}% | 300s: ${(metrics.some_avg300||0).toFixed(2)}%</p>
     </div>`;
   }
   html += '</div>';
@@ -517,18 +778,164 @@ function renderDisksTable(disks) {
 
   let html = '<div class="space-y-3">';
   disks.slice(0, 4).forEach(d => {
-    html += `<div class="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2 font-sans text-xs">
-      <div class="flex justify-between">
-        <span class="text-white font-medium">${d.mountpoint}</span>
-        <span class="text-slate-300 font-mono">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
+    const barColor = d.used_percent > 85 ? 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.6)]' : (d.used_percent > 70 ? 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)]' : 'bg-cyan-400 shadow-[0_0_12px_rgba(0,210,255,0.6)]');
+    html += `<div class="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5 font-sans text-xs sm:text-sm">
+      <div class="flex justify-between items-center">
+        <span class="text-white font-semibold font-tech text-sm">${d.mountpoint}</span>
+        <span class="text-cyan-300 font-mono font-bold">${d.used_gb.toFixed(1)} / ${d.total_gb.toFixed(1)} GB (${d.used_percent.toFixed(1)}%)</span>
       </div>
-      <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden">
-        <div class="bg-white h-full transition-all duration-500" style="width: ${Math.min(100, d.used_percent)}%"></div>
+      <div class="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+        <div class="${barColor} h-full transition-all duration-500" style="width: ${Math.min(100, d.used_percent)}%"></div>
       </div>
     </div>`;
   });
   html += '</div>';
   container.innerHTML = html;
+}
+
+// ==========================================================================
+// MISSION & INQUIRY HISTORY ENGINE
+// ==========================================================================
+const HISTORY_STORAGE_KEY = 'linuxops_mission_history_v1';
+
+const DEFAULT_HISTORY = [
+  { prompt: 'Why is port 80 blocked in firewall?', intent: 'DIAGNOSTIC', time: '18:20:10', safety: 'READ_ONLY' },
+  { prompt: 'Show system health and pressure', intent: 'TELEMETRY', time: '18:15:42', safety: 'READ_ONLY' },
+  { prompt: 'Why is NGINX failing to bind?', intent: 'DIAGNOSTIC', time: '18:10:05', safety: 'READ_ONLY' },
+  { prompt: 'Organize my Downloads folder', intent: 'MUTATION', time: '17:55:20', safety: 'MUTATION_SAFE' },
+  { prompt: 'Find large files over 100MB', intent: 'AUDIT', time: '17:42:18', safety: 'READ_ONLY' },
+  { prompt: 'Audit SSH security configuration', intent: 'SECURITY', time: '17:30:00', safety: 'READ_ONLY' }
+];
+
+function getStoredHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return DEFAULT_HISTORY;
+}
+
+function saveQueryToHistory(promptText, intent = 'QUERY', safety = 'READ_ONLY') {
+  if (!promptText || !promptText.trim()) return;
+  const history = getStoredHistory().filter(h => h.prompt.toLowerCase() !== promptText.trim().toLowerCase());
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0];
+  
+  history.unshift({
+    prompt: promptText.trim(),
+    intent: intent || 'QUERY',
+    time: timeStr,
+    safety: safety || 'READ_ONLY'
+  });
+
+  const trimmed = history.slice(0, 30);
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch (e) {}
+
+  renderQueryHistory();
+}
+
+function renderQueryHistory(filterText = '') {
+  const container = document.getElementById('history-items-container');
+  if (!container) return;
+
+  const history = getStoredHistory();
+  const filtered = filterText 
+    ? history.filter(h => h.prompt.toLowerCase().includes(filterText.toLowerCase()) || (h.intent && h.intent.toLowerCase().includes(filterText.toLowerCase())))
+    : history;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 text-center text-xs text-slate-500 font-mono">
+        ${filterText ? 'No matching inquiries found' : 'No mission history yet'}
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach((item) => {
+    const escaped = escapeHtml(item.prompt);
+    const intentClass = getIntentBadgeClass(item.intent);
+    html += `
+      <div class="history-item flex items-center justify-between group space-x-2" onclick="loadHistoryPrompt('${escaped.replace(/'/g, "\\'")}')">
+        <div class="flex-1 min-w-0 space-y-1">
+          <div class="flex items-center space-x-1.5">
+            <span class="${intentClass} text-[9px] font-mono px-2 py-0.5 rounded-full uppercase font-bold">${escapeHtml(item.intent || 'QUERY')}</span>
+            <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(item.time || '')}</span>
+          </div>
+          <p class="text-xs text-slate-200 font-mono truncate group-hover:text-white">${escaped}</p>
+        </div>
+        <button 
+          type="button" 
+          onclick="event.stopPropagation(); quickPrompt('${escaped.replace(/'/g, "\\'")}');" 
+          title="Re-run Mission" 
+          class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition shrink-0">
+          <i data-lucide="play" class="w-3.5 h-3.5 text-cyan-300"></i>
+        </button>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  if (window.lucide) lucide.createIcons();
+}
+
+function filterHistoryList(query) {
+  renderQueryHistory(query);
+}
+
+function clearQueryHistory() {
+  playScifiSound('click');
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+  } catch (e) {}
+  renderQueryHistory();
+  showToast('Mission history cleared', 'info', 2000);
+}
+
+function loadHistoryPrompt(promptText) {
+  playScifiSound('click');
+  const input = document.getElementById('agent-prompt-input');
+  if (input) {
+    input.value = promptText;
+    toggleClearPromptBtn(promptText);
+    input.focus();
+  }
+}
+
+function toggleClearPromptBtn(val) {
+  const btn = document.getElementById('btn-clear-prompt');
+  if (btn) {
+    if (val && val.trim().length > 0) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  }
+}
+
+function clearPromptInput() {
+  playScifiSound('click');
+  const input = document.getElementById('agent-prompt-input');
+  if (input) {
+    input.value = '';
+    input.focus();
+    toggleClearPromptBtn('');
+  }
+}
+
+function getIntentBadgeClass(intent) {
+  const norm = (intent || '').toUpperCase();
+  if (norm.includes('DIAGNOSTIC') || norm.includes('DIAGNOSE')) return 'bg-amber-400/20 text-amber-300 border border-amber-400/30';
+  if (norm.includes('MUTATION') || norm.includes('ACTION')) return 'bg-cyan-400/20 text-cyan-300 border border-cyan-400/30';
+  if (norm.includes('SECURITY') || norm.includes('AUDIT')) return 'bg-rose-400/20 text-rose-300 border border-rose-400/30';
+  if (norm.includes('TELEMETRY') || norm.includes('HEALTH')) return 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30';
+  return 'bg-white/10 text-slate-300 border border-white/20';
 }
 
 // ==========================================================================
@@ -539,6 +946,7 @@ function quickPrompt(text) {
   const input = document.getElementById('agent-prompt-input');
   if (input) {
     input.value = text;
+    toggleClearPromptBtn(text);
     submitAgentPrompt(text);
   }
 }
@@ -548,36 +956,45 @@ async function submitAgentPrompt(promptText) {
   const feed = document.getElementById('agent-feed-container');
   const input = document.getElementById('agent-prompt-input');
   const btn = document.getElementById('btn-submit-prompt');
+  const statusEl = document.getElementById('working-stream-status');
 
   if (!feed) return;
 
+  // Keep query explicitly visible on the search bar
+  if (input) {
+    input.value = promptText;
+    toggleClearPromptBtn(promptText);
+  }
+
+  if (statusEl) {
+    statusEl.innerHTML = '<span class="text-cyan-300 animate-pulse">⚡ Reasoning &amp; AST Checking...</span>';
+  }
+
   const userCard = document.createElement('div');
-  userCard.className = 'p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/15 font-mono text-xs text-white space-y-2';
+  userCard.className = 'p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/15 font-mono text-xs text-white space-y-2';
   userCard.innerHTML = `
     <div class="flex items-center justify-between text-[10px] text-slate-400 font-sans uppercase tracking-wider">
       <span class="flex items-center space-x-1.5">
         <i data-lucide="user" class="w-3.5 h-3.5 text-slate-300"></i>
-        <span>Sysadmin Command Vector</span>
+        <span>Sysadmin Inquirer</span>
       </span>
       <span>${new Date().toLocaleTimeString()}</span>
     </div>
-    <div class="text-xs sm:text-[13px] text-white font-semibold pl-4 border-l-2 border-white leading-relaxed">${escapeHtml(promptText)}</div>
+    <div class="text-xs sm:text-[13px] text-white font-semibold pl-3 border-l-2 border-cyan-400 leading-relaxed">${escapeHtml(promptText)}</div>
   `;
   feed.appendChild(userCard);
 
   const agentCard = document.createElement('div');
-  agentCard.className = 'p-6 sm:p-7 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3';
+  agentCard.className = 'p-5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3';
   agentCard.innerHTML = `
     <div class="flex items-center space-x-2.5 text-xs font-sans text-slate-300">
-      <span class="inline-block w-2 h-2 rounded-full bg-white animate-ping"></span>
+      <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
       <span>Reasoning &amp; AST validation in progress...</span>
     </div>
   `;
   feed.appendChild(agentCard);
 
-  feed.parentElement.scrollTop = feed.parentElement.scrollHeight;
-
-  if (input) input.value = '';
+  feed.scrollTop = feed.scrollHeight;
   if (btn) btn.disabled = true;
   if (window.lucide) lucide.createIcons();
 
@@ -589,6 +1006,13 @@ async function submitAgentPrompt(promptText) {
     });
     const data = await res.json();
     renderAgentResponseCard(agentCard, data);
+
+    // Save to history
+    saveQueryToHistory(promptText, data.intent || 'QUERY', data.safety_level || 'READ_ONLY');
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-emerald-400">🟢 Verified (${new Date().toLocaleTimeString()})</span>`;
+    }
   } catch (e) {
     agentCard.innerHTML = `
       <div class="text-xs text-rose-400 font-mono font-bold flex items-center space-x-2">
@@ -596,10 +1020,13 @@ async function submitAgentPrompt(promptText) {
         <span>Agent Error: ${escapeHtml(e.message)}</span>
       </div>
     `;
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-rose-400">⚠️ Error</span>`;
+    }
   } finally {
     if (btn) btn.disabled = false;
     if (window.lucide) lucide.createIcons();
-    feed.parentElement.scrollTop = feed.parentElement.scrollHeight;
+    feed.scrollTop = feed.scrollHeight;
   }
 }
 
@@ -607,12 +1034,12 @@ function renderAgentResponseCard(card, data) {
   playScifiSound('success');
   const safetyClass = getSafetyBadgeClass(data.safety_level || 'READ_ONLY');
 
-  card.className = 'avant-card-elevated p-6 sm:p-7 space-y-5';
+  card.className = 'avant-card-elevated p-5 sm:p-6 space-y-4';
 
   let stepsHtml = '';
   if (data.steps && data.steps.length > 0) {
     stepsHtml = `
-      <div class="space-y-1.5 text-[11px] text-slate-300 font-mono border-l-2 border-white/30 pl-3.5 py-1 leading-relaxed">
+      <div class="space-y-1 text-[11px] text-slate-300 font-mono border-l-2 border-white/30 pl-3 py-0.5 leading-relaxed">
         ${data.steps.map(s => `<div>&bull; ${escapeHtml(s)}</div>`).join('')}
       </div>
     `;
@@ -632,23 +1059,23 @@ function renderAgentResponseCard(card, data) {
       <div class="space-y-3 pt-1">
         <div class="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400">Planned Command Execution &amp; Guardrails:</div>
         ${plannedCmds.map((c) => `
-          <div class="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/10 space-y-3">
+          <div class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2.5">
             <div class="flex items-center justify-between">
-              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-3 py-0.5 rounded-full uppercase">${c.safety_level || 'READ_ONLY'}</span>
-              <span class="text-[10px] font-mono text-slate-400">Risk Score: ${(c.risk_score || 0.05).toFixed(2)}</span>
+              <span class="${getSafetyBadgeClass(c.safety_level)} text-[10px] font-mono px-2.5 py-0.5 rounded-full uppercase font-bold">${c.safety_level || 'READ_ONLY'}</span>
+              <span class="text-[10px] font-mono text-slate-400">Risk: ${(c.risk_score || 0.05).toFixed(2)}</span>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-black/80 border border-white/10 font-mono text-xs text-white flex items-start justify-between space-x-2.5">
-              <div class="break-all select-all flex-1">
+            <div class="p-3 rounded-xl bg-black/80 border border-white/10 font-mono text-xs text-white flex items-start justify-between space-x-2">
+              <div class="break-all select-all flex-1 font-semibold text-white">
                 <span class="text-slate-500 select-none">$ </span>
-                <span class="font-semibold text-white">${escapeHtml(c.command)}</span>
+                ${escapeHtml(c.command)}
               </div>
               <button onclick="navigator.clipboard.writeText('${escapeHtml(c.command)}'); showToast('Command copied', 'info', 2000);" class="text-slate-400 hover:text-white px-1" title="Copy Command">
                 <i data-lucide="copy" class="w-3.5 h-3.5"></i>
               </button>
             </div>
 
-            <div class="text-xs sm:text-[13px] text-slate-200 font-sans leading-relaxed">
+            <div class="text-xs text-slate-200 font-sans leading-relaxed">
               <span class="text-slate-500 text-[10px] font-semibold uppercase block mb-0.5">Rationale:</span>
               ${escapeHtml(c.description || 'Executes operation on the system.')}
             </div>
@@ -659,14 +1086,14 @@ function renderAgentResponseCard(card, data) {
               </div>
             ` : ''}
 
-            <div class="flex items-center space-x-2.5 pt-2 border-t border-white/10">
-              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.avant-card-elevated'))" class="btn-editorial-primary !py-1.5 !px-3.5 text-xs">
+            <div class="flex items-center space-x-2 pt-2 border-t border-white/10">
+              <button onclick="executeCommandDirect('${escapeHtml(c.command)}', '${escapeHtml(c.rollback_command || '')}', this.closest('.avant-card-elevated'))" class="btn-editorial-primary !py-1.5 !px-3 text-xs">
                 <i data-lucide="play" class="w-3 h-3"></i>
-                <span>Authorize &amp; Execute</span>
+                <span>Execute</span>
               </button>
-              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn-editorial-secondary !py-1.5 !px-3.5 text-xs">
+              <button onclick="executeDryRunSandbox('${escapeHtml(c.command)}')" class="btn-editorial-secondary !py-1.5 !px-3 text-xs">
                 <i data-lucide="flask-conical" class="w-3 h-3"></i>
-                <span>Dry-Run Sandbox</span>
+                <span>Dry-Run</span>
               </button>
             </div>
           </div>
@@ -678,33 +1105,33 @@ function renderAgentResponseCard(card, data) {
   let outputDetailsHtml = '';
   if (data.output && !plannedCmds.length) {
     outputDetailsHtml = `
-      <pre class="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/10 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
+      <pre class="p-4 rounded-2xl bg-black/60 border border-white/10 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">${escapeHtml(JSON.stringify(data.output, null, 2))}</pre>
     `;
   }
 
   let rollbackBtnHtml = '';
   if (data.rollback_command && data.executed) {
     rollbackBtnHtml = `
-      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn-editorial-secondary !py-1 !px-3 text-xs">
+      <button onclick="executeRollback('${escapeHtml(data.rollback_command)}')" class="btn-editorial-secondary !py-1 !px-2.5 text-xs">
         <i data-lucide="undo-2" class="w-3 h-3"></i>
-        <span>Rollback State</span>
+        <span>Rollback</span>
       </button>
     `;
   }
 
   card.innerHTML = `
-    <div class="flex items-center justify-between text-xs border-b border-white/10 pb-3 font-sans">
-      <div class="flex items-center space-x-2.5">
+    <div class="flex items-center justify-between text-xs border-b border-white/10 pb-2.5 font-sans">
+      <div class="flex items-center space-x-2">
         <span class="font-semibold text-white flex items-center space-x-1.5">
-          <i data-lucide="bot" class="w-4 h-4 text-white"></i>
-          <span>Intent: ${escapeHtml(data.intent || 'ACTION')}</span>
+          <i data-lucide="bot" class="w-4 h-4 text-cyan-300"></i>
+          <span>${escapeHtml(data.intent || 'ACTION')}</span>
         </span>
-        <span class="${safetyClass} text-[10px] font-mono px-3 py-0.5 rounded-full uppercase">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
+        <span class="${safetyClass} text-[9px] font-mono px-2.5 py-0.5 rounded-full uppercase font-bold">${escapeHtml(data.safety_level || 'READ_ONLY')}</span>
       </div>
       <span class="text-slate-500 text-[10px]">${new Date().toLocaleTimeString()}</span>
     </div>
 
-    <div class="text-xs sm:text-[13px] text-white font-sans font-medium leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
+    <div class="text-xs sm:text-sm text-white font-sans font-medium leading-relaxed">${escapeHtml(data.summary || 'Analysis complete.')}</div>
     
     ${stepsHtml}
     ${commandSectionHtml}
@@ -717,6 +1144,11 @@ function renderAgentResponseCard(card, data) {
   `;
 
   if (window.lucide) lucide.createIcons();
+
+  // Optional Voice TTS Output
+  if (voiceSpeechEnabled && data.summary) {
+    speakText(data.summary);
+  }
 }
 
 function clearAgentFeed() {

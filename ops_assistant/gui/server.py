@@ -66,6 +66,9 @@ class OpsAssistantHandler(BaseHTTPRequestHandler):
             pass
         return {}
 
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
         self.send_header("Access-Control-Allow-Origin", "*")

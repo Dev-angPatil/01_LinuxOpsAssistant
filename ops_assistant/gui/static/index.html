@@ -34,64 +34,63 @@
 <body class="bg-[#070709] text-white min-h-screen flex flex-col font-tech antialiased selection:bg-white selection:text-black overflow-x-hidden">
 
   <!-- ======================================================== -->
-  <!-- TOP FLOATING PILL NAVBAR -->
+  <!-- TOP FULL-WIDTH HORIZONTAL NAVBAR -->
   <!-- ======================================================== -->
-  <header class="sticky top-4 z-40 px-4 sm:px-8 w-full max-w-7xl mx-auto flex items-center justify-between pointer-events-none">
+  <header class="sticky top-0 z-50 w-full px-6 sm:px-10 py-3.5 border-b border-white/10 bg-black/80 backdrop-blur-2xl flex items-center justify-between pointer-events-auto shadow-[0_10px_35px_rgba(0,0,0,0.7)] mb-4">
     
-    <!-- Left: Brand Monogram -->
-    <div class="pointer-events-auto flex items-center space-x-2.5">
-      <div class="w-9 h-9 rounded-full bg-white/10 border border-white/20 backdrop-blur-xl flex items-center justify-center text-white shadow-[0_0_16px_rgba(255,255,255,0.15)]">
-        <i data-lucide="cpu" class="w-4 h-4 text-white"></i>
+    <!-- Left: Big LinuxOps Branding on Top-Left -->
+    <div class="flex items-center space-x-3.5">
+      <div class="w-11 h-11 rounded-full bg-white/10 border border-white/25 backdrop-blur-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(0,210,255,0.3)]">
+        <i data-lucide="cpu" class="w-6 h-6 text-cyan-300"></i>
       </div>
-      <div class="hidden sm:block font-editorial italic text-base tracking-wide text-white">
+      <div class="font-editorial italic text-2xl sm:text-3xl tracking-wide text-white font-normal">
         Linux<span class="not-italic font-sans font-light text-slate-300">Ops</span>
       </div>
     </div>
 
-    <!-- Center: Floating Capsule Navigation -->
-    <nav class="pointer-events-auto nav-capsule px-2 py-1.5 flex items-center space-x-1 shadow-[0_16px_40px_rgba(0,0,0,0.6)]">
-      <button onclick="switchTab('home')" id="tab-btn-home" class="nav-capsule-tab active">
+    <!-- Center: Horizontal Full-Width Capsule Navigation -->
+    <nav class="nav-capsule px-3.5 py-1.5 flex items-center space-x-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.6)]">
+      <button onclick="switchTab('home')" id="tab-btn-home" class="nav-capsule-tab active text-sm sm:text-base px-4 py-2">
         <span>Home</span>
       </button>
-      <button onclick="switchTab('health')" id="tab-btn-health" class="nav-capsule-tab">
+      <button onclick="switchTab('health')" id="tab-btn-health" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
         <span>Health &amp; PSI</span>
       </button>
-      <button onclick="switchTab('services')" id="tab-btn-services" class="nav-capsule-tab">
+      <button onclick="switchTab('services')" id="tab-btn-services" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
         <span>Services</span>
       </button>
-      <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-capsule-tab">
+      <button onclick="switchTab('storage')" id="tab-btn-storage" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
         <span>Storage</span>
       </button>
-      <button onclick="switchTab('network')" id="tab-btn-network" class="nav-capsule-tab">
+      <button onclick="switchTab('network')" id="tab-btn-network" class="nav-capsule-tab text-sm sm:text-base px-4 py-2">
         <span>Network</span>
       </button>
-      <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-capsule-tab hidden md:inline-flex">
+      <button onclick="switchTab('taxonomy')" id="tab-btn-taxonomy" class="nav-capsule-tab hidden md:inline-flex text-sm sm:text-base px-4 py-2">
         <span>Taxonomy</span>
       </button>
-      <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-capsule-tab hidden lg:inline-flex">
+      <button onclick="switchTab('packages')" id="tab-btn-packages" class="nav-capsule-tab hidden lg:inline-flex text-sm sm:text-base px-4 py-2">
         <span>Packages</span>
       </button>
-      <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-capsule-tab hidden lg:inline-flex">
+      <button onclick="switchTab('desktop')" id="tab-btn-desktop" class="nav-capsule-tab hidden lg:inline-flex text-sm sm:text-base px-4 py-2">
         <span>Runner</span>
       </button>
       
       <!-- Primary Action Button in Nav Pill -->
-      <button onclick="focusCommandDeck()" class="btn-editorial-primary ml-1 !py-1 !px-3.5 text-xs">
+      <button onclick="focusCommandDeck()" class="btn-editorial-primary ml-1.5 !py-2 !px-4 text-xs sm:text-sm font-tech">
         <span>AI Launch ↗</span>
       </button>
     </nav>
 
-    <!-- Right: Tactical Status & Audio SFX Toggle -->
-    <div class="pointer-events-auto flex items-center space-x-2">
-      <!-- Tactical Clock Pill -->
-      <div class="hidden xl:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl text-[11px] font-mono text-slate-300">
-        <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-        <span id="hud-tactical-clock">00:00:00 UTC</span>
-      </div>
+    <!-- Right: Action Toggles (Clock pill removed) -->
+    <div class="flex items-center space-x-2.5">
+      <!-- AI Voice Speech Synthesis Toggle -->
+      <button id="btn-toggle-tts" onclick="toggleVoiceSpeech()" title="Toggle AI Spoken Voice Feedback" class="p-2.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 backdrop-blur-xl transition text-slate-300 hover:text-white">
+        <i data-lucide="volume-1" class="w-4.5 h-4.5"></i>
+      </button>
 
       <!-- SFX Toggle -->
-      <button id="btn-toggle-sfx" onclick="toggleSFX()" title="Toggle Web Audio Synthesizer" class="p-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 backdrop-blur-xl transition text-slate-300 hover:text-white">
-        <i data-lucide="volume-2" class="w-4 h-4"></i>
+      <button id="btn-toggle-sfx" onclick="toggleSFX()" title="Toggle Web Audio Synthesizer" class="p-2.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 backdrop-blur-xl transition text-slate-300 hover:text-white">
+        <i data-lucide="volume-2" class="w-4.5 h-4.5"></i>
       </button>
     </div>
   </header>
@@ -99,245 +98,353 @@
   <!-- ======================================================== -->
   <!-- MAIN WORKSPACE CONTAINER -->
   <!-- ======================================================== -->
-  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-12">
+  <main class="flex-1 w-full mx-auto px-4 sm:px-8 pb-16 space-y-12">
 
     <!-- ======================================================== -->
-    <!-- TAB 1: HERO & AI OPS DECK (HOME) -->
+    <!-- TAB 1: HERO & AI OPS DECK (HOME) - 3-COLUMN COCKPIT -->
     <!-- ======================================================== -->
-    <div id="tab-content-home" class="tab-content space-y-16">
+    <div id="tab-content-home" class="tab-content">
       
-      <!-- HERO EDITORIAL SHOWPIECE -->
-      <section class="relative pt-6 sm:pt-10 pb-6 text-center space-y-8 flex flex-col items-center">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-stretch h-[calc(100vh-140px)] min-h-[760px]">
         
-        <!-- Status Pill Badge -->
-        <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-white/15 backdrop-blur-xl text-xs text-slate-200 shadow-[0_0_20px_rgba(255,255,255,0.06)]">
-          <span class="px-1.5 py-0.5 rounded-full bg-white text-black font-semibold text-[10px] uppercase tracking-wider">New</span>
-          <span class="text-slate-300 font-sans">Autonomous Linux Operations Engine Arrives 2026</span>
-        </div>
-
-        <!-- Grand Editorial Headline -->
-        <h1 class="font-editorial italic font-normal text-4xl sm:text-6xl md:text-7xl lg:text-[5.2rem] text-white tracking-tight leading-[1.06] max-w-4xl mx-auto drop-shadow-[0_8px_32px_rgba(0,0,0,0.8)] select-none">
-          Venture Past the Kernel<br>
-          <span class="font-editorial not-italic font-normal text-slate-100">Across the Universe</span>
-        </h1>
-
-        <!-- Airy Paragraph Subtitle -->
-        <p class="max-w-2xl mx-auto text-sm sm:text-base text-slate-400 font-sans-airy font-normal leading-relaxed text-center">
-          Discover Linux autonomy in ways once unimaginable. Our deterministic AST validation and real-time causality DAGs bring deep system orchestration within reach—secure and extraordinary.
-        </p>
-
-        <!-- Main Interactive Prompt Capsule (Editorial Input) -->
-        <div class="w-full max-w-2xl mx-auto space-y-3 pt-2">
-          <form id="agent-prompt-form" class="relative flex items-center">
-            <div class="absolute left-4.5 text-slate-400 font-mono text-sm select-none">AI://&gt;</div>
-            <input 
-              type="text" 
-              id="agent-prompt-input" 
-              placeholder="Ask a diagnostic query, control services, analyze telemetry, or organize directories..." 
-              class="editorial-input w-full pl-18 pr-36 py-4 text-sm text-white placeholder-slate-500 font-mono shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
-              autocomplete="off"
-            />
-            <button 
-              type="submit" 
-              id="btn-submit-prompt" 
-              class="btn-editorial-primary absolute right-2 !py-2 !px-4 text-xs font-tech">
-              <span>Start Mission ↗</span>
-            </button>
-          </form>
-
-          <!-- Preset Pills -->
-          <div class="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs">
-            <button type="button" onclick="quickPrompt('Why is port 80 blocked in firewall?')" class="editorial-pill">
-              ⚡ Port 80 Blocked
-            </button>
-            <button type="button" onclick="quickPrompt('Show system health and pressure')" class="editorial-pill">
-              ⚡ Neural PSI Telemetry
-            </button>
-            <button type="button" onclick="quickPrompt('Why is NGINX failing to bind?')" class="editorial-pill">
-              ⚡ Diagnose NGINX
-            </button>
-            <button type="button" onclick="quickPrompt('Organize my Downloads folder')" class="editorial-pill">
-              📁 Organize ~/Downloads
-            </button>
-            <button type="button" onclick="quickPrompt('Find large files over 100MB')" class="editorial-pill">
-              🔍 Scan Disk Hogs
-            </button>
-            <button type="button" onclick="quickPrompt('Audit SSH security configuration')" class="editorial-pill">
-              🛡️ SSH Cyber Audit
-            </button>
-          </div>
-        </div>
-
         <!-- ======================================================== -->
-        <!-- ZERO-G IRIDESCENT LIQUID GLASS ORB & FLOATING METRIC CARDS -->
+        <!-- LEFT PANEL: FULL-HEIGHT INQUIRIES & MISSION HISTORY -->
         <!-- ======================================================== -->
-        <div class="relative w-full max-w-4xl mx-auto mt-10 min-h-[380px] flex items-center justify-center">
-          
-          <!-- Background Iridescent Glass Orb (Matching Image) -->
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-            <img 
-              src="/static/orb.jpg" 
-              alt="Zero-G Iridescent Liquid Glass Sphere" 
-              class="w-[320px] sm:w-[420px] md:w-[480px] h-[320px] sm:h-[420px] md:h-[480px] object-contain rounded-full zero-g-orb opacity-90"
-            />
-          </div>
-
-          <!-- Suspended Floating Glass Telemetry Cards -->
-          <div class="relative z-10 w-full grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-xl mx-auto px-4">
+        <aside class="lg:col-span-3 xl:col-span-3 h-full flex flex-col">
+          <div class="avant-card-elevated p-6 space-y-4 h-full flex flex-col">
             
-            <!-- Floating Card 1: Telemetry Latency / CPU -->
-            <div class="avant-card-elevated p-6 text-left space-y-2 backdrop-blur-3xl">
-              <div class="flex items-center space-x-2 text-slate-400">
-                <i data-lucide="clock" class="w-4 h-4"></i>
-                <span class="text-[11px] font-sans font-medium uppercase tracking-wider">CPU Core Metric</span>
+            <!-- Header with Title and Clear Action -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-3.5 shrink-0">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_14px_rgba(255,255,255,0.15)]">
+                  <i data-lucide="history" class="w-4.5 h-4.5 text-white"></i>
+                </div>
+                <div>
+                  <h3 class="font-editorial italic text-lg sm:text-xl text-white">Mission History</h3>
+                  <p class="text-xs text-slate-400 font-sans">Recent Inquiries &amp; Ops</p>
+                </div>
               </div>
-              <div class="font-editorial italic text-3xl sm:text-4xl text-white font-normal" id="hero-cpu-stat">
-                0.0%
-              </div>
-              <p class="text-xs text-slate-400 font-sans leading-relaxed">
-                Real-Time SSE Telemetry Latency &amp; Core Utilization
-              </p>
+              <button onclick="clearQueryHistory()" title="Clear Inquiries History" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
             </div>
 
-            <!-- Floating Card 2: Kernel Pressure / Host Status -->
-            <div class="avant-card-elevated p-6 text-left space-y-2 backdrop-blur-3xl">
-              <div class="flex items-center space-x-2 text-slate-400">
-                <i data-lucide="globe" class="w-4 h-4"></i>
-                <span class="text-[11px] font-sans font-medium uppercase tracking-wider">Kernel PSI Status</span>
-              </div>
-              <div class="font-editorial italic text-3xl sm:text-4xl text-white font-normal" id="hero-psi-stat">
-                NORMAL
-              </div>
-              <p class="text-xs text-slate-400 font-sans leading-relaxed">
-                Deterministic Kernel Stall &amp; Memory Pressure Matrix
-              </p>
+            <!-- Search Filter for History -->
+            <div class="relative shrink-0">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input 
+                type="text" 
+                id="history-filter-input" 
+                placeholder="Filter past inquiries..." 
+                oninput="filterHistoryList(this.value)"
+                class="editorial-input w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm font-sans text-slate-200"
+              />
+            </div>
+
+            <!-- Full-Height Scrollable History List -->
+            <div id="history-items-container" class="space-y-2.5 flex-1 overflow-y-auto pr-1">
+              <!-- Dynamically populated via app.js -->
             </div>
 
           </div>
-        </div>
+        </aside>
 
-        <!-- Bottom Aerospace Subsystems Bar (Matching Image) -->
-        <div class="pt-10 space-y-3">
-          <p class="text-xs text-slate-500 font-sans tracking-wider uppercase">
-            Collaborating with core Linux subsystems globally
+        <!-- ======================================================== -->
+        <!-- CENTER ARENA: HERO, SEARCH DECK & ZERO-G ORB -->
+        <!-- ======================================================== -->
+        <section class="lg:col-span-6 xl:col-span-6 flex flex-col items-center text-center space-y-5 h-full overflow-y-auto px-2">
+          
+          <!-- Status Pill Badge -->
+          <div class="inline-flex items-center space-x-2.5 px-5 py-2 rounded-full bg-white/[0.06] border border-white/20 backdrop-blur-xl text-xs sm:text-sm text-slate-200 shadow-[0_0_25px_rgba(255,255,255,0.08)] shrink-0">
+            <span class="px-2.5 py-0.5 rounded-full bg-white text-black font-bold text-xs uppercase tracking-wider">New</span>
+            <span class="text-slate-200 font-sans font-medium">Autonomous Linux Operations Engine Arrives 2026</span>
+          </div>
+
+          <!-- Grand Editorial Headline -->
+          <h1 class="font-editorial italic font-normal text-4xl sm:text-5xl xl:text-6xl text-white tracking-tight leading-[1.08] drop-shadow-[0_12px_40px_rgba(0,0,0,0.9)] select-none shrink-0">
+            Venture Past the Kernel<br>
+            <span class="font-editorial not-italic font-normal text-slate-100">Across the Universe</span>
+          </h1>
+
+          <!-- Subtitle -->
+          <p class="max-w-xl mx-auto text-sm sm:text-base text-slate-300 font-sans-airy font-normal leading-relaxed text-center shrink-0">
+            Discover Linux autonomy in ways once unimaginable. Deterministic AST validation and real-time causality DAGs bring deep orchestration within reach.
           </p>
-          <div class="flex flex-wrap items-center justify-center gap-8 sm:gap-12 font-editorial italic text-xl sm:text-2xl text-slate-300 opacity-80">
-            <span class="hover:text-white transition">Systemd</span>
-            <span class="hover:text-white transition">eBPF</span>
-            <span class="hover:text-white transition">Kernel PSI</span>
-            <span class="hover:text-white transition">Nftables</span>
-            <span class="hover:text-white transition">XDG</span>
-            <span class="hover:text-white transition">Arch</span>
-          </div>
-        </div>
 
-      </section>
+          <!-- Main Interactive Prompt Capsule with Two Separate Large Buttons -->
+          <div class="w-full max-w-2xl mx-auto space-y-4 pt-1 shrink-0">
+            <form id="agent-prompt-form" class="space-y-3.5">
+              <div class="relative flex items-center w-full">
+                <div class="absolute left-5 text-slate-400 font-mono text-sm sm:text-base font-bold select-none pointer-events-none z-10">AI://&gt;</div>
+                <input 
+                  type="text" 
+                  id="agent-prompt-input" 
+                  placeholder="Ask a diagnostic query, control services, or speak with voice..." 
+                  class="editorial-input w-full text-sm sm:text-base text-white placeholder-slate-500 font-mono shadow-[0_16px_50px_rgba(0,0,0,0.6)]"
+                  autocomplete="off"
+                  oninput="toggleClearPromptBtn(this.value)"
+                />
+                
+                <!-- Clear Prompt Input Button -->
+                <button 
+                  type="button" 
+                  id="btn-clear-prompt" 
+                  onclick="clearPromptInput()" 
+                  title="Clear Query" 
+                  class="hidden absolute right-4 text-slate-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 z-20 transition">
+                  <i data-lucide="x" class="w-4.5 h-4.5"></i>
+                </button>
+              </div>
 
-      <!-- Tactical Reasoning & Execution Stream Feed -->
-      <section class="avant-card-elevated p-7 md:p-8 space-y-6">
-        <div class="flex items-center justify-between border-b border-white/10 pb-4">
-          <div class="flex items-center space-x-2.5 font-editorial italic text-lg sm:text-xl text-white">
-            <i data-lucide="layers" class="w-5 h-5 text-slate-300 not-italic"></i>
-            <span>Tactical Reasoning &amp; Execution Stream</span>
-          </div>
-          <button onclick="clearAgentFeed()" class="btn-editorial-ghost text-xs">Purge Stream</button>
-        </div>
+              <!-- TWO PROMINENT, LARGER BUTTONS: TEXT SUBMIT & VOICE COMMAND -->
+              <div class="flex items-center justify-center gap-3.5 pt-1">
+                <button 
+                  type="submit" 
+                  id="btn-submit-prompt" 
+                  class="btn-editorial-primary !py-3.5 !px-7 text-sm sm:text-base font-tech font-bold flex items-center space-x-2.5 shadow-[0_8px_24px_rgba(255,255,255,0.2)]">
+                  <i data-lucide="send" class="w-4.5 h-4.5"></i>
+                  <span>Send Query ↗</span>
+                </button>
 
-        <div id="agent-feed-container" class="space-y-5">
-          <!-- Initial Placeholder -->
-          <div class="p-6 sm:p-7 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3 font-sans-airy">
-            <div class="flex items-center space-x-2 text-white font-editorial italic text-base">
-              <i data-lucide="sparkles" class="w-4 h-4 text-white not-italic"></i>
-              <span>Ops Assistant Engine Online</span>
+                <button 
+                  type="button" 
+                  id="btn-voice-mic" 
+                  onclick="toggleVoiceActivation()" 
+                  title="Voice Command (Alt+V / Click to Speak)" 
+                  class="btn-editorial-secondary !py-3.5 !px-7 text-sm sm:text-base font-tech font-bold flex items-center space-x-2.5 voice-mic-btn border-cyan-400/30 text-cyan-200 hover:border-cyan-400 shadow-[0_0_20px_rgba(0,210,255,0.15)]">
+                  <i data-lucide="mic" class="w-4.5 h-4.5 text-cyan-300"></i>
+                  <span id="btn-voice-label">Voice Command 🎙</span>
+                </button>
+              </div>
+            </form>
+
+            <!-- Voice Activation Live Waveform & Transcript HUD -->
+            <div id="voice-hud-container" class="hidden flex items-center justify-between px-6 py-3 rounded-full voice-transcript-badge text-sm font-mono shadow-[0_0_30px_rgba(0,210,255,0.25)]">
+              <div class="flex items-center space-x-3.5 overflow-hidden">
+                <div class="voice-wave-container shrink-0">
+                  <span class="voice-bar voice-bar-1"></span>
+                  <span class="voice-bar voice-bar-2"></span>
+                  <span class="voice-bar voice-bar-3"></span>
+                  <span class="voice-bar voice-bar-4"></span>
+                  <span class="voice-bar voice-bar-5"></span>
+                </div>
+                <span id="voice-hud-status" class="text-cyan-300 font-bold shrink-0">Listening...</span>
+                <span id="voice-hud-interim" class="text-slate-200 italic truncate">Speak your sysadmin command...</span>
+              </div>
+              <div class="flex items-center space-x-2.5 shrink-0 pl-2">
+                <button type="button" onclick="stopVoiceActivation(true)" class="px-3 py-1 rounded-full bg-cyan-400/20 text-cyan-200 hover:bg-cyan-400/30 text-xs font-sans font-semibold">Done ↵</button>
+                <button type="button" onclick="stopVoiceActivation(false)" class="text-slate-400 hover:text-white text-xs">&times; Cancel</button>
+              </div>
             </div>
-            <p class="text-xs sm:text-[13px] text-slate-400 leading-6 font-normal">
-              Enter any natural language sysadmin instruction or anomaly query above. The assistant constructs a Directed Causality DAG, correlates Kernel PSI metrics, enforces AST sandboxed validation, and requests explicit authorization before executing changes.
-            </p>
+
+            <!-- Preset Pills -->
+            <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs sm:text-sm">
+              <button type="button" onclick="quickPrompt('Why is port 80 blocked in firewall?')" class="editorial-pill">
+                ⚡ Port 80 Blocked
+              </button>
+              <button type="button" onclick="quickPrompt('Show system health and pressure')" class="editorial-pill">
+                ⚡ Neural PSI Telemetry
+              </button>
+              <button type="button" onclick="quickPrompt('Why is NGINX failing to bind?')" class="editorial-pill">
+                ⚡ Diagnose NGINX
+              </button>
+              <button type="button" onclick="quickPrompt('Organize my Downloads folder')" class="editorial-pill">
+                📁 Organize ~/Downloads
+              </button>
+              <button type="button" onclick="quickPrompt('Find large files over 100MB')" class="editorial-pill">
+                🔍 Scan Disk Hogs
+              </button>
+              <button type="button" onclick="quickPrompt('Audit SSH security configuration')" class="editorial-pill">
+                🛡️ SSH Cyber Audit
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
+
+          <!-- ZERO-G IRIDESCENT LIQUID GLASS ORB & FLOATING METRIC CARDS -->
+          <div class="relative w-full max-w-md mx-auto mt-4 min-h-[300px] flex items-center justify-center shrink-0">
+            
+            <!-- Background Iridescent Glass Orb -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+              <img 
+                src="/static/orb.jpg" 
+                alt="Zero-G Iridescent Liquid Glass Sphere" 
+                class="w-[240px] sm:w-[280px] h-[240px] sm:h-[280px] object-contain rounded-full zero-g-orb opacity-90"
+              />
+            </div>
+
+            <!-- Suspended Floating Glass Telemetry Cards -->
+            <div class="relative z-10 w-full grid grid-cols-2 gap-3 max-w-sm mx-auto px-2">
+              
+              <!-- Floating Card 1: Telemetry Latency / CPU -->
+              <div class="avant-card-elevated p-4 text-left space-y-1.5 backdrop-blur-3xl">
+                <div class="flex items-center space-x-1.5 text-slate-400">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-cyan-300"></i>
+                  <span class="text-[11px] font-sans font-semibold uppercase tracking-wider">CPU Metric</span>
+                </div>
+                <div class="font-editorial italic text-2xl text-cyan-300 font-normal" id="hero-cpu-stat">
+                  0.0%
+                </div>
+                <p class="text-[11px] text-slate-300 font-sans leading-tight">
+                  SSE Core Utilization
+                </p>
+              </div>
+
+              <!-- Floating Card 2: Kernel Pressure / Host Status -->
+              <div class="avant-card-elevated p-4 text-left space-y-1.5 backdrop-blur-3xl">
+                <div class="flex items-center space-x-1.5 text-slate-400">
+                  <i data-lucide="globe" class="w-3.5 h-3.5 text-emerald-300"></i>
+                  <span class="text-[11px] font-sans font-semibold uppercase tracking-wider">Kernel PSI</span>
+                </div>
+                <div class="font-editorial italic text-2xl text-emerald-300 font-normal" id="hero-psi-stat">
+                  NORMAL
+                </div>
+                <p class="text-[11px] text-slate-300 font-sans leading-tight">
+                  Stall Pressure Matrix
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom Aerospace Subsystems Bar -->
+          <div class="pt-2 space-y-1.5 shrink-0">
+            <p class="text-xs text-slate-400 font-sans tracking-widest uppercase font-medium">
+              Subsystems
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-6 font-editorial italic text-base sm:text-lg text-slate-300 opacity-90">
+              <span class="hover:text-white transition">Systemd</span>
+              <span class="hover:text-white transition">eBPF</span>
+              <span class="hover:text-white transition">Kernel PSI</span>
+              <span class="hover:text-white transition">Nftables</span>
+              <span class="hover:text-white transition">XDG</span>
+              <span class="hover:text-white transition">Arch</span>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- RIGHT PANEL: FULL-HEIGHT LIVE WORKING & EXECUTION OUTPUT -->
+        <!-- ======================================================== -->
+        <aside class="lg:col-span-3 xl:col-span-3 h-full flex flex-col">
+          <div class="avant-card-elevated p-6 space-y-4 h-full flex flex-col">
+            
+            <!-- Header with Live Indicator and Purge Stream -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-3.5 shrink-0">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-9 h-9 rounded-full bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shadow-[0_0_14px_rgba(0,210,255,0.25)]">
+                  <i data-lucide="terminal" class="w-4.5 h-4.5 text-cyan-300"></i>
+                </div>
+                <div>
+                  <h3 class="font-editorial italic text-lg sm:text-xl text-white">Live Working &amp; Output</h3>
+                  <p class="text-xs text-cyan-300 font-sans" id="working-stream-status">Engine Ready</p>
+                </div>
+              </div>
+              <button onclick="clearAgentFeed()" title="Purge Execution Stream" class="btn-editorial-ghost !p-2 text-xs text-slate-400 hover:text-white">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Scrollable Active Feed Container filling vertical space -->
+            <div id="agent-feed-container" class="space-y-4 flex-1 overflow-y-auto pr-1">
+              <!-- Initial Placeholder -->
+              <div class="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2.5 font-sans-airy">
+                <div class="flex items-center space-x-2 text-white font-editorial italic text-sm sm:text-base">
+                  <i data-lucide="sparkles" class="w-4.5 h-4.5 text-cyan-300 not-italic"></i>
+                  <span>Active Tactical Stream</span>
+                </div>
+                <p class="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                  Queries submitted from the search bar will display real-time AST validation, topological DAGs, command planning, and live execution outputs here.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </aside>
+
+      </div>
 
     </div>
 
     <!-- ======================================================== -->
     <!-- TAB 2: SYSTEM HEALTH & PSI TELEMETRY -->
     <!-- ======================================================== -->
-    <div id="tab-content-health" class="tab-content hidden space-y-8">
+    <div id="tab-content-health" class="tab-content hidden space-y-10">
       
       <!-- 4 Core Metric Editorial Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="avant-card p-5 space-y-2">
-          <span class="text-[11px] text-slate-400 font-sans font-medium uppercase tracking-wider">CPU UTILIZATION</span>
-          <div class="font-editorial italic text-3xl text-white" id="health-cpu-pct">0.0%</div>
-          <p class="text-[10px] text-slate-500 font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">CPU UTILIZATION</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-cpu-pct">0.0%</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-cpu-breakdown">User: 0% | Sys: 0% | IO: 0%</p>
         </div>
 
-        <div class="avant-card p-5 space-y-2">
-          <span class="text-[11px] text-slate-400 font-sans font-medium uppercase tracking-wider">MEMORY (RAM)</span>
-          <div class="font-editorial italic text-3xl text-white" id="health-ram-pct">0.0%</div>
-          <p class="text-[10px] text-slate-500 font-mono truncate" id="health-swap-info">Swap: 0% used</p>
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">MEMORY (RAM)</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-ram-pct">0.0%</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-swap-info">Swap: 0% used</p>
         </div>
 
-        <div class="avant-card p-5 space-y-2">
-          <span class="text-[11px] text-slate-400 font-sans font-medium uppercase tracking-wider">LOAD AVERAGE</span>
-          <div class="font-editorial italic text-3xl text-white" id="health-load-1m">0.00</div>
-          <p class="text-[10px] text-slate-500 font-mono truncate" id="health-load-5m">5m: 0.00 | 15m: 0.00</p>
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">LOAD AVERAGE</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-load-1m">0.00</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-load-5m">5m: 0.00 | 15m: 0.00</p>
         </div>
 
-        <div class="avant-card p-5 space-y-2">
-          <span class="text-[11px] text-slate-400 font-sans font-medium uppercase tracking-wider">KERNEL PSI STALL</span>
-          <div class="font-editorial italic text-3xl text-white" id="health-psi-badge">NORMAL</div>
-          <p class="text-[10px] text-slate-500 font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
+        <div class="avant-card p-6 sm:p-7 space-y-3">
+          <span class="text-xs text-slate-400 font-sans font-bold uppercase tracking-wider">KERNEL PSI STALL</span>
+          <div class="font-editorial italic text-4xl sm:text-5xl text-white" id="health-psi-badge">NORMAL</div>
+          <p class="text-xs text-slate-400 font-mono truncate" id="health-uptime-str">Uptime: 0.0 hrs</p>
         </div>
       </div>
 
       <!-- Real-Time Telemetry Graphs -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="avant-card-elevated p-6 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="avant-card-elevated p-8 space-y-5">
           <div class="flex items-center justify-between">
-            <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-              <i data-lucide="cpu" class="w-4 h-4 text-slate-300 not-italic"></i>
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="cpu" class="w-5 h-5 text-slate-300 not-italic"></i>
               <span>CPU &amp; I/O Wait Telemetry Stream</span>
             </h3>
-            <span class="text-[10px] font-mono text-slate-400">1Hz SSE Live</span>
+            <span class="text-xs font-mono text-slate-400">1Hz SSE Live</span>
           </div>
-          <div class="h-56 relative">
+          <div class="h-64 relative">
             <canvas id="chart-cpu"></canvas>
           </div>
         </div>
 
-        <div class="avant-card-elevated p-6 space-y-4">
+        <div class="avant-card-elevated p-8 space-y-5">
           <div class="flex items-center justify-between">
-            <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-              <i data-lucide="database" class="w-4 h-4 text-slate-300 not-italic"></i>
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="database" class="w-5 h-5 text-slate-300 not-italic"></i>
               <span>RAM &amp; Swap Consumption Buffer</span>
             </h3>
-            <span class="text-[10px] font-mono text-slate-400">Live Buffer</span>
+            <span class="text-xs font-mono text-slate-400">Live Buffer</span>
           </div>
-          <div class="h-56 relative">
+          <div class="h-64 relative">
             <canvas id="chart-memory"></canvas>
           </div>
         </div>
       </div>
 
       <!-- PSI & Filesystem Tables Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="avant-card p-6 space-y-4">
-          <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-            <i data-lucide="gauge" class="w-4 h-4 text-slate-300 not-italic"></i>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="avant-card p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="gauge" class="w-5 h-5 text-slate-300 not-italic"></i>
             <span>Kernel Pressure Stall Matrix (/proc/pressure/*)</span>
           </h3>
-          <div id="psi-table-container" class="text-xs text-slate-300 space-y-2 font-sans">
+          <div id="psi-table-container" class="text-sm text-slate-300 space-y-3 font-sans">
             <p class="text-slate-500 font-mono">Loading kernel PSI metrics...</p>
           </div>
         </div>
 
-        <div class="avant-card p-6 space-y-4">
-          <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-            <i data-lucide="hard-drive" class="w-4 h-4 text-slate-300 not-italic"></i>
+        <div class="avant-card p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="hard-drive" class="w-5 h-5 text-slate-300 not-italic"></i>
             <span>Filesystem Partitions &amp; Sectors</span>
           </h3>
-          <div id="disks-table-container" class="text-xs text-slate-300 space-y-2 font-sans">
+          <div id="disks-table-container" class="text-sm text-slate-300 space-y-3 font-sans">
             <p class="text-slate-500 font-mono">Loading filesystem partition telemetry...</p>
           </div>
         </div>
@@ -348,28 +455,28 @@
     <!-- ======================================================== -->
     <!-- TAB 3: SERVICES & PROCESS MANAGER -->
     <!-- ======================================================== -->
-    <div id="tab-content-services" class="tab-content hidden space-y-8">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div id="tab-content-services" class="tab-content hidden space-y-10">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- System Services Controller -->
-        <div class="avant-card-elevated p-6 space-y-4">
+        <div class="avant-card-elevated p-8 space-y-5">
           <div class="flex items-center justify-between">
-            <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-              <i data-lucide="settings" class="w-4 h-4 text-slate-300 not-italic"></i>
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="settings" class="w-5 h-5 text-slate-300 not-italic"></i>
               <span>System Services (Systemd / OpenRC)</span>
             </h3>
-            <button onclick="loadServices()" class="btn-editorial-ghost text-xs flex items-center space-x-1">
-              <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+            <button onclick="loadServices()" class="btn-editorial-ghost text-sm flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
               <span>Refresh</span>
             </button>
           </div>
 
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-3">
             <input 
               type="text" 
               id="service-search-input" 
               placeholder="Filter service units (e.g. nginx, ssh, docker)..." 
               oninput="filterServices()"
-              class="editorial-input w-full px-4 py-2 text-xs font-mono"
+              class="editorial-input w-full px-5 py-3 text-sm font-mono"
             />
           </div>
 
@@ -383,21 +490,21 @@
                 </tr>
               </thead>
               <tbody id="services-table-body">
-                <tr><td colspan="3" class="text-center text-slate-500 py-6 font-mono">Loading service units...</td></tr>
+                <tr><td colspan="3" class="text-center text-slate-500 py-8 font-mono">Loading service units...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
         <!-- Interactive Process Manager -->
-        <div class="avant-card-elevated p-6 space-y-4">
+        <div class="avant-card-elevated p-8 space-y-5">
           <div class="flex items-center justify-between">
-            <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-              <i data-lucide="activity" class="w-4 h-4 text-slate-300 not-italic"></i>
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="activity" class="w-5 h-5 text-slate-300 not-italic"></i>
               <span>Active Process Matrix</span>
             </h3>
-            <button onclick="loadProcesses()" class="btn-editorial-ghost text-xs flex items-center space-x-1">
-              <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+            <button onclick="loadProcesses()" class="btn-editorial-ghost text-sm flex items-center space-x-1.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
               <span>Refresh</span>
             </button>
           </div>
@@ -415,7 +522,7 @@
                 </tr>
               </thead>
               <tbody id="processes-table-body">
-                <tr><td colspan="6" class="text-center text-slate-500 py-6 font-mono">Loading active processes...</td></tr>
+                <tr><td colspan="6" class="text-center text-slate-500 py-8 font-mono">Loading active processes...</td></tr>
               </tbody>
             </table>
           </div>
@@ -426,74 +533,74 @@
     <!-- ======================================================== -->
     <!-- TAB 4: STORAGE & CLEANUP -->
     <!-- ======================================================== -->
-    <div id="tab-content-storage" class="tab-content hidden space-y-8">
-      <div class="avant-card-elevated p-7 md:p-8 space-y-5">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
-            <i data-lucide="folder-archive" class="w-5 h-5"></i>
+    <div id="tab-content-storage" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
+            <i data-lucide="folder-archive" class="w-6 h-6"></i>
           </div>
           <div>
-            <h3 class="font-editorial italic text-lg text-white">Smart Directory Organizer</h3>
-            <p class="text-xs text-slate-400 font-sans">Auto-organizes chaotic directories into categorized nodes with dry-run verification.</p>
+            <h3 class="font-editorial italic text-xl sm:text-2xl text-white">Smart Directory Organizer</h3>
+            <p class="text-sm text-slate-300 font-sans mt-0.5">Auto-organizes chaotic directories into categorized nodes with dry-run verification.</p>
           </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-3 pt-1">
+        <div class="flex flex-col sm:flex-row gap-4 pt-2">
           <input 
             type="text" 
             id="organize-path-input" 
             value="~/Downloads" 
             placeholder="Target directory path..." 
-            class="editorial-input flex-1 px-4 py-2.5 text-xs font-mono"
+            class="editorial-input flex-1 px-5 py-3 text-sm font-mono"
           />
           <button 
             type="button" 
             onclick="previewOrganize()" 
-            class="btn-editorial-secondary px-5 py-2.5 text-xs">
-            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            class="btn-editorial-secondary px-6 py-3 text-sm">
+            <i data-lucide="eye" class="w-4 h-4"></i>
             <span>Preview Dry-Run</span>
           </button>
           <button 
             type="button" 
             onclick="promptOrganizeNow()" 
-            class="btn-editorial-primary px-5 py-2.5 text-xs font-tech">
-            <i data-lucide="folder-check" class="w-3.5 h-3.5"></i>
+            class="btn-editorial-primary px-6 py-3 text-sm font-tech">
+            <i data-lucide="folder-check" class="w-4 h-4"></i>
             <span>Organize Matrix</span>
           </button>
         </div>
 
-        <div id="organize-result-container" class="hidden p-5 rounded-2xl bg-black/50 border border-white/10 text-xs font-mono text-white space-y-2"></div>
+        <div id="organize-result-container" class="hidden p-6 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-white space-y-3"></div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="avant-card p-6 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="avant-card p-8 space-y-5">
           <div class="flex items-center justify-between">
-            <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-              <i data-lucide="search" class="w-4 h-4 text-slate-300 not-italic"></i>
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="search" class="w-5 h-5 text-slate-300 not-italic"></i>
               <span>Large Storage Anomalies (&gt;100MB)</span>
             </h3>
-            <button onclick="loadLargeFiles()" class="btn-editorial-secondary px-3 py-1 text-xs">Scan Root</button>
+            <button onclick="loadLargeFiles()" class="btn-editorial-secondary px-4 py-1.5 text-xs sm:text-sm">Scan Root</button>
           </div>
-          <div id="large-files-container" class="overflow-y-auto max-h-72 border border-white/10 rounded-2xl p-4 text-xs space-y-2 bg-black/40">
+          <div id="large-files-container" class="overflow-y-auto max-h-72 border border-white/10 rounded-2xl p-5 text-sm space-y-2.5 bg-black/40">
             <p class="text-slate-500 font-mono">Click 'Scan Root' to search for space hogs.</p>
           </div>
         </div>
 
-        <div class="avant-card p-6 space-y-4">
-          <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-            <i data-lucide="trash-2" class="w-4 h-4 text-slate-300 not-italic"></i>
+        <div class="avant-card p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="trash-2" class="w-5 h-5 text-slate-300 not-italic"></i>
             <span>System Log &amp; Cache Purger</span>
           </h3>
-          <p class="text-xs text-slate-400 leading-relaxed font-sans">Safely purges rotated journal logs, package caches, and temporary files.</p>
-          <div class="flex space-x-3 pt-2">
-            <button onclick="cleanStorage(true)" class="btn-editorial-secondary flex-1 py-2.5 text-xs">
+          <p class="text-sm text-slate-300 leading-relaxed font-sans">Safely purges rotated journal logs, package caches, and temporary files.</p>
+          <div class="flex space-x-4 pt-2">
+            <button onclick="cleanStorage(true)" class="btn-editorial-secondary flex-1 py-3 text-sm">
               Preview Purge
             </button>
-            <button onclick="promptCleanStorage()" class="btn-editorial-primary flex-1 py-2.5 text-xs">
+            <button onclick="promptCleanStorage()" class="btn-editorial-primary flex-1 py-3 text-sm">
               Execute Purge
             </button>
           </div>
-          <div id="clean-result-container" class="hidden p-4 rounded-2xl bg-black/50 border border-white/10 text-xs text-white font-mono"></div>
+          <div id="clean-result-container" class="hidden p-5 rounded-2xl bg-black/50 border border-white/10 text-sm text-white font-mono"></div>
         </div>
       </div>
     </div>
@@ -501,15 +608,15 @@
     <!-- ======================================================== -->
     <!-- TAB 5: NETWORK & FIREWALL -->
     <!-- ======================================================== -->
-    <div id="tab-content-network" class="tab-content hidden space-y-8">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="avant-card-elevated p-6 space-y-4">
+    <div id="tab-content-network" class="tab-content hidden space-y-10">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="avant-card-elevated p-8 space-y-5">
           <div class="flex items-center justify-between">
-            <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-              <i data-lucide="radio" class="w-4 h-4 text-slate-300 not-italic"></i>
+            <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+              <i data-lucide="radio" class="w-5 h-5 text-slate-300 not-italic"></i>
               <span>Listening Sockets (SS Telemetry)</span>
             </h3>
-            <button onclick="loadNetwork()" class="btn-editorial-ghost text-xs">Refresh</button>
+            <button onclick="loadNetwork()" class="btn-editorial-ghost text-sm">Refresh</button>
           </div>
           <div class="overflow-y-auto max-h-80 border border-white/10 rounded-2xl bg-black/40">
             <table class="linear-table">
@@ -522,28 +629,28 @@
                 </tr>
               </thead>
               <tbody id="network-ports-body">
-                <tr><td colspan="4" class="text-center text-slate-500 py-6 font-mono">Loading listening sockets...</td></tr>
+                <tr><td colspan="4" class="text-center text-slate-500 py-8 font-mono">Loading listening sockets...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="avant-card-elevated p-6 space-y-4">
-          <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-            <i data-lucide="shield" class="w-4 h-4 text-slate-300 not-italic"></i>
+        <div class="avant-card-elevated p-8 space-y-5">
+          <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+            <i data-lucide="shield" class="w-5 h-5 text-slate-300 not-italic"></i>
             <span>Cyber Firewall Matrix (UFW / Nftables)</span>
           </h3>
-          <div id="firewall-status-card" class="p-4 rounded-2xl bg-black/50 border border-white/10 text-xs font-mono text-slate-300">
+          <div id="firewall-status-card" class="p-5 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-slate-300">
             Status: Loading...
           </div>
-          <div class="flex items-center space-x-2.5 pt-1">
-            <input type="number" id="fw-port-input" placeholder="Port (e.g. 80, 443, 8080)" class="editorial-input w-1/2 px-4 py-2 text-xs font-mono" />
-            <select id="fw-proto-select" class="editorial-input px-4 py-2 text-xs font-mono">
+          <div class="flex items-center space-x-3 pt-2">
+            <input type="number" id="fw-port-input" placeholder="Port (e.g. 80, 443, 8080)" class="editorial-input w-1/2 px-5 py-3 text-sm font-mono" />
+            <select id="fw-proto-select" class="editorial-input px-5 py-3 text-sm font-mono">
               <option value="tcp">TCP</option>
               <option value="udp">UDP</option>
             </select>
-            <button onclick="promptFirewallRule('allow')" class="btn-editorial-secondary px-4 py-2 text-xs">Allow</button>
-            <button onclick="promptFirewallRule('deny')" class="btn-editorial-primary px-4 py-2 text-xs">Deny</button>
+            <button onclick="promptFirewallRule('allow')" class="btn-editorial-secondary px-5 py-3 text-sm">Allow</button>
+            <button onclick="promptFirewallRule('deny')" class="btn-editorial-primary px-5 py-3 text-sm">Deny</button>
           </div>
         </div>
       </div>
@@ -552,54 +659,54 @@
     <!-- ======================================================== -->
     <!-- TAB 6: 16-CLASS FAILURE TAXONOMY & DAG -->
     <!-- ======================================================== -->
-    <div id="tab-content-taxonomy" class="tab-content hidden space-y-8">
-      <div class="avant-card-elevated p-7 md:p-8 space-y-5">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
-            <i data-lucide="shield-alert" class="w-5 h-5"></i>
+    <div id="tab-content-taxonomy" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
+            <i data-lucide="shield-alert" class="w-6 h-6"></i>
           </div>
           <div>
-            <h3 class="font-editorial italic text-lg text-white">16-Class Linux Failure Taxonomy &amp; Topological DAG</h3>
-            <p class="text-xs text-slate-400 font-sans">Simulate and diagnose Linux failures with Topological In-Degree=0 Root Cause Isolation.</p>
+            <h3 class="font-editorial italic text-xl sm:text-2xl text-white">16-Class Linux Failure Taxonomy &amp; Topological DAG</h3>
+            <p class="text-sm text-slate-300 font-sans mt-0.5">Simulate and diagnose Linux failures with Topological In-Degree=0 Root Cause Isolation.</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1" id="taxonomy-scenarios-grid">
-          <div class="p-4 bg-white/[0.02] rounded-2xl text-xs text-slate-500 text-center col-span-4 font-mono">Loading failure scenarios...</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2" id="taxonomy-scenarios-grid">
+          <div class="p-6 bg-white/[0.02] rounded-2xl text-sm text-slate-500 text-center col-span-4 font-mono">Loading failure scenarios...</div>
         </div>
       </div>
 
-      <div id="taxonomy-report-container" class="hidden avant-card-elevated p-7 md:p-8 space-y-6">
-        <div class="flex items-center justify-between border-b border-white/10 pb-4">
-          <h4 class="font-editorial italic text-base text-white" id="diag-report-title">Diagnostic Report</h4>
-          <span id="diag-report-badge" class="badge-readonly text-[10px] font-mono px-3 py-1 rounded-full uppercase">RESOLVED</span>
+      <div id="taxonomy-report-container" class="hidden avant-card-elevated p-8 sm:p-10 space-y-8">
+        <div class="flex items-center justify-between border-b border-white/10 pb-5">
+          <h4 class="font-editorial italic text-lg sm:text-xl text-white" id="diag-report-title">Diagnostic Report</h4>
+          <span id="diag-report-badge" class="badge-readonly text-xs font-mono px-4 py-1.5 rounded-full uppercase font-bold">RESOLVED</span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-4 text-xs font-sans">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="space-y-5 text-sm font-sans">
             <div>
-              <span class="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Symptom:</span>
-              <p class="text-white mt-1 font-medium text-sm" id="diag-symptom">-</p>
+              <span class="text-slate-400 text-xs uppercase tracking-wider font-bold">Symptom:</span>
+              <p class="text-white mt-1.5 font-semibold text-base" id="diag-symptom">-</p>
             </div>
             <div>
-              <span class="text-white text-[10px] uppercase tracking-wider font-semibold">Root Cause:</span>
-              <p class="text-white font-editorial italic text-lg mt-1" id="diag-root-cause">-</p>
+              <span class="text-white text-xs uppercase tracking-wider font-bold">Root Cause:</span>
+              <p class="text-white font-editorial italic text-xl sm:text-2xl mt-1.5" id="diag-root-cause">-</p>
             </div>
             <div>
-              <span class="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Rationale:</span>
-              <p class="text-slate-300 mt-1 leading-relaxed text-xs leading-6" id="diag-rationale">-</p>
+              <span class="text-slate-400 text-xs uppercase tracking-wider font-bold">Rationale:</span>
+              <p class="text-slate-300 mt-1.5 leading-relaxed text-sm leading-7" id="diag-rationale">-</p>
             </div>
           </div>
 
-          <div class="space-y-2">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Topological Causality DAG (Root: InDegree=0):</span>
-            <div id="mermaid-dag-container" class="p-5 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center min-h-36 overflow-x-auto"></div>
+          <div class="space-y-3">
+            <span class="text-xs text-slate-400 uppercase tracking-wider font-bold">Topological Causality DAG (Root: InDegree=0):</span>
+            <div id="mermaid-dag-container" class="p-6 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center min-h-40 overflow-x-auto"></div>
           </div>
         </div>
 
-        <div class="space-y-4 pt-2">
-          <h5 class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Proposed Remediation Commands:</h5>
-          <div id="diag-commands-container" class="space-y-3"></div>
+        <div class="space-y-4 pt-3">
+          <h5 class="text-xs text-slate-400 uppercase tracking-wider font-bold">Proposed Remediation Commands:</h5>
+          <div id="diag-commands-container" class="space-y-4"></div>
         </div>
       </div>
     </div>
@@ -607,33 +714,33 @@
     <!-- ======================================================== -->
     <!-- TAB 7: PACKAGE MANAGER -->
     <!-- ======================================================== -->
-    <div id="tab-content-packages" class="tab-content hidden space-y-8">
-      <div class="avant-card-elevated p-7 md:p-8 space-y-5">
+    <div id="tab-content-packages" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
         <div class="flex items-center justify-between">
-          <h3 class="font-editorial italic text-lg text-white flex items-center space-x-2">
-            <i data-lucide="package" class="w-5 h-5 text-slate-300 not-italic"></i>
+          <h3 class="font-editorial italic text-xl sm:text-2xl text-white flex items-center space-x-3">
+            <i data-lucide="package" class="w-6 h-6 text-slate-300 not-italic"></i>
             <span>Multi-Distro Package &amp; Environment Nexus</span>
           </h3>
-          <span class="text-[10px] font-mono px-3 py-1 rounded-full bg-white/10 text-white border border-white/20 font-bold" id="pkg-distro-badge">ARCH LINUX (PACMAN)</span>
+          <span class="text-xs font-mono px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/20 font-bold" id="pkg-distro-badge">ARCH LINUX (PACMAN)</span>
         </div>
 
-        <div class="flex space-x-3 pt-1">
+        <div class="flex space-x-4 pt-2">
           <input 
             type="text" 
             id="pkg-search-input" 
             placeholder="Search package (e.g. htop, nginx, curl, tree)..." 
-            class="editorial-input flex-1 px-4 py-2.5 text-xs font-mono"
+            class="editorial-input flex-1 px-5 py-3 text-sm font-mono"
           />
           <button 
             type="button" 
             onclick="searchPackage()" 
-            class="btn-editorial-primary px-5 py-2.5 text-xs">
-            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+            class="btn-editorial-primary px-6 py-3 text-sm">
+            <i data-lucide="search" class="w-4 h-4"></i>
             <span>Query Repo</span>
           </button>
         </div>
 
-        <div id="pkg-result-container" class="p-5 rounded-2xl bg-black/50 border border-white/10 text-xs font-mono text-white space-y-2">
+        <div id="pkg-result-container" class="p-6 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-white space-y-3">
           <p class="text-slate-500">Enter a package name to search repository metadata.</p>
         </div>
       </div>
@@ -642,71 +749,71 @@
     <!-- ======================================================== -->
     <!-- TAB 8: RUNNER & DIRECT EXECUTION -->
     <!-- ======================================================== -->
-    <div id="tab-content-desktop" class="tab-content hidden space-y-8">
-      <div class="avant-card-elevated p-7 md:p-8 space-y-5">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
-            <i data-lucide="terminal" class="w-5 h-5"></i>
+    <div id="tab-content-desktop" class="tab-content hidden space-y-10">
+      <div class="avant-card-elevated p-8 sm:p-10 space-y-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white">
+            <i data-lucide="terminal" class="w-6 h-6"></i>
           </div>
           <div>
-            <h3 class="font-editorial italic text-lg text-white">Direct CLI Command Runner</h3>
-            <p class="text-xs text-slate-400 font-sans">Execute commands through deterministic AST safety validation and ephemeral CoW sandboxing.</p>
+            <h3 class="font-editorial italic text-xl sm:text-2xl text-white">Direct CLI Command Runner</h3>
+            <p class="text-sm text-slate-300 font-sans mt-0.5">Execute commands through deterministic AST safety validation and ephemeral CoW sandboxing.</p>
           </div>
         </div>
 
-        <div class="flex space-x-3">
+        <div class="flex space-x-4">
           <input 
             type="text" 
             id="direct-cmd-input" 
             placeholder="e.g. uname -a, df -h, systemctl status nginx" 
-            class="editorial-input flex-1 px-4 py-2.5 text-xs font-mono"
+            class="editorial-input flex-1 px-5 py-3 text-sm font-mono"
           />
           <button 
             type="button" 
             onclick="promptDirectCommand()" 
-            class="btn-editorial-primary px-5 py-2.5 text-xs font-tech">
+            class="btn-editorial-primary px-6 py-3 text-sm font-tech font-bold">
             <span>Execute Gate</span>
           </button>
         </div>
       </div>
 
-      <div class="avant-card p-7 md:p-8 space-y-5">
-        <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-          <i data-lucide="download" class="w-4 h-4 text-slate-300 not-italic"></i>
+      <div class="avant-card p-8 sm:p-10 space-y-6">
+        <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-3">
+          <i data-lucide="download" class="w-5 h-5 text-slate-300 not-italic"></i>
           <span>Universal Stream Downloader</span>
         </h3>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <input 
             type="text" 
             id="download-url-input" 
             placeholder="https://example.com/archive.tar.gz" 
-            class="sm:col-span-2 editorial-input px-4 py-2.5 text-xs font-mono"
+            class="sm:col-span-2 editorial-input px-5 py-3 text-sm font-mono"
           />
           <input 
             type="text" 
             id="download-dest-input" 
             value="~/Downloads" 
             placeholder="Destination directory" 
-            class="editorial-input px-4 py-2.5 text-xs font-mono"
+            class="editorial-input px-5 py-3 text-sm font-mono"
           />
         </div>
 
-        <div class="flex items-center justify-between pt-1">
-          <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+        <div class="flex items-center justify-between pt-2">
+          <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
             <input type="checkbox" id="download-auto-extract" checked class="rounded bg-black border-white/20 text-white focus:ring-0">
             <span>Auto-extract archives (.zip, .tar.gz, .tar.xz)</span>
           </label>
           <button 
             type="button" 
             onclick="promptDownload()" 
-            class="btn-editorial-secondary px-5 py-2 text-xs">
-            <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i>
+            class="btn-editorial-secondary px-6 py-3 text-sm">
+            <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
             <span>Download</span>
           </button>
         </div>
 
-        <div id="download-result-container" class="hidden p-4 rounded-2xl bg-black/50 border border-white/10 text-xs font-mono text-white space-y-2"></div>
+        <div id="download-result-container" class="hidden p-5 rounded-2xl bg-black/50 border border-white/10 text-sm font-mono text-white space-y-3"></div>
       </div>
     </div>
 
@@ -716,72 +823,72 @@
   <!-- MODAL: COMMAND EXECUTION PERMISSION DIALOG -->
   <!-- ======================================================== -->
   <div id="modal-permission" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="modal-dialog avant-card-elevated max-w-xl w-full p-7 space-y-5 border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.9)]">
+    <div class="modal-dialog avant-card-elevated max-w-2xl w-full p-8 space-y-6 border border-white/20 shadow-[0_0_60px_rgba(0,0,0,0.9)]">
       
       <!-- Modal Header -->
-      <div class="flex items-center justify-between border-b border-white/10 pb-4">
-        <div class="flex items-center space-x-3">
-          <div class="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.4)]">
-            <i data-lucide="shield-check" class="w-5 h-5 text-black"></i>
+      <div class="flex items-center justify-between border-b border-white/10 pb-5">
+        <div class="flex items-center space-x-3.5">
+          <div class="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+            <i data-lucide="shield-check" class="w-6 h-6 text-black"></i>
           </div>
           <div>
-            <h3 class="font-editorial italic text-base text-white">Execution Authorization Gate</h3>
-            <p class="text-[11px] text-slate-400 font-sans">Inspect AST risk parameters prior to executing mutating changes.</p>
+            <h3 class="font-editorial italic text-xl text-white">Execution Authorization Gate</h3>
+            <p class="text-xs text-slate-300 font-sans mt-0.5">Inspect AST risk parameters prior to executing mutating changes.</p>
           </div>
         </div>
-        <button onclick="closeModal('modal-permission')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+        <button onclick="closeModal('modal-permission')" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
       </div>
 
       <!-- Command Vector Box -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between text-[11px] text-slate-400">
-          <span class="uppercase tracking-wider font-semibold">Command Vector:</span>
-          <button id="modal-perm-copy-btn" onclick="copyModalCommand()" class="text-white hover:text-slate-300 flex items-center space-x-1">
-            <i data-lucide="copy" class="w-3 h-3"></i>
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="uppercase tracking-wider font-bold">Command Vector:</span>
+          <button id="modal-perm-copy-btn" onclick="copyModalCommand()" class="text-white hover:text-slate-300 flex items-center space-x-1.5">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
             <span>Copy</span>
           </button>
         </div>
-        <div class="p-4 rounded-2xl bg-black/80 border border-white/15 font-mono text-xs text-white break-all select-all flex items-start space-x-2">
+        <div class="p-5 rounded-2xl bg-black/80 border border-white/15 font-mono text-sm text-white break-all select-all flex items-start space-x-3">
           <span class="text-slate-500 select-none">$</span>
           <span id="modal-perm-command" class="flex-1 font-semibold text-white">-</span>
         </div>
       </div>
 
       <!-- Impact Description -->
-      <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 font-sans">
-        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block">Impact Vector &amp; Rationale:</span>
-        <p id="modal-perm-description" class="text-xs sm:text-[13px] text-slate-200 leading-relaxed">-</p>
+      <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 font-sans">
+        <span class="text-xs text-slate-400 uppercase tracking-wider font-bold block">Impact Vector &amp; Rationale:</span>
+        <p id="modal-perm-description" class="text-sm sm:text-base text-slate-200 leading-relaxed">-</p>
       </div>
 
       <!-- Metadata Grid -->
-      <div class="grid grid-cols-2 gap-2.5 text-[11px] font-mono">
-        <div class="p-3 rounded-2xl bg-white/[0.02] border border-white/10">
-          <span class="text-slate-500 text-[10px] block uppercase font-sans font-semibold">Safety Level</span>
-          <span id="modal-perm-safety" class="font-bold text-white">READ_ONLY</span>
+      <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+        <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10">
+          <span class="text-slate-400 text-xs block uppercase font-sans font-bold mb-1">Safety Level</span>
+          <span id="modal-perm-safety" class="font-bold text-sm text-white">READ_ONLY</span>
         </div>
-        <div class="p-3 rounded-2xl bg-white/[0.02] border border-white/10">
-          <span class="text-slate-500 text-[10px] block uppercase font-sans font-semibold">Risk Score</span>
-          <span id="modal-perm-risk" class="font-bold text-white">0.05 / 1.00</span>
+        <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10">
+          <span class="text-slate-400 text-xs block uppercase font-sans font-bold mb-1">Risk Score</span>
+          <span id="modal-perm-risk" class="font-bold text-sm text-white">0.05 / 1.00</span>
         </div>
       </div>
 
       <!-- Rollback Box -->
-      <div id="modal-perm-rollback-box" class="hidden p-3 rounded-2xl bg-white/[0.02] border border-white/10 space-y-1 text-xs font-mono">
-        <span class="text-[10px] text-amber-400 uppercase font-sans font-semibold">Rollback Command:</span>
-        <div id="modal-perm-rollback" class="text-slate-300 break-all text-[11px]">-</div>
+      <div id="modal-perm-rollback-box" class="hidden p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-1.5 text-xs font-mono">
+        <span class="text-xs text-amber-400 uppercase font-sans font-bold">Rollback Command:</span>
+        <div id="modal-perm-rollback" class="text-slate-300 break-all text-sm">-</div>
       </div>
 
       <!-- Buttons -->
-      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-white/10">
-        <button onclick="closeModal('modal-permission')" class="btn-editorial-ghost text-xs">
+      <div class="flex items-center justify-end space-x-4 pt-4 border-t border-white/10">
+        <button onclick="closeModal('modal-permission')" class="btn-editorial-ghost text-sm">
           Abort
         </button>
-        <button id="modal-perm-dryrun-btn" class="btn-editorial-secondary text-xs">
-          <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
+        <button id="modal-perm-dryrun-btn" class="btn-editorial-secondary text-sm">
+          <i data-lucide="flask-conical" class="w-4 h-4"></i>
           <span>Dry-Run Sandbox</span>
         </button>
-        <button id="modal-perm-approve-btn" class="btn-editorial-primary text-xs">
-          <i data-lucide="check" class="w-3.5 h-3.5"></i>
+        <button id="modal-perm-approve-btn" class="btn-editorial-primary text-sm">
+          <i data-lucide="check" class="w-4 h-4"></i>
           <span>Authorize &amp; Execute</span>
         </button>
       </div>
@@ -793,15 +900,15 @@
   <!-- MODAL: LOGS VIEWER -->
   <!-- ======================================================== -->
   <div id="modal-logs" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="modal-dialog avant-card-elevated max-w-3xl w-full p-7 space-y-5 border border-white/20">
-      <div class="flex items-center justify-between border-b border-white/10 pb-4">
-        <h3 class="font-editorial italic text-base text-white flex items-center space-x-2">
-          <i data-lucide="file-text" class="w-4 h-4 text-slate-300 not-italic"></i>
+    <div class="modal-dialog avant-card-elevated max-w-4xl w-full p-8 space-y-6 border border-white/20">
+      <div class="flex items-center justify-between border-b border-white/10 pb-5">
+        <h3 class="font-editorial italic text-lg sm:text-xl text-white flex items-center space-x-2.5">
+          <i data-lucide="file-text" class="w-5 h-5 text-slate-300 not-italic"></i>
           <span id="modal-logs-title">Service Journal Stream</span>
         </h3>
-        <button onclick="closeModal('modal-logs')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+        <button onclick="closeModal('modal-logs')" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
       </div>
-      <pre id="modal-logs-content" class="p-5 bg-black/80 border border-white/15 rounded-2xl text-xs font-mono text-slate-200 overflow-y-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_20px_rgba(0,0,0,0.9)]"></pre>
+      <pre id="modal-logs-content" class="p-6 bg-black/80 border border-white/15 rounded-2xl text-sm font-mono text-slate-200 overflow-y-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-[inset_0_0_20px_rgba(0,0,0,0.9)]"></pre>
     </div>
   </div>
 
