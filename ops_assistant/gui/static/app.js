@@ -1,5 +1,5 @@
 // ==========================================================================
-// LinuxOps Assistant — Linear-Inspired Client Application Logic & Guardrails
+// LinuxOps Assistant — Cyberpunk Obsidian Client Cockpit Engine (v3.0)
 // ==========================================================================
 
 // Global state
@@ -17,48 +17,70 @@ document.addEventListener('DOMContentLoaded', () => {
   initCharts();
   startTelemetrySSE();
   loadInitialData();
-  checkSetupStatusOnLoad();
 
-  // Setup prompt form submit
-  const form = document.getElementById('agent-prompt-form');
-  if (form) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const input = document.getElementById('agent-prompt-input');
-      if (input && input.value.trim()) {
-        submitAgentPrompt(input.value.trim());
-      }
-    });
-  }
+  // Initialize Cockpit Subsystems
+  ThemeManager.init();
+  SoundFX.init();
+  SparklineManager.init();
+  HistorySidebar.init();
+  MascotManager.init();
+  CapabilityManager.init();
+  CommandPalette.init();
+  CommandCenter.init();
+
+  // Show command bar initially (home tab is default)
+  const ccBar = document.getElementById('cc-command-bar');
+  if (ccBar) ccBar.classList.remove('hidden');
 
   // Refresh button
   const btnRefresh = document.getElementById('btn-refresh-health');
   if (btnRefresh) {
-    btnRefresh.addEventListener('click', fetchHealthSnapshot);
+    btnRefresh.addEventListener('click', () => {
+      SoundFX.play('click');
+      fetchHealthSnapshot();
+    });
   }
 
   // Global Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
-    // '/' to focus agent prompt
+    // Ctrl+K or Cmd+K for Command Palette
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      CommandPalette.open();
+      return;
+    }
+    // Ctrl+B or Cmd+B for History Sidebar Toggle
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+      e.preventDefault();
+      HistorySidebar.toggle();
+      return;
+    }
+    // Ctrl+N or Cmd+N for New Chat Session
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      HistorySidebar.newChat();
+      return;
+    }
+    // '/' to focus command input when not in text field
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
-      const promptInput = document.getElementById('agent-prompt-input');
-      if (promptInput) {
+      const ccInput = document.getElementById('cc-text-input');
+      if (ccInput) {
         switchTab('home');
-        promptInput.focus();
+        ccInput.focus();
       }
     }
-    // Escape to close modals
+    // Escape to close open modals
     if (e.key === 'Escape') {
+      CommandPalette.close();
       closeModal('modal-permission');
       closeModal('modal-logs');
-      closeModal('modal-setup-wizard');
     }
   });
 });
 
 // ==========================================================================
-// TOAST NOTIFICATION SYSTEM (Replaces crude alert() dialogs)
+// TOAST NOTIFICATION SYSTEM
 // ==========================================================================
 function showToast(message, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');
@@ -68,7 +90,7 @@ function showToast(message, type = 'info', duration = 3500) {
   toast.className = 'toast-item';
 
   let iconName = 'info';
-  let iconColor = 'text-zinc-400';
+  let iconColor = 'text-cyan-400';
   if (type === 'success') {
     iconName = 'check-circle';
     iconColor = 'text-emerald-400';
@@ -92,122 +114,46 @@ function showToast(message, type = 'info', duration = 3500) {
   if (window.lucide) lucide.createIcons();
 
   setTimeout(() => {
-    toast.classList.add('toast-leave');
-    setTimeout(() => {
-      if (toast.parentElement) toast.remove();
-    }, 200);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-8px)';
+    setTimeout(() => toast.remove(), 250);
   }, duration);
 }
 
 // ==========================================================================
-// COMMAND EXECUTION PERMISSION MODAL & GATE
+// MODAL CONTROLLERS & PERMISSION DIALOG
 // ==========================================================================
-function requestCommandPermission(options) {
-  const {
-    command,
-    description = 'Executes specified operation on the Linux host.',
-    safetyLevel = 'MODIFYING',
-    riskScore = 0.35,
-    rollback = null,
-    onApprove = null,
-    onDryRun = null
-  } = options;
+function openModal(modalId) {
+  const m = document.getElementById(modalId);
+  if (m) m.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
 
-  return new Promise((resolve) => {
-    const modal = document.getElementById('modal-permission');
-    const cmdEl = document.getElementById('modal-perm-command');
-    const descEl = document.getElementById('modal-perm-description');
-    const safetyEl = document.getElementById('modal-perm-safety');
-    const riskEl = document.getElementById('modal-perm-risk');
-    const rollbackBox = document.getElementById('modal-perm-rollback-box');
-    const rollbackEl = document.getElementById('modal-perm-rollback');
-    const approveBtn = document.getElementById('modal-perm-approve-btn');
-    const dryRunBtn = document.getElementById('modal-perm-dryrun-btn');
-
-    if (!modal) return resolve(false);
-
-    cmdEl.textContent = command;
-    descEl.textContent = description;
-    safetyEl.textContent = safetyLevel;
-    safetyEl.className = 'font-semibold ' + getSafetyTextColor(safetyLevel);
-    riskEl.textContent = (riskScore || 0.05).toFixed(2) + ' / 1.00';
-
-    if (rollback) {
-      rollbackBox.classList.remove('hidden');
-      rollbackEl.textContent = rollback;
-    } else {
-      rollbackBox.classList.add('hidden');
-    }
-
-    // Handlers
-    const cleanup = () => {
-      approveBtn.onclick = null;
-      dryRunBtn.onclick = null;
-      closeModal('modal-permission');
-    };
-
-    approveBtn.onclick = async () => {
-      cleanup();
-      if (onApprove) await onApprove();
-      resolve(true);
-    };
-
-    dryRunBtn.onclick = async () => {
-      cleanup();
-      if (onDryRun) await onDryRun();
-      else await executeDryRunSandbox(command);
-      resolve(false);
-    };
-
-    openModal('modal-permission');
-    if (window.lucide) lucide.createIcons();
-  });
+function closeModal(modalId) {
+  const m = document.getElementById(modalId);
+  if (m) m.classList.add('hidden');
+  if (modalId === 'modal-permission' && pendingPermissionResolver) {
+    pendingPermissionResolver(false);
+    pendingPermissionResolver = null;
+  }
 }
 
 function copyModalCommand() {
-  const cmd = document.getElementById('modal-perm-command')?.textContent;
-  if (cmd) {
-    navigator.clipboard.writeText(cmd);
-    showToast('Command copied to clipboard', 'info', 2000);
-  }
-}
-
-async function executeDryRunSandbox(cmd) {
-  showToast('Testing command in ephemeral CoW sandbox...', 'info');
-  try {
-    const res = await fetch('/api/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command: cmd, dry_run: true })
+  const cmd = document.getElementById('modal-perm-command').textContent;
+  if (cmd && cmd !== '-') {
+    navigator.clipboard.writeText(cmd).then(() => {
+      showToast('Command copied to clipboard', 'success', 2000);
+      SoundFX.play('click');
     });
-    const data = await res.json();
-    if (data.blocked) {
-      showToast('SANDBOX BLOCKED: ' + data.error, 'error', 5000);
-    } else {
-      showToast(`Sandbox Verified (Exit Code ${data.returncode}) in ${data.latency_ms || 0}ms`, 'success', 4000);
-    }
-  } catch (e) {
-    showToast('Sandbox error: ' + e.message, 'error');
   }
 }
 
 // ==========================================================================
-// TAB SWITCHING & INITIALIZATION
+// TAB SWITCHING (RIGHT VERTICAL NAVIGATION)
 // ==========================================================================
-const TAB_TITLES = {
-  'home': 'AI Ops Agent',
-  'health': 'System Health & PSI Telemetry',
-  'services': 'Services & Process Management',
-  'storage': 'Storage Analysis & Cleanup',
-  'network': 'Network & Firewall Control',
-  'taxonomy': '16-Class Failure Taxonomy',
-  'packages': 'Package Management',
-  'desktop': 'Desktop & Task Runner'
-};
-
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-vertical-btn, .nav-tab').forEach(el => el.classList.remove('active'));
 
   const activeContent = document.getElementById('tab-content-' + tabId);
   const activeBtn = document.getElementById('tab-btn-' + tabId);
@@ -215,15 +161,16 @@ function switchTab(tabId) {
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeBtn) activeBtn.classList.add('active');
 
-  const titleEl = document.getElementById('current-tab-title');
-  if (titleEl && TAB_TITLES[tabId]) {
-    titleEl.textContent = TAB_TITLES[tabId];
-  }
+  // Show/hide CommandCenter bar on the home tab only
+  const ccBar = document.getElementById('cc-command-bar');
+  if (ccBar) ccBar.classList.toggle('hidden', tabId !== 'home');
 
   // Trigger lazy loading
   if (tabId === 'services') loadServices();
   if (tabId === 'network') loadNetwork();
   if (tabId === 'taxonomy') loadTaxonomyScenarios();
+
+  SoundFX.play('click');
 
   if (window.lucide) {
     setTimeout(() => lucide.createIcons(), 50);
@@ -234,8 +181,6 @@ async function loadInitialData() {
   await fetchHealthSnapshot();
   await loadTaxonomyScenarios();
 }
-
-// ==========================================================================
 // TELEMETRY & CHARTS
 // ==========================================================================
 function startTelemetrySSE() {
@@ -277,21 +222,28 @@ async function fetchHealthSnapshot() {
 function updateTelemetryUI(snap) {
   if (!snap) return;
 
+  function safeSetText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
   // Header
   const dInfo = snap.distro_info || {};
   const distroName = dInfo.distro_name || 'Linux';
-  document.getElementById('header-hostname').textContent = snap.hostname || 'localhost';
-  document.getElementById('header-distro').textContent = distroName;
-  document.getElementById('header-kernel').textContent = 'Kernel ' + (snap.kernel_release || '');
+  safeSetText('header-hostname', snap.hostname || 'localhost');
+  safeSetText('header-distro', distroName);
+  safeSetText('header-kernel', 'Kernel ' + (snap.kernel_release || ''));
 
   const pressureBadge = document.getElementById('header-pressure');
-  pressureBadge.textContent = snap.pressure_status || 'NORMAL';
-  if (snap.pressure_status === 'ELEVATED') {
-    pressureBadge.className = 'font-mono text-[11px] font-semibold text-amber-400';
-  } else if (snap.pressure_status === 'CRITICAL') {
-    pressureBadge.className = 'font-mono text-[11px] font-semibold text-rose-400';
-  } else {
-    pressureBadge.className = 'font-mono text-[11px] font-semibold text-emerald-400';
+  if (pressureBadge) {
+    pressureBadge.textContent = snap.pressure_status || 'NORMAL';
+    if (snap.pressure_status === 'ELEVATED') {
+      pressureBadge.className = 'font-mono text-[11px] font-semibold text-amber-400';
+    } else if (snap.pressure_status === 'CRITICAL') {
+      pressureBadge.className = 'font-mono text-[11px] font-semibold text-rose-400';
+    } else {
+      pressureBadge.className = 'font-mono text-[11px] font-semibold text-emerald-400';
+    }
   }
 
   // Health Cards
@@ -300,21 +252,29 @@ function updateTelemetryUI(snap) {
   const load = snap.load || {};
 
   const totalCpuPct = (cpu.user_pct || 0) + (cpu.system_pct || 0);
-  document.getElementById('health-cpu-pct').textContent = totalCpuPct.toFixed(1) + '%';
-  document.getElementById('health-cpu-cores').textContent = (cpu.core_count || 1) + ' Cores';
-  document.getElementById('health-cpu-breakdown').textContent = `User: ${(cpu.user_pct||0).toFixed(1)}% | Sys: ${(cpu.system_pct||0).toFixed(1)}% | IO: ${(cpu.iowait_pct||0).toFixed(1)}%`;
+  safeSetText('health-cpu-pct', totalCpuPct.toFixed(1) + '%');
+  safeSetText('health-cpu-cores', (cpu.core_count || 1) + ' Cores');
+  safeSetText('health-cpu-breakdown', `User: ${(cpu.user_pct||0).toFixed(1)}% | Sys: ${(cpu.system_pct||0).toFixed(1)}% | IO: ${(cpu.iowait_pct||0).toFixed(1)}%`);
+  safeSetText('home-cpu-pct', totalCpuPct.toFixed(1) + '%');
 
-  document.getElementById('health-ram-pct').textContent = (mem.used_percent || 0).toFixed(1) + '%';
-  document.getElementById('health-ram-avail').textContent = Math.round(mem.used_mb||0) + ' / ' + Math.round(mem.total_mb||0) + ' MB';
-  document.getElementById('health-swap-info').textContent = 'Swap: ' + (mem.swap_used_percent||0).toFixed(1) + '% used';
+  safeSetText('health-ram-pct', (mem.used_percent || 0).toFixed(1) + '%');
+  safeSetText('health-ram-avail', Math.round(mem.used_mb||0) + ' / ' + Math.round(mem.total_mb||0) + ' MB');
+  safeSetText('health-swap-info', 'Swap: ' + (mem.swap_used_percent||0).toFixed(1) + '% used');
+  safeSetText('home-ram-pct', (mem.used_percent || 0).toFixed(1) + '%');
 
-  document.getElementById('health-load-1m').textContent = (load.load_1m || 0).toFixed(2);
-  document.getElementById('health-load-5m').textContent = `5m: ${(load.load_5m||0).toFixed(2)} | 15m: ${(load.load_15m||0).toFixed(2)}`;
-  document.getElementById('health-procs-count').textContent = `${load.running_processes||0} running / ${load.total_processes||0} procs`;
+  safeSetText('health-load-1m', (load.load_1m || 0).toFixed(2));
+  safeSetText('health-load-5m', `5m: ${(load.load_5m||0).toFixed(2)} | 15m: ${(load.load_15m||0).toFixed(2)}`);
+  safeSetText('health-procs-count', `${load.running_processes||0} running / ${load.total_processes||0} procs`);
 
-  document.getElementById('health-psi-badge').textContent = snap.pressure_status || 'NORMAL';
-  document.getElementById('health-zombie-count').textContent = (cpu.zombie_count || 0) + ' Zombies';
-  document.getElementById('health-uptime-str').textContent = 'Uptime: ' + ((snap.uptime_seconds||0)/3600).toFixed(1) + ' hrs';
+  safeSetText('health-psi-badge', snap.pressure_status || 'NORMAL');
+  safeSetText('health-zombie-count', (cpu.zombie_count || 0) + ' Zombies');
+  safeSetText('health-uptime-str', 'Uptime: ' + ((snap.uptime_seconds||0)/3600).toFixed(1) + ' hrs');
+
+  // Push to Header Live Sparklines
+  if (typeof SparklineManager !== 'undefined') {
+    SparklineManager.pushCPU(totalCpuPct);
+    SparklineManager.pushRAM(mem.used_percent || 0);
+  }
 
   // Update Charts
   const nowStr = new Date().toLocaleTimeString();
@@ -441,6 +401,13 @@ function renderDisksTable(disks) {
 // AI OPS AGENT: CHAT, REASONING & COMMAND PERMISSION FEED
 // ==========================================================================
 function quickPrompt(text) {
+  // Route through CommandCenter (new path) — keep old agent-prompt-input as fallback
+  const ccInput = document.getElementById('cc-text-input');
+  if (ccInput) {
+    ccInput.value = text;
+    CommandCenter.submitCommand(text);
+    return;
+  }
   const input = document.getElementById('agent-prompt-input');
   if (input) {
     input.value = text;
@@ -1347,298 +1314,1210 @@ function escapeHtml(str) {
 }
 
 // ==========================================================================
-// HARDWARE SETUP & MODEL CONFIGURATION WIZARD
+
 // ==========================================================================
-let currentSetupData = null;
-let downloadPollInterval = null;
-
-async function checkSetupStatusOnLoad() {
-  try {
-    const res = await fetch('/api/setup/status');
-    const data = await res.json();
-    currentSetupData = data;
-    // Auto-open wizard if setup is not completed and no model is installed
-    if (!data.setup_completed && !data.has_models) {
-      setTimeout(() => {
-        openSetupWizard();
-      }, 500);
-    }
-  } catch (e) {
-    console.warn('Could not check setup status:', e);
-  }
-}
-
-async function openSetupWizard() {
-  openModal('modal-setup-wizard');
-  try {
-    const res = await fetch('/api/setup/status');
-    const data = await res.json();
-    currentSetupData = data;
-    renderSetupModalData(data);
-  } catch (e) {
-    showToast('Failed to load hardware advisory: ' + e.message, 'error');
-  }
-}
-
-function renderSetupModalData(data) {
-  if (!data) return;
-  const hw = data.hardware || {};
-  const rec = data.recommended_model || {};
-  const cfg = data.config || {};
-  const installed = data.installed_models || {};
-  const catalog = data.catalog || {};
-
-  // 1. Hardware Badges & Specs
-  const tierBadge = document.getElementById('setup-tier-badge');
-  if (tierBadge && hw.compute_tier) {
-    tierBadge.textContent = `${hw.compute_tier} (${(hw.hardware_score || 0).toFixed(1)}/100)`;
-  }
-
-  const cpuInfo = document.getElementById('setup-cpu-info');
-  const cpuCores = document.getElementById('setup-cpu-cores');
-  if (cpuInfo && hw.cpu) {
-    cpuInfo.textContent = hw.cpu.model_name || 'CPU';
-    cpuCores.textContent = `${hw.cpu.logical_cores || 1} cores • AVX2: ${hw.cpu.has_avx2 ? 'Yes' : 'No'}`;
-  }
-
-  const ramInfo = document.getElementById('setup-ram-info');
-  const ramHeadroom = document.getElementById('setup-ram-headroom');
-  if (ramInfo && hw.memory) {
-    ramInfo.textContent = `${hw.memory.total_gb || 0} GB RAM (${hw.memory.available_gb || 0} GB Free)`;
-    ramHeadroom.textContent = `Safe AI Headroom: ${(hw.memory.safe_model_headroom_mb || 0).toFixed(0)} MB`;
-  }
-
-  const gpuInfo = document.getElementById('setup-gpu-info');
-  const gpuVram = document.getElementById('setup-gpu-vram');
-  if (gpuInfo && hw.gpu) {
-    gpuInfo.textContent = hw.gpu.device_name || 'No Dedicated GPU';
-    gpuVram.textContent = hw.gpu.present ? `${hw.gpu.total_vram_gb || 0} GB VRAM • ${hw.gpu.compute_api}` : 'CPU Multithreaded Fallback';
-  }
-
-  const diskInfo = document.getElementById('setup-disk-info');
-  const diskFree = document.getElementById('setup-disk-free');
-  if (diskInfo && hw.storage) {
-    diskInfo.textContent = `${hw.storage.available_gb || 0} GB Free`;
-    diskFree.textContent = `Target: ${hw.storage.target_path || '/'}`;
-  }
-
-  // 2. Recommended Model Card
-  const recName = document.getElementById('setup-rec-name');
-  const recReason = document.getElementById('setup-rec-reason');
-  const recSize = document.getElementById('setup-rec-size');
-  const recTier = document.getElementById('setup-rec-tier');
-  const recAccel = document.getElementById('setup-rec-accel-badge');
-  const recConfigHint = document.getElementById('setup-rec-config-hint');
-  const btnInstallRec = document.getElementById('setup-btn-install-rec');
-
-  if (recName) recName.textContent = rec.name || 'Deterministic Rule Engine';
-  if (recReason) recReason.textContent = rec.reason || 'Optimal offline Linux diagnostic engine.';
-  if (recSize) recSize.textContent = rec.size_mb ? `~${rec.size_mb} MB` : '0 MB';
-  if (recTier) recTier.textContent = rec.tier || 'Tier 0';
-  if (recAccel) recAccel.textContent = rec.acceleration || 'Zero Memory Footprint';
-  if (recConfigHint) {
-    recConfigHint.textContent = `Config: ${cfg.recommended_threads || 4} threads, ${cfg.recommended_ctx_size || 2048} ctx size`;
-  }
-
-  if (btnInstallRec) {
-    if (rec.model_key && installed[rec.model_key] && installed[rec.model_key].is_downloaded) {
-      btnInstallRec.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Active &amp; Ready</span>`;
-      btnInstallRec.className = 'btn btn-secondary px-5 py-2 text-xs font-semibold flex items-center space-x-2 text-emerald-400 border-emerald-500/30';
-    } else if (!rec.download_required) {
-      btnInstallRec.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>Activate Deterministic</span>`;
-      btnInstallRec.className = 'btn btn-primary px-5 py-2 text-xs font-semibold flex items-center space-x-2';
-    } else {
-      btnInstallRec.innerHTML = `<i data-lucide="download" class="w-4 h-4"></i><span>1-Click Install &amp; Activate</span>`;
-      btnInstallRec.className = 'btn btn-primary px-5 py-2 text-xs font-semibold flex items-center space-x-2 shadow-md shadow-cyan-500/10';
+// THEME MANAGER
+// ==========================================================================
+const ThemeManager = {
+  init() {
+    const saved = localStorage.getItem('ops-theme') || 'cyan';
+    this.setTheme(saved, true);
+  },
+  setTheme(name, silent = false) {
+    document.documentElement.setAttribute('data-theme', name);
+    const sel = document.getElementById('theme-selector');
+    if (sel) sel.value = name;
+    localStorage.setItem('ops-theme', name);
+    if (!silent) {
+      SoundFX.play('click');
+      showToast(`Theme switched to ${name.toUpperCase()}`, 'info', 1500);
     }
   }
+};
 
-  // 3. Status text
-  const statusText = document.getElementById('setup-active-status-text');
-  if (statusText) {
-    const mode = cfg.provider || 'auto';
-    const model = cfg.active_model_key ? `Model: ${cfg.active_model_key}` : 'Deterministic Engine';
-    statusText.textContent = `Current Mode: ${mode.toUpperCase()} (${model}) • Setup: ${data.setup_completed ? 'Configured' : 'First-Run Pending'}`;
-  }
-
-  // 4. Populate Full Catalog list
-  renderCatalogList(catalog, installed);
-
-  if (window.lucide) lucide.createIcons();
-}
-
-function renderCatalogList(catalog, installed) {
-  const container = document.getElementById('catalog-list-container');
-  if (!container) return;
-  container.innerHTML = '';
-
-  Object.entries(catalog).forEach(([key, info]) => {
-    const isDl = installed[key] && installed[key].is_downloaded;
-    const sizeMb = (info.size_bytes / (1024 * 1024)).toFixed(0);
-    const item = document.createElement('div');
-    item.className = 'p-3 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-between space-x-3 text-xs';
-    
-    item.innerHTML = `
-      <div class="space-y-0.5 min-w-0">
-        <div class="flex items-center space-x-2">
-          <span class="font-semibold text-white truncate">${escapeHtml(info.name)}</span>
-          <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-white/10 text-zinc-400">${escapeHtml(info.tier)}</span>
-          ${isDl ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-300">Installed</span>' : ''}
-        </div>
-        <p class="text-[11px] text-zinc-400 truncate">${escapeHtml(info.description)}</p>
-        <div class="text-[10px] font-mono text-zinc-500">
-          Size: ~${sizeMb} MB • RAM required: ${info.ram_required_mb} MB • Min cores: ${info.min_cores}
-        </div>
-      </div>
-      <div class="shrink-0">
-        ${isDl 
-          ? `<button onclick="applySetupMode('gguf', '${key}')" class="btn btn-secondary px-3 py-1 text-xs text-emerald-300">Activate</button>`
-          : `<button onclick="downloadCatalogModel('${key}')" class="btn btn-primary px-3 py-1 text-xs flex items-center space-x-1">
-              <i data-lucide="download" class="w-3.5 h-3.5"></i>
-              <span>Install</span>
-            </button>`
-        }
-      </div>
-    `;
-    container.appendChild(item);
-  });
-}
-
-function toggleModelCatalogList() {
-  const container = document.getElementById('catalog-list-container');
-  const chevron = document.getElementById('catalog-chevron');
-  if (container) {
-    const isHidden = container.classList.contains('hidden');
-    if (isHidden) {
-      container.classList.remove('hidden');
-      if (chevron) chevron.style.transform = 'rotate(180deg)';
-    } else {
-      container.classList.add('hidden');
-      if (chevron) chevron.style.transform = 'rotate(0deg)';
+// ==========================================================================
+// SYNTHETIC AUDIO FEEDBACK (WEB AUDIO API)
+// ==========================================================================
+const SoundFX = {
+  ctx: null,
+  enabled: true,
+  init() {
+    const saved = localStorage.getItem('ops-sound');
+    this.enabled = saved !== 'false';
+    this.updateIcon();
+  },
+  toggle() {
+    this.enabled = !this.enabled;
+    localStorage.setItem('ops-sound', String(this.enabled));
+    this.updateIcon();
+    if (this.enabled) this.play('click');
+    showToast(`Audio FX ${this.enabled ? 'Enabled' : 'Muted'}`, 'info', 1500);
+  },
+  updateIcon() {
+    const icon = document.getElementById('sound-icon');
+    if (icon) {
+      icon.setAttribute('data-lucide', this.enabled ? 'volume-2' : 'volume-x');
+      icon.className = `w-3.5 h-3.5 ${this.enabled ? 'text-cyan-400' : 'text-zinc-600'}`;
+      if (window.lucide) lucide.createIcons();
     }
+  },
+  _getCtx() {
+    if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+    return this.ctx;
+  },
+  play(type) {
+    if (!this.enabled) return;
+    try {
+      const ctx = this._getCtx();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(500, now + 0.035);
+        gain.gain.setValueAtTime(0.04, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+        osc.start(now);
+        osc.stop(now + 0.035);
+      } else if (type === 'mic-start') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'mic-stop') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'success') {
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(freq, now + i * 0.06);
+          g.gain.setValueAtTime(0.05, now + i * 0.06);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.06 + 0.2);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(now + i * 0.06);
+          o.stop(now + i * 0.06 + 0.2);
+        });
+      } else if (type === 'warning') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.linearRampToValueAtTime(200, now + 0.15);
+        gain.gain.setValueAtTime(0.04, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'error') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(160, now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+    } catch (e) {}
   }
-}
+};
 
-async function installRecommendedModel() {
-  if (!currentSetupData) return;
-  const rec = currentSetupData.recommended_model;
-  if (!rec) return;
+// ==========================================================================
+// LIVE HEADER SPARKLINE MANAGER
+// ==========================================================================
+const SparklineManager = {
+  cpuBuffer: Array(14).fill(0),
+  ramBuffer: Array(14).fill(0),
+  init() {
+    this.draw('sparkline-cpu', this.cpuBuffer, '#06b6d4');
+    this.draw('sparkline-ram', this.ramBuffer, '#10b981');
+  },
+  pushCPU(pct) {
+    this.cpuBuffer.push(pct);
+    if (this.cpuBuffer.length > 14) this.cpuBuffer.shift();
+    this.draw('sparkline-cpu', this.cpuBuffer, '#06b6d4');
+    const el = document.getElementById('spark-cpu-val');
+    if (el) el.textContent = Math.round(pct) + '%';
+  },
+  pushRAM(pct) {
+    this.ramBuffer.push(pct);
+    if (this.ramBuffer.length > 14) this.ramBuffer.shift();
+    this.draw('sparkline-ram', this.ramBuffer, '#10b981');
+    const el = document.getElementById('spark-ram-val');
+    if (el) el.textContent = Math.round(pct) + '%';
+  },
+  draw(canvasId, buffer, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    if (buffer.length < 2) return;
 
-  if (!rec.download_required || !rec.model_key) {
-    // Deterministic mode
-    await applySetupMode('deterministic');
-    return;
-  }
-
-  const mkey = rec.model_key;
-  await downloadCatalogModel(mkey);
-}
-
-async function downloadCatalogModel(modelKey) {
-  const progressBox = document.getElementById('setup-download-container');
-  const modelNameEl = document.getElementById('setup-download-model-name');
-  if (progressBox) progressBox.classList.remove('hidden');
-  if (modelNameEl) modelNameEl.textContent = `Downloading ${modelKey}...`;
-
-  try {
-    const res = await fetch('/api/models/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model_key: modelKey, force: false })
+    ctx.beginPath();
+    const step = W / (buffer.length - 1);
+    buffer.forEach((v, i) => {
+      const y = H - (Math.min(100, Math.max(0, v)) / 100) * (H - 3) - 1.5;
+      const x = i * step;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
-    const data = await res.json();
-    if (!data.success && data.status !== 'already_downloading') {
-      showToast('Download failed to start: ' + (data.error || 'Unknown error'), 'error');
-      if (progressBox) progressBox.classList.add('hidden');
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+};
+
+// ==========================================================================
+// LEFT COLLAPSIBLE HISTORY SIDEBAR
+// ==========================================================================
+const HistorySidebar = {
+  sessions: [],
+  init() {
+    const savedState = localStorage.getItem('ops-sidebar');
+    if (savedState === 'collapsed') {
+      const sb = document.getElementById('sidebar-history');
+      if (sb) sb.classList.add('collapsed');
+      document.body.classList.add('sidebar-collapsed');
+    }
+    this.loadSessions();
+  },
+  toggle() {
+    const sb = document.getElementById('sidebar-history');
+    if (!sb) return;
+    sb.classList.toggle('collapsed');
+    const isCollapsed = sb.classList.contains('collapsed');
+    document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+    localStorage.setItem('ops-sidebar', isCollapsed ? 'collapsed' : 'expanded');
+    SoundFX.play('click');
+    if (window.lucide) lucide.createIcons();
+  },
+  newChat() {
+    SoundFX.play('click');
+    switchTab('home');
+    CommandCenter.clearTranscript();
+    const inp = document.getElementById('cc-text-input');
+    if (inp) inp.focus();
+    MascotManager.setMood('OBSERVING', 'New session started. Ready for sysadmin operations.');
+    showToast('New session started', 'info', 1500);
+  },
+  saveSession(session) {
+    this.sessions = [session, ...this.sessions.filter(s => s.id !== session.id)].slice(0, 30);
+    localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
+    this.renderList();
+  },
+  loadSessions() {
+    try {
+      const raw = localStorage.getItem('cc-history-sessions');
+      this.sessions = raw ? JSON.parse(raw) : [];
+    } catch (e) { this.sessions = []; }
+    this.renderList();
+  },
+  deleteSession(id, e) {
+    if (e) e.stopPropagation();
+    this.sessions = this.sessions.filter(s => s.id !== id);
+    localStorage.setItem('cc-history-sessions', JSON.stringify(this.sessions));
+    this.renderList();
+    SoundFX.play('click');
+  },
+  clearAll() {
+    if (confirm('Clear all recent chat history?')) {
+      this.sessions = [];
+      localStorage.removeItem('cc-history-sessions');
+      this.renderList();
+      SoundFX.play('click');
+      showToast('Chat history cleared', 'info', 2000);
+    }
+  },
+  filter(query) {
+    const q = (query || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.history-item');
+    items.forEach(el => {
+      const title = (el.dataset.title || '').toLowerCase();
+      el.classList.toggle('hidden', !title.includes(q));
+    });
+  },
+  renderList() {
+    const list = document.getElementById('history-sessions-list');
+    if (!list) return;
+    if (!this.sessions.length) {
+      list.innerHTML = `<p class="text-[11px] text-zinc-600 text-center py-6 font-mono">No previous sessions</p>`;
       return;
     }
-
-    showToast(`Download started for ${modelKey}...`, 'info');
-    startProgressPolling(modelKey);
-  } catch (e) {
-    showToast('Download error: ' + e.message, 'error');
-    if (progressBox) progressBox.classList.add('hidden');
+    list.innerHTML = this.sessions.map(s => {
+      const timeStr = this._relativeTime(s.timestamp);
+      return `
+        <div class="history-item" data-id="${escapeHtml(s.id)}" data-title="${escapeHtml(s.title)}" onclick="HistorySidebar.selectSession('${escapeHtml(s.id)}', '${escapeHtml(s.title)}')">
+          <div class="flex items-center space-x-2 min-w-0 flex-1">
+            <i data-lucide="message-square" class="w-3.5 h-3.5 text-zinc-500 shrink-0"></i>
+            <span class="truncate font-medium">${escapeHtml(s.title)}</span>
+          </div>
+          <div class="flex items-center space-x-1 shrink-0 ml-2">
+            <span class="text-[9px] text-zinc-600 font-mono">${timeStr}</span>
+            <button onclick="HistorySidebar.deleteSession('${escapeHtml(s.id)}', event)" class="text-zinc-600 hover:text-rose-400 p-0.5 rounded transition" title="Delete">
+              <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+  },
+  selectSession(id, title) {
+    SoundFX.play('click');
+    switchTab('home');
+    const inp = document.getElementById('cc-text-input');
+    if (inp) { inp.value = title; }
+    showToast(`Loaded query: "${title}"`, 'info', 2000);
+  },
+  _relativeTime(ts) {
+    if (!ts) return '';
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
   }
+};
+
+// ==========================================================================
+// DYNAMIC MASCOT AVATAR & TYPEWRITER SPEECH BUBBLE
+// ==========================================================================
+const MascotManager = {
+  avatars: [
+    {
+      id: 'l',
+      name: 'L (Death Note)',
+      img: '/static/assets/mascot_l.jpg',
+      mood: 'OBSERVING',
+      pillClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+      quotes: [
+        'Observing system telemetry... zero anomalous causal loops detected.',
+        'Analyzing kernel signatures and process hierarchy.',
+        'Topological DAG ready for sub-50ms root cause isolation.'
+      ]
+    },
+    {
+      id: 'tux',
+      name: 'Tux (Linux Penguin)',
+      img: '/static/assets/mascot_tux.svg',
+      mood: 'NOMINAL',
+      pillClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      quotes: [
+        'Kernel PSI pressure is nominal. Systemd units operational.',
+        'Filesystem mounts verified. Inodes healthy.',
+        'Ready for elevated sysadmin diagnostics.'
+      ]
+    },
+    {
+      id: 'cyber',
+      name: 'Cyber Hacker Anime',
+      img: '/static/assets/mascot_cyber.svg',
+      mood: 'STANDBY',
+      pillClass: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      quotes: [
+        'AST safety guardrails primed. Sandboxed execution enabled.',
+        'Listening sockets & firewall tables indexed.',
+        'Air-gapped local LLM provider standby.'
+      ]
+    },
+    {
+      id: 'matrix',
+      name: 'Matrix Terminal Tux',
+      img: '/static/assets/mascot_matrix.svg',
+      mood: 'SYNCED',
+      pillClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      quotes: [
+        'Sub-50ms deterministic triage active.',
+        'System call tracing enabled via procfs and dmesg.',
+        'All 16 failure taxonomy classifiers loaded.'
+      ]
+    }
+  ],
+  currentIndex: 0,
+  typewriterTimer: null,
+  init() {
+    // Pick random mascot on page load / visit!
+    this.currentIndex = Math.floor(Math.random() * this.avatars.length);
+    this.applyAvatar(false);
+  },
+  cycle() {
+    SoundFX.play('click');
+    const btn = document.getElementById('mascot-avatar-btn');
+    if (btn) {
+      btn.classList.add('flip');
+      setTimeout(() => btn.classList.remove('flip'), 500);
+    }
+    this.currentIndex = (this.currentIndex + 1) % this.avatars.length;
+    this.applyAvatar(true);
+  },
+  applyAvatar(isCycle = false) {
+    const cur = this.avatars[this.currentIndex];
+    const img = document.getElementById('mascot-avatar-img');
+    const moodText = document.getElementById('mascot-mood-text');
+    const moodPill = document.getElementById('mascot-mood-pill');
+
+    if (img) img.src = cur.img;
+    if (moodText) moodText.textContent = `${cur.name.split(' ')[0].toUpperCase()} • ${cur.mood}`;
+    if (moodPill) moodPill.className = `mascot-mood-pill ${cur.pillClass} font-mono`;
+
+    const randomQuote = cur.quotes[Math.floor(Math.random() * cur.quotes.length)];
+    this.typewrite(randomQuote);
+    if (isCycle) showToast(`Switched avatar to ${cur.name}`, 'info', 1500);
+  },
+  setMood(mood, text) {
+    const cur = this.avatars[this.currentIndex];
+    const moodText = document.getElementById('mascot-mood-text');
+    const moodPill = document.getElementById('mascot-mood-pill');
+    
+    let pillClass = 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+    if (mood === 'THINKING') {
+      pillClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    } else if (mood === 'GATED') {
+      pillClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+    } else if (mood === 'SUCCESS') {
+      pillClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    }
+
+    if (moodText) moodText.textContent = `${cur.name.split(' ')[0].toUpperCase()} • ${mood}`;
+    if (moodPill) moodPill.className = `mascot-mood-pill ${pillClass} font-mono`;
+    if (text) this.typewrite(text);
+  },
+  typewrite(text) {
+    const el = document.getElementById('mascot-speech-text');
+    if (!el) return;
+    if (this.typewriterTimer) clearInterval(this.typewriterTimer);
+    el.textContent = '';
+    let i = 0;
+    this.typewriterTimer = setInterval(() => {
+      if (i < text.length) {
+        el.textContent += text.charAt(i);
+        i++;
+      } else {
+        clearInterval(this.typewriterTimer);
+        this.typewriterTimer = null;
+      }
+    }, 16);
+  }
+};
+
+// ==========================================================================
+// BOTTOM 4-CATEGORY CAPABILITY ACTION BAR
+// ==========================================================================
+const CapabilityManager = {
+  categories: {
+    explore: [
+      { label: '📁 Explore ~/Downloads', cmd: 'Explore the ~/Downloads folder and list recent items' },
+      { label: '🔍 Find Space Hogs >100MB', cmd: 'Find all files larger than 100MB across root filesystem' },
+      { label: '🌐 Check Open Ports', cmd: 'List all listening TCP and UDP ports and sockets' },
+      { label: '⚙️ List Active Services', cmd: 'List all running systemd services and units' },
+      { label: '💾 Check Disk Partitions', cmd: 'Show all mounted filesystems and available disk space' }
+    ],
+    optimize: [
+      { label: '🧹 Vacuum System Journal', cmd: 'Vacuum journalctl logs older than 7 days' },
+      { label: '📦 Clear Package Cache', cmd: 'Clean apt package cache and obsolete archives' },
+      { label: '💽 Trim SSD Partitions', cmd: 'Run fstrim to trim all mounted SSD filesystems' },
+      { label: '⚡ Free Memory Buffers', cmd: 'Inspect RAM buffers and compact memory' },
+      { label: '🔄 Audit Zombie Processes', cmd: 'Find and clean orphaned or zombie processes' }
+    ],
+    monitor: [
+      { label: '📊 System Health & PSI', cmd: 'Inspect system health, CPU PSI, and memory pressure' },
+      { label: '🔥 Top CPU Processes', cmd: 'Show top 10 CPU-consuming processes right now' },
+      { label: '🧠 Memory Leak Audit', cmd: 'Audit top memory consumers and inspect potential leaks' },
+      { label: '🔬 Inspect Disk I/O Wait', cmd: 'Why is disk I/O spiking or waiting?' },
+      { label: '🛡️ Audit Failed Units', cmd: 'Diagnose any failed systemd services or units' }
+    ],
+    launch: [
+      { label: '🌐 Launch Web Browser', cmd: 'Launch default browser' },
+      { label: '💻 Open Linux Terminal', cmd: 'Open terminal emulator' },
+      { label: '🛡️ Audit SSH Security', cmd: 'Audit SSH configuration and detect brute-force attempts' },
+      { label: '🔧 Restart NGINX Service', cmd: 'Restart the nginx service gracefully' },
+      { label: '📈 Analyze System Boot Time', cmd: 'Analyze system boot time using systemd-analyze' }
+    ]
+  },
+  currentCategory: 'explore',
+  init() {
+    this.renderChips();
+  },
+  switchCategory(cat) {
+    this.currentCategory = cat;
+    SoundFX.play('click');
+    document.querySelectorAll('.capability-cat-btn').forEach(btn => btn.classList.remove('active'));
+    const tabBtn = document.getElementById('cap-tab-' + cat);
+    if (tabBtn) tabBtn.classList.add('active');
+    this.renderChips();
+  },
+  renderChips() {
+    const grid = document.getElementById('capability-chips-grid');
+    if (!grid) return;
+    const chips = this.categories[this.currentCategory] || [];
+    grid.innerHTML = chips.map(c => `
+      <button class="capability-chip" onclick="CapabilityManager.dispatch('${escapeHtml(c.cmd)}')">
+        <span>${escapeHtml(c.label)}</span>
+      </button>
+    `).join('');
+  },
+  dispatch(cmd) {
+    SoundFX.play('click');
+    switchTab('home');
+    const inp = document.getElementById('cc-text-input');
+    if (inp) inp.value = cmd;
+    CommandCenter.submitCommand(cmd);
+  }
+};
+
+// ==========================================================================
+// SPOTLIGHT COMMAND PALETTE (CTRL+K)
+// ==========================================================================
+const CommandPalette = {
+  isOpen: false,
+  actions: [
+    { title: '🤖 Switch to AI Ops Agent', category: 'Navigation', icon: 'bot', action: () => switchTab('home') },
+    { title: '📊 View Health & PSI Telemetry', category: 'Navigation', icon: 'activity', action: () => switchTab('health') },
+    { title: '⚙️ Manage Services & Processes', category: 'Navigation', icon: 'cpu', action: () => switchTab('services') },
+    { title: '💾 Storage & Disk Cleanup', category: 'Navigation', icon: 'hard-drive', action: () => switchTab('storage') },
+    { title: '🌐 Network & Firewall Inspection', category: 'Navigation', icon: 'network', action: () => switchTab('network') },
+    { title: '🛡️ 16-Class Taxonomy Playground', category: 'Navigation', icon: 'shield-alert', action: () => switchTab('taxonomy') },
+    { title: '📦 Manage Packages', category: 'Navigation', icon: 'package', action: () => switchTab('packages') },
+    { title: '💻 Desktop App Launcher', category: 'Navigation', icon: 'terminal', action: () => switchTab('desktop') },
+    { title: '➕ Start New Chat Session', category: 'Chat', icon: 'plus', action: () => HistorySidebar.newChat() },
+    { title: '🎤 Switch to Voice Input Mode', category: 'Input', icon: 'mic', action: () => { switchTab('home'); CommandCenter.setMode('voice'); } },
+    { title: '⌨️ Switch to Text Input Mode', category: 'Input', icon: 'type', action: () => { switchTab('home'); CommandCenter.setMode('text'); } },
+    { title: '🎨 Theme: Neon Cyan', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('cyan') },
+    { title: '🎨 Theme: Matrix Emerald', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('emerald') },
+    { title: '🎨 Theme: Tokyo Purple', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('purple') },
+    { title: '🎨 Theme: Sunset Amber', category: 'Theme', icon: 'palette', action: () => ThemeManager.setTheme('amber') },
+    { title: '🔊 Toggle Audio FX Feedback', category: 'Audio', icon: 'volume-2', action: () => SoundFX.toggle() }
+  ],
+  init() {
+    this.renderList(this.actions);
+  },
+  open() {
+    this.isOpen = true;
+    SoundFX.play('click');
+    const modal = document.getElementById('modal-command-palette');
+    if (modal) modal.classList.remove('hidden');
+    const inp = document.getElementById('palette-search-input');
+    if (inp) {
+      inp.value = '';
+      inp.focus();
+    }
+    this.renderList(this.actions);
+  },
+  close() {
+    this.isOpen = false;
+    const modal = document.getElementById('modal-command-palette');
+    if (modal) modal.classList.add('hidden');
+  },
+  filter(query) {
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+      this.renderList(this.actions);
+      return;
+    }
+    const filtered = this.actions.filter(a =>
+      a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
+    );
+    this.renderList(filtered);
+  },
+  renderList(items) {
+    const res = document.getElementById('palette-results');
+    if (!res) return;
+    if (!items.length) {
+      res.innerHTML = `<p class="text-xs text-zinc-500 text-center py-6 font-mono">No matching commands found</p>`;
+      return;
+    }
+    res.innerHTML = items.map((item, idx) => `
+      <div class="palette-item" onclick="CommandPalette.exec(${idx})">
+        <div class="flex items-center space-x-2.5">
+          <i data-lucide="${item.icon}" class="w-4 h-4 text-cyan-400"></i>
+          <span class="font-medium text-xs">${escapeHtml(item.title)}</span>
+        </div>
+        <span class="text-[10px] font-mono uppercase text-zinc-500 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">${escapeHtml(item.category)}</span>
+      </div>
+    `).join('');
+    this._currentItems = items;
+    if (window.lucide) lucide.createIcons();
+  },
+  exec(idx) {
+    if (this._currentItems && this._currentItems[idx]) {
+      const item = this._currentItems[idx];
+      this.close();
+      item.action();
+    }
+  }
+};
+
+// ==========================================================================
+// COMMAND CENTER — Voice + Text Input, SSE Reasoning Panel
+// ==========================================================================
+function ccToggleStage(headerBtn) {
+  const stage = headerBtn.closest('.cc-stage');
+  if (stage) stage.classList.toggle('collapsed');
+  SoundFX.play('click');
 }
 
-function startProgressPolling(modelKey) {
-  if (downloadPollInterval) clearInterval(downloadPollInterval);
+const CommandCenter = (function () {
 
-  const progressBox = document.getElementById('setup-download-container');
-  const progressBar = document.getElementById('setup-download-progress-bar');
-  const pctEl = document.getElementById('setup-download-pct');
-  const bytesEl = document.getElementById('setup-download-bytes');
-  const speedEl = document.getElementById('setup-download-speed');
-  const statusEl = document.getElementById('setup-download-status');
+  const INTENT_HINTS = [
+    'Restart the nginx service',
+    'Show memory usage',
+    'Why is disk I/O spiking?',
+    'List listening ports',
+    'Audit SSH security',
+    'Find files larger than 100MB',
+    'Show top CPU processes',
+    'Check disk space',
+    'Tail the system journal',
+    'Flush DNS cache',
+    'List running Docker containers',
+    'Show boot time analysis',
+  ];
 
-  downloadPollInterval = setInterval(async () => {
+  const PLACEHOLDERS = [
+    'Restart the nginx service...',
+    'Show me memory usage for the last hour...',
+    'Why is disk I/O spiking?',
+    'List all listening ports...',
+    'Audit SSH security configuration...',
+    'Find files larger than 100 MB...',
+    'Show top CPU-consuming processes...',
+    'Check available disk space...',
+  ];
+
+  const state = {
+    mode: 'text',
+    sessionId: null,
+    sseSource: null,
+    isListening: false,
+    finalTranscript: '',
+    interimTranscript: '',
+    recognition: null,
+    audioCtx: null,
+    analyser: null,
+    animFrameId: null,
+    micStream: null,
+    commandHistory: [],
+    cards: new Map(),
+    placeholderIdx: 0,
+    placeholderTimer: null,
+  };
+
+  // ── Public: init ──────────────────────────────────────────────────────────
+  function init() {
+    _loadHistory();
+    const savedMode = _storageGet('cc-mode') || 'text';
+    setMode(savedMode, true);
+    _bindTextInput();
+    _checkVoiceSupport();
+    _startPlaceholderRotation();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ── Public: setMode ────────────────────────────────────────────────────────
+  function setMode(mode, silent) {
+    state.mode = mode;
+    if (!silent) {
+      _storageSet('cc-mode', mode);
+      SoundFX.play('click');
+    }
+
+    const textBtn  = document.getElementById('cc-btn-text');
+    const voiceBtn = document.getElementById('cc-btn-voice');
+    const textPanel  = document.getElementById('cc-text-panel');
+    const voicePanel = document.getElementById('cc-voice-panel');
+
+    if (textBtn)  { textBtn.classList.toggle('active', mode === 'text'); textBtn.setAttribute('aria-pressed', String(mode === 'text')); }
+    if (voiceBtn) { voiceBtn.classList.toggle('active', mode === 'voice'); voiceBtn.setAttribute('aria-pressed', String(mode === 'voice')); }
+    if (textPanel)  textPanel.classList.toggle('hidden', mode !== 'text');
+    if (voicePanel) voicePanel.classList.toggle('hidden', mode !== 'voice');
+
+    if (mode !== 'voice' && state.isListening) _stopListening(false);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ── Public: submitCommand ─────────────────────────────────────────────────
+  async function submitCommand(text) {
+    text = (text || '').trim();
+    if (!text) return;
+
+    SoundFX.play('click');
+    MascotManager.setMood('THINKING', `Analyzing: "${text}"...`);
+
+    state.commandHistory = [text, ...state.commandHistory.filter(h => h !== text)].slice(0, 20);
+    _storageSet('cc-history', JSON.stringify(state.commandHistory));
+
+    const transcript = document.getElementById('cc-transcript');
+    if (transcript) {
+      const empty = transcript.querySelector('.cc-empty-state');
+      if (empty) empty.remove();
+    }
+
+    const tempId = 'tmp-' + Date.now();
+    const card = _createCard(tempId, text);
+    if (transcript) {
+      transcript.prepend(card);
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (window.lucide) lucide.createIcons();
+
+    const inp = document.getElementById('cc-text-input');
+    if (inp) { inp.value = ''; inp.style.height = 'auto'; }
+
     try {
-      const res = await fetch('/api/models/download/progress');
+      _setStage(card, 'understanding', 'loading');
+
+      const res = await fetch('/api/command/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error('Interpret failed: HTTP ' + res.status);
       const data = await res.json();
-      const downloads = data.downloads || {};
-      const prog = downloads[modelKey];
 
-      if (!prog) return;
+      const sid = data.session_id;
+      state.sessionId = sid;
+      card.dataset.sessionId = sid;
+      state.cards.set(sid, card);
 
-      const pct = prog.percent || 0.0;
-      const dlMb = ((prog.downloaded_bytes || 0) / (1024 * 1024)).toFixed(1);
-      const totMb = ((prog.total_bytes || 0) / (1024 * 1024)).toFixed(1);
-      const speed = prog.speed_mbps || 0.0;
+      // Save to Left Sidebar History
+      HistorySidebar.saveSession({
+        id: sid,
+        title: text,
+        timestamp: Date.now(),
+        safety_level: data.safety_level
+      });
 
-      if (progressBar) progressBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-      if (pctEl) pctEl.textContent = `${pct.toFixed(1)}%`;
-      if (bytesEl) bytesEl.textContent = `${dlMb} / ${totMb} MB`;
-      if (speedEl) speedEl.textContent = `${speed.toFixed(1)} MB/s`;
+      _updateUnderstanding(card, data.understanding);
+      _setStage(card, 'understanding', 'done');
+      _renderPlanSteps(card, data.plan_steps || []);
 
-      if (prog.status === 'completed') {
-        clearInterval(downloadPollInterval);
-        downloadPollInterval = null;
-        if (statusEl) statusEl.textContent = '✓ Download Completed!';
-        showToast(`Model ${modelKey} downloaded and verified successfully!`, 'success');
-        
-        // Auto-apply setup with the downloaded model
-        await applySetupMode('gguf', modelKey);
-        
-        setTimeout(() => {
-          if (progressBox) progressBox.classList.add('hidden');
-          openSetupWizard();
-        }, 1200);
-      } else if (prog.status === 'failed') {
-        clearInterval(downloadPollInterval);
-        downloadPollInterval = null;
-        if (statusEl) statusEl.textContent = '❌ Download Failed';
-        showToast(`Download failed: ${prog.error}`, 'error');
+      if (data.requires_confirmation) {
+        _setStage(card, 'plan', 'active');
+        _showConfirmUI(card, sid, data.safety_level, data.plan_steps || []);
+        MascotManager.setMood('GATED', 'Safety check: Confirmation required before execution.');
+        SoundFX.play('warning');
+      } else {
+        _setStage(card, 'plan', 'active');
+        _openSSEStream(sid);
+        await _executeCommand(sid, false);
+      }
+    } catch (err) {
+      _setCardError(card, err.message || 'Unknown error');
+      MascotManager.setMood('GATED', 'Command interpretation failed.');
+      SoundFX.play('error');
+    }
+  }
+
+  // ── Public: clearTranscript ───────────────────────────────────────────────
+  function clearTranscript() {
+    const t = document.getElementById('cc-transcript');
+    if (!t) return;
+    t.innerHTML = `
+      <div class="cc-empty-state">
+        <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-cyan-500/10">
+          <i data-lucide="sparkles" class="w-6 h-6 text-cyan-400"></i>
+        </div>
+        <p class="text-sm font-semibold text-zinc-200 mb-1">Linux Operations Copilot Ready</p>
+        <p class="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
+          Enter any query below or tap the microphone to speak. Every operation produces an Explainable AI <strong class="text-cyan-400">Understanding &rarr; Plan &rarr; Result</strong> trace with safety guardrails.
+        </p>
+      </div>`;
+    state.cards.clear();
+    SoundFX.play('click');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ── Private: text input ───────────────────────────────────────────────────
+  function _bindTextInput() {
+    const inp  = document.getElementById('cc-text-input');
+    const send = document.getElementById('cc-send-btn');
+    if (!inp) return;
+
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const v = inp.value.trim();
+        if (v) submitCommand(v);
+      }
+    });
+
+    inp.addEventListener('input', () => {
+      inp.style.height = 'auto';
+      inp.style.height = Math.min(inp.scrollHeight, 160) + 'px';
+    });
+
+    if (send) send.addEventListener('click', () => { const v = inp.value.trim(); if (v) submitCommand(v); });
+  }
+
+  function _startPlaceholderRotation() {
+    if (state.placeholderTimer) return;
+    state.placeholderTimer = setInterval(() => {
+      const inp = document.getElementById('cc-text-input');
+      if (inp && document.activeElement !== inp) {
+        inp.placeholder = PLACEHOLDERS[state.placeholderIdx % PLACEHOLDERS.length];
+        state.placeholderIdx++;
+      }
+    }, 4000);
+  }
+
+  // ── Private: voice support ────────────────────────────────────────────────
+  function _checkVoiceSupport() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      _showFallback('Your browser does not support the Web Speech API. Using Text mode.');
+      const vBtn = document.getElementById('cc-btn-voice');
+      if (vBtn) vBtn.disabled = true;
+      return;
+    }
+    _initVoice(SpeechRec);
+  }
+
+  function _showFallback(msg) {
+    const banner = document.getElementById('cc-voice-fallback');
+    const msgEl  = document.getElementById('cc-voice-fallback-msg');
+    if (banner) banner.classList.remove('hidden');
+    if (msgEl)  msgEl.textContent = msg;
+  }
+
+  function _initVoice(SpeechRec) {
+    const rec = new SpeechRec();
+    rec.continuous     = true;
+    rec.interimResults = true;
+    rec.lang           = navigator.language || 'en-US';
+
+    rec.onresult = evt => {
+      let interim = '', final = '';
+      for (let i = evt.resultIndex; i < evt.results.length; i++) {
+        const t = evt.results[i][0].transcript;
+        if (evt.results[i].isFinal) final += t; else interim += t;
+      }
+      if (final) state.finalTranscript += final;
+      state.interimTranscript = interim;
+      const preview = document.getElementById('cc-voice-preview');
+      const txt = state.finalTranscript + interim;
+      if (preview) { preview.textContent = txt; preview.classList.toggle('hidden', !txt); preview.classList.toggle('active', state.isListening); }
+    };
+
+    rec.onerror = evt => {
+      if (evt.error === 'not-allowed') {
+        _showFallback('Microphone access denied. Please allow mic permission in your browser.');
+        _stopListening(false); setMode('text');
+      } else {
+        showToast('Speech recognition error: ' + evt.error, 'error');
+        _stopListening(false);
+      }
+    };
+
+    rec.onend = () => { if (state.isListening) { try { rec.start(); } catch (e) {} } };
+    state.recognition = rec;
+
+    const micBtn = document.getElementById('cc-mic-btn');
+    if (micBtn) {
+      micBtn.addEventListener('click', () => {
+        if (state.isListening) _stopListening(true); else _startListening();
+      });
+    }
+  }
+
+  function _startListening() {
+    if (!state.recognition) return;
+    SoundFX.play('mic-start');
+    MascotManager.setMood('THINKING', 'Listening to voice query...');
+    state.isListening = true;
+    state.finalTranscript = '';
+    state.interimTranscript = '';
+    const preview = document.getElementById('cc-voice-preview');
+    if (preview) { preview.textContent = ''; preview.classList.add('hidden'); }
+    try { state.recognition.start(); } catch (e) {}
+    _setMicState('recording');
+    _startWaveform();
+  }
+
+  function _stopListening(submit) {
+    SoundFX.play('mic-stop');
+    state.isListening = false;
+    if (state.recognition) { try { state.recognition.stop(); } catch (e) {} }
+    _stopWaveform();
+    _setMicState('idle');
+    if (submit) {
+      const text = state.finalTranscript.trim();
+      state.finalTranscript = ''; state.interimTranscript = '';
+      const preview = document.getElementById('cc-voice-preview');
+      if (preview) preview.classList.add('hidden');
+      if (text) submitCommand(text);
+    }
+  }
+
+  function _setMicState(s) {
+    const btn   = document.getElementById('cc-mic-btn');
+    const label = document.getElementById('cc-mic-label');
+    if (!btn) return;
+    btn.classList.remove('cc-mic-idle', 'cc-mic-recording', 'cc-mic-processing');
+    btn.classList.add('cc-mic-' + s);
+    const icon = btn.querySelector('.cc-mic-icon');
+    if (icon) { icon.setAttribute('data-lucide', s === 'processing' ? 'loader-2' : 'mic'); if (window.lucide) lucide.createIcons(); }
+    const canvas = document.getElementById('cc-waveform-canvas');
+    if (canvas) canvas.classList.toggle('hidden', s !== 'recording');
+    if (label) label.textContent = s === 'recording' ? 'Tap to stop & send' : 'Tap to speak';
+  }
+
+  // ── Private: waveform ─────────────────────────────────────────────────────
+  async function _startWaveform() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx    = new AudioContext();
+      const src    = ctx.createMediaStreamSource(stream);
+      const anlsr  = ctx.createAnalyser();
+      anlsr.fftSize = 64;
+      src.connect(anlsr);
+      state.audioCtx = ctx; state.analyser = anlsr; state.micStream = stream;
+      _drawWaveform();
+    } catch (e) {}
+  }
+
+  function _stopWaveform() {
+    if (state.animFrameId) { cancelAnimationFrame(state.animFrameId); state.animFrameId = null; }
+    if (state.audioCtx)   { state.audioCtx.close(); state.audioCtx = null; state.analyser = null; }
+    if (state.micStream)  { state.micStream.getTracks().forEach(t => t.stop()); state.micStream = null; }
+    const canvas = document.getElementById('cc-waveform-canvas');
+    if (canvas) { const cx = canvas.getContext('2d'); cx.clearRect(0, 0, canvas.width, canvas.height); }
+  }
+
+  function _drawWaveform() {
+    const canvas = document.getElementById('cc-waveform-canvas');
+    if (!canvas || !state.analyser) return;
+    const cx = canvas.getContext('2d');
+    const buf = new Uint8Array(state.analyser.frequencyBinCount);
+    const draw = () => {
+      if (!state.isListening || !state.analyser) return;
+      state.animFrameId = requestAnimationFrame(draw);
+      state.analyser.getByteFrequencyData(buf);
+      const W = canvas.width, H = canvas.height;
+      cx.clearRect(0, 0, W, H);
+      const BARS = 14, barW = (W / BARS) - 1.5;
+      for (let i = 0; i < BARS; i++) {
+        const v = buf[Math.floor(i * buf.length / BARS)] / 255;
+        const h = Math.max(3, v * H);
+        const x = i * (barW + 1.5), y = (H - h) / 2;
+        cx.fillStyle = `rgba(6, 182, 212, ${0.35 + v * 0.65})`;
+        cx.beginPath();
+        if (cx.roundRect) cx.roundRect(x, y, barW, h, 2); else cx.rect(x, y, barW, h);
+        cx.fill();
+      }
+    };
+    draw();
+  }
+
+  // ── Private: execute ──────────────────────────────────────────────────────
+  async function _executeCommand(sid, confirmed) {
+    try {
+      const res = await fetch('/api/command/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sid, confirmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const card = state.cards.get(sid);
+        if (card) _setCardError(card, err.error || 'Execution blocked (HTTP ' + res.status + ')');
       }
     } catch (e) {
-      console.warn('Progress poll error:', e);
+      const card = state.cards.get(sid);
+      if (card) _setCardError(card, 'Network error: ' + e.message);
     }
-  }, 600);
-}
-
-async function applySetupMode(provider, modelKey = null) {
-  try {
-    const body = { provider };
-    if (modelKey) body.model_key = modelKey;
-
-    const res = await fetch('/api/setup/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`Configuration updated: ${provider.toUpperCase()}` + (modelKey ? ` (${modelKey})` : ''), 'success');
-      // Refresh status
-      const statRes = await fetch('/api/setup/status');
-      const statData = await statRes.json();
-      currentSetupData = statData;
-      renderSetupModalData(statData);
-    } else {
-      showToast('Failed to apply configuration: ' + (data.error || 'Unknown error'), 'error');
-    }
-  } catch (e) {
-    showToast('Error applying setup: ' + e.message, 'error');
   }
+
+  // ── Private: SSE stream ───────────────────────────────────────────────────
+  function _openSSEStream(sid) {
+    if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
+    const src = new EventSource('/api/command/stream/' + sid);
+    state.sseSource = src;
+    ['understanding', 'plan_step', 'confirmation_required', 'result', 'error', 'done'].forEach(type => {
+      src.addEventListener(type, e => {
+        try { _handleSSEEvent(sid, type, type === 'done' ? {} : JSON.parse(e.data)); } catch (err) {}
+      });
+    });
+    src.onerror = () => { src.close(); state.sseSource = null; };
+  }
+
+  function _handleSSEEvent(sid, type, data) {
+    const card = state.cards.get(sid);
+    if (!card) return;
+
+    if (type === 'understanding') {
+      _updateUnderstanding(card, data.text || '');
+      _setStage(card, 'understanding', 'done');
+      MascotManager.setMood('THINKING', data.text || 'Planning execution...');
+    } else if (type === 'plan_step') {
+      _upsertPlanStep(card, data);
+      if (data.status === 'running') _setStage(card, 'plan', 'active');
+      if (data.status === 'done' || data.status === 'failed') {
+        const allSteps = [...card.querySelectorAll('.cc-step')];
+        if (allSteps.length && allSteps.every(s => s.dataset.status === 'done' || s.dataset.status === 'failed'))
+          _setStage(card, 'plan', 'done');
+      }
+    } else if (type === 'confirmation_required') {
+      _showConfirmUI(card, sid, data.safety_level, null);
+      MascotManager.setMood('GATED', 'Safety check: Action requires operator confirmation.');
+      SoundFX.play('warning');
+    } else if (type === 'result') {
+      _setStage(card, 'plan', 'done');
+      _setStage(card, 'result', 'active');
+      _updateResult(card, data);
+      _setStage(card, 'result', data.success ? 'done' : 'failed');
+      if (data.success) {
+        MascotManager.setMood('SUCCESS', data.summary || 'Command execution finished successfully.');
+        SoundFX.play('success');
+      } else {
+        MascotManager.setMood('GATED', data.summary || 'Command encountered an error.');
+        SoundFX.play('error');
+      }
+      if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
+    } else if (type === 'error') {
+      _setCardError(card, data.message || 'An error occurred');
+      MascotManager.setMood('GATED', data.message || 'Execution error');
+      SoundFX.play('error');
+      if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
+    } else if (type === 'done') {
+      if (state.sseSource) { state.sseSource.close(); state.sseSource = null; }
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ── Private: card DOM builders ────────────────────────────────────────────
+  function _createCard(tempId, queryText) {
+    const card = document.createElement('div');
+    card.className = 'cc-reasoning-card';
+    card.dataset.sessionId = tempId;
+    card.innerHTML = `
+      <div class="cc-card-header">
+        <div class="flex items-center gap-2 min-w-0">
+          <i data-lucide="user" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
+          <span class="text-xs font-semibold text-zinc-200 truncate">${escapeHtml(queryText)}</span>
+        </div>
+        <span class="text-[10px] text-zinc-500 font-mono shrink-0 ml-2">${new Date().toLocaleTimeString()}</span>
+      </div>
+      <div class="cc-stage active" data-stage="understanding">
+        <button class="cc-stage-header" onclick="ccToggleStage(this)" aria-expanded="true">
+          <div class="flex items-center gap-2">
+            <span class="cc-stage-num">1</span>
+            <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>What I understood</span>
+          </div>
+          <i data-lucide="chevron-down" class="cc-chevron w-3.5 h-3.5"></i>
+        </button>
+        <div class="cc-stage-body">
+          <div class="cc-understanding-text text-zinc-400 italic text-xs flex items-center gap-1.5">
+            <i data-lucide="loader-2" class="w-3 h-3 cc-spin text-cyan-400"></i> Classifying intent and parsing semantics...
+          </div>
+        </div>
+      </div>
+      <div class="cc-stage collapsed" data-stage="plan">
+        <button class="cc-stage-header" onclick="ccToggleStage(this)" aria-expanded="false">
+          <div class="flex items-center gap-2">
+            <span class="cc-stage-num">2</span>
+            <i data-lucide="list-checks" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>What I'm about to do</span>
+          </div>
+          <i data-lucide="chevron-down" class="cc-chevron w-3.5 h-3.5"></i>
+        </button>
+        <div class="cc-stage-body">
+          <div class="cc-plan-steps space-y-0"></div>
+          <div class="cc-confirm-ui hidden mt-3"></div>
+        </div>
+      </div>
+      <div class="cc-stage collapsed" data-stage="result">
+        <button class="cc-stage-header" onclick="ccToggleStage(this)" aria-expanded="false">
+          <div class="flex items-center gap-2">
+            <span class="cc-stage-num">3</span>
+            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>What I did / found</span>
+          </div>
+          <i data-lucide="chevron-down" class="cc-chevron w-3.5 h-3.5"></i>
+        </button>
+        <div class="cc-stage-body">
+          <div class="cc-result-content"></div>
+        </div>
+      </div>`;
+    return card;
+  }
+
+  function _setStage(card, stageName, stateStr) {
+    const stage = card.querySelector(`[data-stage="${stageName}"]`);
+    if (!stage) return;
+    stage.classList.remove('active', 'done', 'failed', 'collapsed');
+    const header = stage.querySelector('.cc-stage-header');
+    if (stateStr === 'active' || stateStr === 'loading' || stateStr === 'confirm') {
+      stage.classList.add('active');
+      if (header) header.setAttribute('aria-expanded', 'true');
+    } else if (stateStr === 'pending') {
+      stage.classList.add('collapsed');
+      if (header) header.setAttribute('aria-expanded', 'false');
+    } else if (stateStr === 'done') {
+      stage.classList.add('done', 'collapsed');
+      if (header) header.setAttribute('aria-expanded', 'false');
+    } else if (stateStr === 'failed') {
+      stage.classList.add('failed', 'collapsed');
+      if (header) header.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function _updateUnderstanding(card, text) {
+    const el = card.querySelector('.cc-understanding-text');
+    if (el) el.innerHTML = `<span class="text-zinc-200 leading-relaxed font-medium">${escapeHtml(text)}</span>`;
+  }
+
+  function _renderPlanSteps(card, steps) {
+    _setStage(card, 'plan', 'active');
+    const container = card.querySelector('.cc-plan-steps');
+    if (!container) return;
+    container.innerHTML = '';
+    steps.forEach(step => _upsertPlanStep(card, { ...step, status: 'pending' }));
+  }
+
+  function _upsertPlanStep(card, data) {
+    const container = card.querySelector('.cc-plan-steps');
+    if (!container) return;
+    const idx = data.index, status = data.status || 'pending';
+    let el = container.querySelector(`[data-step-idx="${idx}"]`);
+    if (!el) { el = document.createElement('div'); el.className = 'cc-step'; el.dataset.stepIdx = idx; container.appendChild(el); }
+    el.dataset.status = status;
+
+    const icons = {
+      pending: `<i data-lucide="circle" class="w-3.5 h-3.5 text-zinc-600 shrink-0"></i>`,
+      running: `<i data-lucide="loader-2" class="w-3.5 h-3.5 text-cyan-400 cc-spin shrink-0"></i>`,
+      done:    `<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>`,
+      failed:  `<i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-400 shrink-0"></i>`,
+    };
+    const badge = (data.safety_level && data.safety_level !== 'READ_ONLY')
+      ? `<span class="${getSafetyBadgeClass(data.safety_level)} text-[9px] font-mono px-1.5 py-0.5 rounded uppercase">${escapeHtml(data.safety_level)}</span>` : '';
+    const outHtml = ((status === 'done' || status === 'failed') && data.output)
+      ? `<div class="cc-step-cmd mt-1 opacity-80 max-h-32 overflow-y-auto">${escapeHtml(data.output.slice(0, 300))}${data.output.length > 300 ? '…' : ''}</div>` : '';
+
+    el.innerHTML = `
+      ${icons[status] || icons.pending}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center flex-wrap gap-1.5">
+          <span class="text-xs text-zinc-200 font-medium">${escapeHtml(data.description || data.command || '')}</span>
+          ${badge}
+        </div>
+        ${data.command ? `<div class="cc-step-cmd">$ ${escapeHtml(data.command)}</div>` : ''}
+        ${outHtml}
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function _showConfirmUI(card, sid, safetyLevel, steps) {
+    const ui = card.querySelector('.cc-confirm-ui');
+    if (!ui) return;
+    ui.classList.remove('hidden');
+    const col = safetyLevel === 'DESTRUCTIVE' ? 'text-rose-400' : 'text-amber-400';
+    ui.innerHTML = `
+      <div class="w-full p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+        <div class="flex items-center gap-2 text-xs">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 shrink-0"></i>
+          <span>This is a <strong class="${col} font-bold">${escapeHtml(safetyLevel)}</strong> operation. Review the steps above carefully.</span>
+        </div>
+        <div class="flex items-center gap-2.5 mt-3">
+          <button class="btn btn-ghost px-3.5 py-1.5 text-xs border border-white/10"
+                  onclick="CommandCenter._cancelExecution('${escapeHtml(sid)}')">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Cancel</span>
+          </button>
+          <button class="btn btn-primary px-4 py-1.5 text-xs font-semibold"
+                  onclick="CommandCenter._confirmExecution('${escapeHtml(sid)}')">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Confirm &amp; Execute</span>
+          </button>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function _confirmExecution(sid) {
+    SoundFX.play('click');
+    const card = state.cards.get(sid);
+    const ui = card && card.querySelector('.cc-confirm-ui');
+    if (ui) ui.classList.add('hidden');
+    MascotManager.setMood('THINKING', 'Executing confirmed operations...');
+    _openSSEStream(sid);
+    _executeCommand(sid, true);
+  }
+
+  function _cancelExecution(sid) {
+    SoundFX.play('click');
+    const card = state.cards.get(sid);
+    if (!card) return;
+    const ui = card.querySelector('.cc-confirm-ui');
+    if (ui) ui.innerHTML = `<span class="text-xs text-zinc-500 italic">Operation cancelled by operator.</span>`;
+    _setStage(card, 'plan', 'failed');
+    MascotManager.setMood('OBSERVING', 'Operation cancelled.');
+    showToast('Command execution cancelled', 'info', 2000);
+  }
+
+  function _updateResult(card, data) {
+    const el = card.querySelector('.cc-result-content');
+    if (!el) return;
+    const icon = data.success
+      ? `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>`
+      : `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>`;
+    const raw = data.raw_output ? `
+      <details class="cc-result-details mt-2 p-2 bg-[#08090e] rounded-lg border border-white/[0.06]">
+        <summary class="text-xs text-zinc-400 font-mono cursor-pointer hover:text-zinc-200 select-none">Technical Details ▾</summary>
+        <pre class="cc-result-raw text-xs font-mono mt-1 text-zinc-300 overflow-x-auto whitespace-pre-wrap p-2 bg-black/40 rounded">${escapeHtml(data.raw_output)}</pre>
+      </details>` : '';
+    el.innerHTML = `
+      <div class="flex items-start gap-2">${icon}<p class="text-xs text-zinc-200 leading-relaxed font-medium">${escapeHtml(data.summary || 'Done.')}</p></div>
+      ${raw}`;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function _setCardError(card, message) {
+    const existing = card.querySelector('.cc-card-error');
+    if (existing) existing.remove();
+    const err = document.createElement('div');
+    err.className = 'cc-card-error flex items-center gap-2 px-4 py-2.5 text-xs text-rose-400 border-t border-rose-400/20 bg-rose-500/5';
+    err.innerHTML = `<i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i><span>${escapeHtml(message)}</span>`;
+    card.appendChild(err);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ── Private: storage helpers ───────────────────────────────────────────────
+  function _storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function _storageSet(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+  function _loadHistory() {
+    try { const r = _storageGet('cc-history'); state.commandHistory = r ? JSON.parse(r) : []; }
+    catch (e) { state.commandHistory = []; }
+  }
+
+  // ── Public exports ─────────────────────────────────────────────────────────
+  return { init, setMode, submitCommand, clearTranscript, _confirmExecution, _cancelExecution };
+
+})();
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
-
-
