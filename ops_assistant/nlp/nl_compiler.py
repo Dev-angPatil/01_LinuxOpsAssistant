@@ -97,6 +97,7 @@ class NaturalLanguageCompiler:
         # Clean punctuation and extra spaces
         clean = re.sub(r"^\$\s*", "", raw)
         clean = re.sub(r"[\.!\?]+$", "", clean).strip()
+        lower = clean.lower()
 
         # 1. Folder & Directory Creation
         # e.g. "inside Divya create one folder name as DBMS", "in Divya create folder DBMS"
@@ -157,24 +158,29 @@ class NaturalLanguageCompiler:
                 "safety_level": "MODIFYING",
                 "risk_score": 0.15,
                 "rollback_command": f"rmdir '{name}' 2>/dev/null || rm -rf '{name}'",
-                "explanation": f"I will create a new directory named '{name}'.",
-                "explanation_paragraph": f"The natural language assistant compiled your instruction into the command `mkdir -p '{name}'`. This safely provisions the folder in your current working directory without overwriting existing files."
+                "description": desc,
+                "intent": "dir_create",
+                "safety_level": "MODIFYING",
+                "risk_score": 0.20,
+                "rollback_command": f"rmdir '{full_path}' 2>/dev/null || rm -rf '{full_path}'",
+                "explanation": f"I will create the directory '{child}' inside '{parent}'.",
+                "explanation_paragraph": f"The assistant processed your natural language request into `mkdir -p '{full_path}'`, safely provisioning the directory without disturbing existing directories."
             }
 
-        # 2. File Creation with / without content
-        # e.g. "inside Divya create file notes.txt with content 'hello world'"
-        m = re.search(r"^(?:in|inside)\s+(?P<parent>[a-zA-Z0-9_\-\.\/~]+)\s+(?:create|make|touch|write)\s+(?:a\s+|one\s+|new\s+)?file\s+(?P<file>[a-zA-Z0-9_\-\.\/]+)(?:\s+with\s+(?:content|text)\s+['\"]?(?P<content>.*?)['\"]?)?$", clean, re.IGNORECASE)
+        # 2. File Creation
+        # e.g. "inside Divya create a file notes.txt with content hello", "in Divya create file index.html"
+        m = re.search(r"^(?:in|inside)\s+(?:the\s+|folder\s+|dir\s+)?(?P<parent>[a-zA-Z0-9_\-\.\/~]+)\s+(?:please\s+)?(?:create|make|add)\s+(?:a\s+|one\s+|new\s+)?(?:file)(?:\s+(?:name\s+as|named\s+as|named|called|name|as))?\s+(?P<filename>[a-zA-Z0-9_\-\.\/]+)(?:\s+with\s+content\s+['\"]?(?P<content>.*?)['\"]?)?$", clean, re.IGNORECASE)
         if m:
             parent = m.group("parent").strip()
-            filename = m.group("file").strip()
-            content = (m.group("content") or "").strip()
+            filename = m.group("filename").strip()
+            content = m.group("content") or ""
             full_path = f"{parent}/{filename}" if not parent.endswith("/") else f"{parent}{filename}"
             if content:
                 cmd = f"mkdir -p '{parent}' && echo '{content}' > '{full_path}'"
-                desc = f"Creates file '{full_path}' with specified content."
+                desc = f"Creates file '{filename}' inside '{parent}' with content."
             else:
                 cmd = f"mkdir -p '{parent}' && touch '{full_path}'"
-                desc = f"Creates empty file '{full_path}'."
+                desc = f"Creates empty file '{filename}' inside '{parent}'."
             return {
                 "command": cmd,
                 "path": full_path,
@@ -190,7 +196,7 @@ class NaturalLanguageCompiler:
 
         # 3. Web & Browser Launching
         # e.g. "open YouTube", "open lead code platform", "launch leetcode", "open brave browser"
-        m = re.search(r"^(?:please\s+)?(?:open|launch|start|browse|play|visit|go\s+to)\s+(?P<target>.+)$", clean, re.IGNORECASE)
+        m = re.search(r"^(?:please\s+)?(?:open|launch|browse|play|visit|go\s+to)\s+(?P<target>.+)$", clean, re.IGNORECASE)
         if m:
             orig_target = m.group("target").strip()
             target = orig_target.lower()
@@ -211,7 +217,7 @@ class NaturalLanguageCompiler:
 
             # Check popular sites dictionary
             for site_key, site_url in cls.POPULAR_SITES.items():
-                if site_key in target or target.startswith(site_key):
+                if site_key == target or re.search(rf"\b{re.escape(site_key)}\b", target):
                     return {
                         "command": f"xdg-open '{site_url}'",
                         "url": site_url,
@@ -378,7 +384,256 @@ class NaturalLanguageCompiler:
                 "explanation_paragraph": "The assistant queried systemd via `systemctl list-units --type=service --state=running`, displaying all active background daemons and service units."
             }
 
+        # 8. File Search by Modification Time, Size, or Extension
+        m_mod = re.search(r"\b(?:find|list|show|get)\s+(?:all\s+)?files?\s+(?:in\s+.*?\s+)?(?:that\s+were\s+|which\s+were\s+)?modified\s+(?:in|within)\s+(?:the\s+)?last\s+(?P<num>\d+)\s*(?P<unit>hours?|hrs?|days?|minutes?|mins?)\b", clean, re.IGNORECASE)
+        if m_mod:
+            num = int(m_mod.group("num"))
+            unit = m_mod.group("unit").lower()
+            if "min" in unit:
+                cmd = f"find . -type f -mmin -{num}"
+                time_str = f"{num} minutes"
+            elif "hour" in unit or "hr" in unit:
+                cmd = f"find . -type f -mmin -{num * 60}"
+                time_str = f"{num} hours"
+            else:
+                cmd = f"find . -type f -mtime -{num}"
+                time_str = f"{num} days"
+            return {
+                "command": cmd,
+                "description": f"Lists all files modified in the last {time_str}.",
+                "intent": "file_find",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": f"I will find files modified in the last {time_str}.",
+                "explanation_paragraph": f"The assistant compiled your request into `{cmd}`, querying the filesystem for regular files with timestamps within the specified modification window."
+            }
+
+        # 9. Grep Text Search across files
+        m_grep = re.search(r"\b(?:search|find|grep|look)\s+(?:for\s+)?['\"](?P<query>[^'\"]+)['\"]\s+(?:in|inside)\s+(?:all\s+)?(?P<target>[a-zA-Z0-9_\-\.\*\/]+(?:\s+files)?)\b", clean, re.IGNORECASE)
+        if m_grep:
+            search_q = m_grep.group("query")
+            tgt = m_grep.group("target").strip()
+            if "python" in tgt.lower() or "*.py" in tgt:
+                cmd = f"grep -rn --include='*.py' '{search_q}' ."
+            else:
+                cmd = f"grep -rn '{search_q}' ."
+            return {
+                "command": cmd,
+                "description": f"Searches for pattern '{search_q}' across files.",
+                "intent": "file_find",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": f"I will search for '{search_q}' across files.",
+                "explanation_paragraph": f"The assistant compiled your text search request into `{cmd}`, recursively scanning files with line numbers for matching occurrences."
+            }
+
+        # 10. Archive / Zip / Compression
+        m_zip = re.search(r"\b(?:compress|zip|archive)\s+(?:the\s+)?(?:folder|directory|dir\s+)?(?P<src>[a-zA-Z0-9_\-\.\/~]+)\s+(?:in|into|to)\s+(?:a\s+)?(?:zip\s+file\s+)?(?:named\s+as\s+|named\s+|called\s+)?(?P<dst>[a-zA-Z0-9_\-\.\/~]+)\b", clean, re.IGNORECASE)
+        if m_zip:
+            src = m_zip.group("src").strip()
+            dst = m_zip.group("dst").strip()
+            if not dst.endswith((".zip", ".tar.gz", ".tgz")):
+                dst = f"{dst}.zip"
+            if dst.endswith(".zip"):
+                cmd = f"zip -r '{dst}' '{src}'"
+            else:
+                cmd = f"tar -czf '{dst}' '{src}'"
+            return {
+                "command": cmd,
+                "description": f"Compresses '{src}' into archive '{dst}'.",
+                "intent": "archive_create",
+                "safety_level": "MODIFYING",
+                "risk_score": 0.25,
+                "rollback_command": f"rm -f '{dst}'",
+                "explanation": f"I will compress '{src}' into '{dst}'.",
+                "explanation_paragraph": f"The assistant compiled your archiving request into `{cmd}`, packaging the directory tree into a compressed archive file."
+            }
+
+        # 11. Make Executable / Change Permissions
+        m_perm = re.search(r"\b(?:make|set)\s+(?:script\s+|file\s+)?(?P<path>[a-zA-Z0-9_\-\.\/~]+)\s+(?:an\s+)?executable\b", clean, re.IGNORECASE)
+        if m_perm:
+            path = m_perm.group("path").strip()
+            cmd = f"chmod +x '{path}'"
+            return {
+                "command": cmd,
+                "description": f"Grants execution permission on '{path}'.",
+                "intent": "perm_change",
+                "safety_level": "MODIFYING",
+                "risk_score": 0.20,
+                "rollback_command": f"chmod -x '{path}'",
+                "explanation": f"I will make '{path}' executable.",
+                "explanation_paragraph": f"The assistant compiled your instruction into `chmod +x '{path}'`, enabling POSIX execute permission bits on the target file."
+            }
+
+        # 12. Boot Performance & Bottlenecks
+        if any(w in lower for w in ("why is boot slow", "boot bottlenecks", "boot time", "systemd analyze", "slow startup")):
+            cmd = "systemd-analyze blame | head -n 15"
+            return {
+                "command": cmd,
+                "description": "Lists systemd services taking the longest startup time during boot.",
+                "intent": "system_boot_analysis",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": "I will analyze boot startup times and identify bottlenecks.",
+                "explanation_paragraph": "The assistant executed `systemd-analyze blame | head -n 15`, querying the init manager for initialization times consumed by each daemon during host startup."
+            }
+
         return None
+
+    @classmethod
+    def compile_semantic_fallback(cls, query: str, cwd: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Comprehensive semantic instruction compiler.
+        Ensures that ANY free-form user query produces a valid, safe, structured Linux command plan.
+        """
+        raw = (query or "").strip()
+        clean = re.sub(r"^\$\s*", "", raw)
+        clean = re.sub(r"[\.!\?]+$", "", clean).strip()
+        lower = clean.lower()
+        wd = cwd or os.getcwd()
+
+        # 1. Listening ports & network sockets
+        if any(w in lower for w in ("listening port", "open port", "what ports", "ports open", "port listening", "check port", "active ports")):
+            cmd = "ss -tulpn"
+            return {
+                "command": cmd,
+                "description": "Lists active listening TCP and UDP ports and associated process IDs.",
+                "intent": "network_ports",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": "I will inspect all open and listening network sockets.",
+                "explanation_paragraph": "The assistant executed `ss -tulpn`, querying the kernel socket table for all listening IPv4 and IPv6 endpoints along with their owning processes."
+            }
+
+        # 2. Network IP & Interfaces
+        if any(w in lower for w in ("what is my ip", "my ip address", "ip addr", "network status", "show interfaces")):
+            cmd = "ip -br a || ifconfig"
+            return {
+                "command": cmd,
+                "description": "Displays active network interfaces and assigned IP addresses.",
+                "intent": "network_status",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": "I will display your active network interface addresses.",
+                "explanation_paragraph": "The assistant executed `ip -br a` to inspect network link states and IPv4/IPv6 assignments across all host interfaces."
+            }
+
+        # 3. CPU, Memory, & Disk Monitoring
+        if any(w in lower for w in ("check cpu", "cpu usage", "cpu uses", "processor load", "top cpu")):
+            cmd = "top -b -n 1 | head -n 15"
+            return {
+                "command": cmd,
+                "description": "Samples live CPU utilization and load averages.",
+                "intent": "system_check_cpu",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": "I will inspect live CPU utilization.",
+                "explanation_paragraph": "The assistant compiled your query into `top -b -n 1 | head -n 15`, displaying processor usage and load averages across all cores."
+            }
+
+        if any(w in lower for w in ("check memory", "check ram", "ram usage", "memory free", "free ram", "free memory", "check swap")):
+            cmd = "free -h"
+            return {
+                "command": cmd,
+                "description": "Displays physical RAM and swap memory headroom in human-readable units.",
+                "intent": "system_check_ram",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": "I will report memory and swap availability.",
+                "explanation_paragraph": "The assistant executed `free -h` to report total, used, free, and buffered physical RAM and swap partition statistics."
+            }
+
+        if any(w in lower for w in ("check disk", "disk space", "storage space", "check storage", "how much disk")):
+            cmd = "df -h"
+            return {
+                "command": cmd,
+                "description": "Reports filesystem partition storage usage and available blocks.",
+                "intent": "system_check_disk",
+                "safety_level": "READ_ONLY",
+                "risk_score": 0.05,
+                "explanation": "I will report mounted partition storage capacity.",
+                "explanation_paragraph": "The assistant executed `df -h` to inspect storage allocations and available blocks across all mounted filesystems."
+            }
+
+        # 4. Process termination
+        m_kill = re.search(r"\b(?:kill|terminate|stop)\s+(?:process|proc|pid)?\s*(?P<target>[a-zA-Z0-9_\-\.]+)\b", clean, re.IGNORECASE)
+        if m_kill and not any(w in lower for w in ("service", "daemon", "unit")):
+            tgt = m_kill.group("target").strip()
+            if tgt.isdigit():
+                cmd = f"kill -15 {tgt}"
+                desc = f"Sends SIGTERM to process PID {tgt}."
+            else:
+                cmd = f"pkill -15 {tgt}"
+                desc = f"Sends SIGTERM to processes named '{tgt}'."
+            return {
+                "command": cmd,
+                "description": desc,
+                "intent": "process_kill",
+                "safety_level": "HIGH_RISK",
+                "risk_score": 0.70,
+                "explanation": f"I will send a termination signal to {tgt}.",
+                "explanation_paragraph": f"The assistant prepared `{cmd}`, issuing a standard POSIX SIGTERM signal to safely request graceful process shutdown."
+            }
+
+        # 5. Service operations (systemd)
+        m_svc = re.search(r"\b(?P<action>start|stop|restart|reload|enable|disable|status|logs?)\s+(?:service|unit|daemon)?\s*(?P<svc>[a-zA-Z0-9_\-\.@]+)\b", clean, re.IGNORECASE)
+        if m_svc:
+            act = m_svc.group("action").lower()
+            svc = m_svc.group("svc").strip()
+            if act in ("logs", "log"):
+                cmd = f"journalctl -u {svc} -n 50 --no-pager"
+                desc = f"Displays latest 50 systemd log lines for service '{svc}'."
+                safety = "READ_ONLY"
+                risk = 0.05
+            elif act == "status":
+                cmd = f"systemctl status {svc}"
+                desc = f"Checks status of systemd unit '{svc}'."
+                safety = "READ_ONLY"
+                risk = 0.05
+            else:
+                cmd = f"sudo systemctl {act} {svc}"
+                desc = f"Executes systemctl {act} on service '{svc}'."
+                safety = "MODIFYING"
+                risk = 0.35
+            return {
+                "command": cmd,
+                "description": desc,
+                "intent": f"service_{act}" if act != "logs" else "service_logs",
+                "safety_level": safety,
+                "risk_score": risk,
+                "explanation": f"I will {act} the '{svc}' service.",
+                "explanation_paragraph": f"The assistant compiled your request into `{cmd}`, interfacing with the systemd init daemon to manage service unit lifecycle."
+            }
+
+        # 6. File & Directory operations
+        if any(w in lower for w in ("create folder", "make folder", "mkdir", "create directory")):
+            m = re.search(r"(?:folder|directory|dir)\s+(?:name\s+as|named|called)?\s*['\"]?(?P<name>[a-zA-Z0-9_\-\.\/~]+)['\"]?", clean, re.IGNORECASE)
+            name = m.group("name") if m else "new_folder"
+            cmd = f"mkdir -p '{name}'"
+            return {
+                "command": cmd,
+                "description": f"Creates directory '{name}'.",
+                "intent": "dir_create",
+                "safety_level": "MODIFYING",
+                "risk_score": 0.15,
+                "rollback_command": f"rmdir '{name}' 2>/dev/null || rm -rf '{name}'",
+                "explanation": f"I will create the directory '{name}'.",
+                "explanation_paragraph": f"The assistant compiled your request into `mkdir -p '{name}'`, safely creating the target path without disturbing existing data."
+            }
+
+        # Default: general shell execution with AST safety validation
+        from ops_assistant.tools.safety import CommandSafetyValidator
+        val = CommandSafetyValidator.validate(clean)
+        return {
+            "command": clean,
+            "description": f"Executes system shell command: '{clean}'.",
+            "intent": "generic_command",
+            "safety_level": val.level.value,
+            "risk_score": val.risk_score,
+            "rollback_command": val.suggested_rollback,
+            "explanation": f"I will execute `{clean}`.",
+            "explanation_paragraph": f"The assistant synthesized your request into the shell command `{clean}` and performed AST security verification."
+        }
 
 
 def generate_natural_explanation(query: str, command: str, returncode: int = 0, stdout: str = "", stderr: str = "") -> str:

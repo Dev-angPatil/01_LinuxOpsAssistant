@@ -60,17 +60,34 @@ class ConfigManager:
         if os.environ.get("GEMINI_MODEL"):
             merged["gemini_model"] = os.environ.get("GEMINI_MODEL")
 
-        if not self.config_file.exists():
-            return merged
-        try:
-            with open(self.config_file, "r", encoding="utf-8") as f:
-                saved = json.load(f)
-            merged.update(saved)
-            if os.environ.get("GEMINI_API_KEY"):
-                merged["gemini_api_key"] = os.environ.get("GEMINI_API_KEY")
-            return merged
-        except Exception:
-            return merged
+        if self.config_file.exists():
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+                merged.update(saved)
+                if os.environ.get("GEMINI_API_KEY"):
+                    merged["gemini_api_key"] = os.environ.get("GEMINI_API_KEY")
+            except Exception:
+                pass
+
+        # Auto-detect local GGUF models if active_model_path is not set or invalid
+        if not merged.get("active_model_path") or not os.path.exists(merged["active_model_path"]):
+            try:
+                models_dir = Path(__file__).resolve().parent.parent / "models"
+                qwen_default = models_dir / "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+                if qwen_default.exists() and qwen_default.stat().st_size > 0:
+                    merged["active_model_path"] = str(qwen_default)
+                    merged["active_model_key"] = "qwen2.5-coder-1.5b"
+                else:
+                    for gguf_p in models_dir.glob("*.gguf"):
+                        if gguf_p.stat().st_size > 1024 * 1024:
+                            merged["active_model_path"] = str(gguf_p)
+                            merged["active_model_key"] = gguf_p.stem.replace("-instruct-q4_k_m", "").replace(".gguf", "")
+                            break
+            except Exception:
+                pass
+
+        return merged
 
     def save(self, config: Dict[str, Any]) -> bool:
         """Persist configuration dictionary to disk."""

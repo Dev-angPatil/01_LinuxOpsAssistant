@@ -1,0 +1,7 @@
+{
+  "model_key": "qwen2.5-coder-1.5b",
+  "filename": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+  "downloaded_at": 1787345107.0659676,
+  "file_size": 1117320768,
+  "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+}

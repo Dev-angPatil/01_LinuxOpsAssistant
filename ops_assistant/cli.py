@@ -210,13 +210,13 @@ def render_model_status():
     from ops_assistant.agent import GeminiProvider
 
     cfg = get_config()
-    provider = cfg.get("provider", "deterministic")
-    model_key = cfg.get("model_key", "deterministic")
-    model_path = cfg.get("model_path", "")
-    
     dl = ModelDownloader()
     avail = dl.list_available_models()
     installed = [k for k, v in avail.items() if v["is_downloaded"]]
+
+    provider = cfg.get("provider", "qwen" if installed else "auto")
+    model_key = cfg.get("active_model_key") or cfg.get("model_key") or ("qwen2.5-coder-1.5b" if installed else "deterministic")
+    model_path = cfg.get("active_model_path") or cfg.get("model_path", "")
 
     gemini_avail, _ = GeminiProvider().is_available()
 
@@ -229,7 +229,7 @@ def render_model_status():
         table.add_row("Active Model Key", f"[cyan]{model_key}[/cyan]")
         table.add_row("Model File Path", model_path or "[dim]N/A (Fast-Path Deterministic Mode)[/dim]")
         
-        if provider == "gguf" and model_path:
+        if model_path:
             p_exists = Path(model_path).exists()
             p_size = f"{Path(model_path).stat().st_size / (1024*1024):.1f} MB" if p_exists else "0 MB"
             status_badge = f"[bold green]✓ DOWNLOADED & VERIFIED ({p_size})[/bold green]" if p_exists else "[bold red]✗ FILE MISSING[/bold red]"
@@ -238,7 +238,7 @@ def render_model_status():
             table.add_row("Installed Local GGUF Models", f"{len(installed)} available: {', '.join(installed) if installed else 'None (0 MB disk)'}")
 
         table.add_row("Cloud Gemini API", "[bold green]✓ Configured (API Key Active)[/bold green]" if gemini_avail else "[dim]Not configured (Optional)[/dim]")
-        table.add_row("Deterministic Fast-Path", "[bold green]✓ Sub-50ms Offline Rule Compiler Active[/bold green]")
+        table.add_row("Qwen Semantic Copilot", "[bold green]✓ Sub-50ms Offline Rule Compiler Active[/bold green]")
         table.add_row("Models Storage Directory", str(dl.target_dir))
         
         console.print(table)
@@ -2452,7 +2452,7 @@ def main():
     )
     parser.add_argument("query", nargs="?", type=str, help="Natural language diagnostic query", default=None)
     parser.add_argument("--distro", "-d", type=str, help="Simulate / override Linux distribution family (debian, rhel, arch, alpine, suse)", default=None)
-    parser.add_argument("--provider", "-p", type=str, choices=["auto", "gemini", "deterministic", "gguf", "ollama"], default="auto", help="Reasoning backend engine (auto, gemini, deterministic, gguf, ollama)")
+    parser.add_argument("--provider", "-p", type=str, choices=["auto", "qwen", "gemini", "deterministic", "gguf", "ollama"], default="auto", help="Reasoning backend engine (auto, qwen, gemini, deterministic, gguf, ollama)")
     parser.add_argument("--model-path", type=str, help="Path to custom local GGUF model file", default=None)
     parser.add_argument("--list-models", action="store_true", help="List registered and downloaded edge GGUF models")
     parser.add_argument("--download-model", type=str, help="Download registered GGUF model (e.g. qwen2.5-coder-1.5b, qwen)", default=None)

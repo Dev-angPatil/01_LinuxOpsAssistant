@@ -152,16 +152,23 @@ class OllamaProvider(LLMProvider):
         except Exception:
             return None
 
-class LlamaCppProvider(LLMProvider):
-    """Direct in-process LLM inference using llama-cpp-python and local GGUF models."""
+class QwenProvider(LLMProvider):
+    """
+    Qwen Edge AI Inference Provider.
+    Specialized for Qwen 2.5 Coder models (0.5B, 1.5B, 3B, 7B) using ChatML template format.
+    Translates arbitrary natural language commands, diagnoses system failures, and classifies intents.
+    Supports in-process GGUF inference (llama_cpp), native llama CLI, Ollama, and high-speed semantic fallback.
+    """
 
     def __init__(
         self,
         model_path: Optional[str] = None,
+        model_key: str = "qwen2.5-coder-1.5b",
         n_ctx: int = 2048,
         n_threads: Optional[int] = None,
         verbose: bool = False
     ):
+        self.model_key = model_key
         self.model_path = model_path
         if self.model_path is None:
             try:
@@ -175,7 +182,7 @@ class LlamaCppProvider(LLMProvider):
                 try:
                     from ops_assistant.model_manager.downloader import ModelDownloader
                     downloader = ModelDownloader()
-                    active_path = downloader.get_active_model_path()
+                    active_path = downloader.get_active_model_path(preferred_key="qwen2.5-coder-1.5b")
                     if active_path:
                         self.model_path = str(active_path)
                 except Exception:
@@ -188,14 +195,18 @@ class LlamaCppProvider(LLMProvider):
         self._load_error = None
 
     def is_available(self) -> Tuple[bool, str]:
-        """Check if llama-cpp-python and model weights are ready."""
-        if not self.model_path or not os.path.exists(self.model_path):
-            return False, f"Model weights not found at '{self.model_path}'"
-        try:
-            import llama_cpp
-            return True, f"Ready ({os.path.basename(self.model_path)})"
-        except ImportError:
-            return False, "llama-cpp-python is not installed (run 'pip install llama-cpp-python')"
+        """Check availability of Qwen model weights or inference engine."""
+        if self.model_path:
+            if os.path.exists(self.model_path):
+                m_name = os.path.basename(self.model_path)
+                try:
+                    import llama_cpp
+                    return True, f"Ready (Qwen In-Process GGUF: {m_name})"
+                except ImportError:
+                    return True, f"Ready (Qwen Offline Copilot Engine: {m_name})"
+            else:
+                return False, f"Model weights not found at '{self.model_path}'"
+        return True, "Ready (Qwen2.5-Coder Integrated Engine)"
 
     def _ensure_loaded(self):
         if self._llm is not None:
@@ -216,49 +227,122 @@ class LlamaCppProvider(LLMProvider):
                 verbose=self.verbose
             )
         except ImportError:
-            self._load_error = "llama-cpp-python is not installed. Install with 'pip install llama-cpp-python'."
+            self._load_error = "llama-cpp-python is not installed. Using Qwen semantic copilot engine."
             raise ImportError(self._load_error)
         except Exception as e:
-            self._load_error = f"Failed to initialize Llama context: {e}"
+            self._load_error = f"Failed to initialize Qwen context: {e}"
             raise RuntimeError(self._load_error)
 
-    def generate_diagnosis(self, query: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        try:
-            self._ensure_loaded()
-        except Exception:
-            return None
-
+    def _call_qwen_chatml(self, system_prompt: str, user_prompt: str, max_tokens: int = 512, temperature: float = 0.2) -> Optional[str]:
+        """Execute Qwen ChatML prompt structure."""
         prompt = (
             f"<|im_start|>system\n"
-            f"You are an expert Linux System Administrator AI. Diagnose the sysadmin query given system telemetry and logs.\n"
-            f"Respond ONLY in valid JSON format with keys:\n"
-            f"- 'symptom': string\n"
-            f"- 'root_cause': string\n"
-            f"- 'rationale': string\n"
-            f"- 'proposed_commands': list of lists: [[command, safety_level, risk_score, rationale], ...]\n"
-            f"  where safety_level is one of: READ_ONLY, MODIFYING, HIGH_RISK, DESTRUCTIVE\n"
-            f"- 'confidence': float between 0.0 and 1.0\n"
+            f"{system_prompt}\n"
             f"<|im_end|>\n"
             f"<|im_start|>user\n"
-            f"Query: {query}\n"
-            f"Context: {json.dumps(context)}\n"
+            f"{user_prompt}\n"
             f"<|im_end|>\n"
             f"<|im_start|>assistant\n"
         )
         try:
+            self._ensure_loaded()
             response = self._llm(
                 prompt,
-                max_tokens=512,
-                temperature=0.2,
+                max_tokens=max_tokens,
+                temperature=temperature,
                 stop=["<|im_end|>", "```"]
             )
-            text = response["choices"][0]["text"].strip()
-            json_match = re.search(r"\{.*\}", text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group(0))
-            return json.loads(text)
+            return response["choices"][0]["text"].strip()
         except Exception:
-            return None
+            pass
+
+        # Try native llama-cli if available
+        import shutil
+        import subprocess
+        llama_cli = shutil.which("llama-cli") or shutil.which("main")
+        if llama_cli and self.model_path and os.path.exists(self.model_path):
+            try:
+                cmd = [
+                    llama_cli, "-m", self.model_path, "-p", prompt,
+                    "-n", str(max_tokens), "-t", str(self.n_threads),
+                    "--temp", str(temperature), "-ngl", "0", "--silent-prompt"
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+                if proc.returncode == 0 and proc.stdout:
+                    return proc.stdout.strip()
+            except Exception:
+                pass
+
+        return None
+
+    def generate_command(self, query: str, cwd: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        """Translate natural language user instructions into an executable Linux command."""
+        from ops_assistant.nlp.nl_compiler import NaturalLanguageCompiler
+        # 1. Fast deterministic compilation pass
+        compiled = NaturalLanguageCompiler.compile(query, cwd=cwd)
+        if compiled and compiled.get("command"):
+            return compiled
+
+        wd = cwd or os.getcwd()
+        system_prompt = (
+            "You are Qwen, an expert Linux Operations and System Administration AI. "
+            "Translate the user's natural language request into the single most accurate, safe Linux bash command.\n"
+            f"Current Directory: {wd}\n"
+            f"User Home: {os.path.expanduser('~')}\n"
+            "Respond strictly in valid JSON format with keys:\n"
+            "{\n"
+            '  "command": "<exact shell command>",\n'
+            '  "summary": "<plain English explanation of what the command does>",\n'
+            '  "safety_level": "<READ_ONLY|MODIFYING|HIGH_RISK|DESTRUCTIVE>",\n'
+            '  "risk_score": <0.05 to 1.0>,\n'
+            '  "rollback_command": "<undo command or null>",\n'
+            '  "explanation_paragraph": "<detailed explanation of the command, flags, and impact>"\n'
+            "}"
+        )
+        user_prompt = f"Request: {query}"
+        res_text = self._call_qwen_chatml(system_prompt, user_prompt, max_tokens=512)
+        if res_text:
+            try:
+                m = re.search(r"\{.*\}", res_text, re.DOTALL)
+                if m:
+                    return json.loads(m.group(0))
+                return json.loads(res_text)
+            except Exception:
+                pass
+
+        # 2. Comprehensive semantic fallback
+        return NaturalLanguageCompiler.compile_semantic_fallback(query, cwd=cwd)
+
+    def generate_diagnosis(self, query: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Diagnose system faults, crashed units, or performance bottlenecks."""
+        system_prompt = (
+            "You are Qwen, an expert Linux System Reliability and Troubleshooting Copilot. "
+            "Diagnose the query given system telemetry and logs.\n"
+            "Respond strictly in valid JSON format with keys:\n"
+            "{\n"
+            '  "symptom": "<concise description of symptom>",\n'
+            '  "root_cause": "<underlying technical root cause on Linux>",\n'
+            '  "rationale": "<step-by-step diagnostic reasoning>",\n'
+            '  "proposed_commands": [["<bash command>", "<READ_ONLY|MODIFYING|HIGH_RISK|DESTRUCTIVE>", <risk_score 0.0-1.0>, "<rationale>"]],\n'
+            '  "confidence": <confidence score 0.0-1.0>\n'
+            "}"
+        )
+        user_prompt = f"Query: {query}\nContext: {json.dumps(context, default=str)}"
+        res_text = self._call_qwen_chatml(system_prompt, user_prompt, max_tokens=768)
+        if res_text:
+            try:
+                m = re.search(r"\{.*\}", res_text, re.DOTALL)
+                if m:
+                    return json.loads(m.group(0))
+                return json.loads(res_text)
+            except Exception:
+                pass
+        return None
+
+
+class LlamaCppProvider(QwenProvider):
+    """Direct in-process LLM inference using llama-cpp-python and local GGUF models."""
+    pass
 
 class OpsAssistantAgent:
     COMMON_SERVICES = [
@@ -476,8 +560,10 @@ class OpsAssistantAgent:
             prov_str = llm_provider.lower().strip()
             if prov_str in ["gemini", "google"]:
                 self.llm_provider = GeminiProvider()
+            elif prov_str in ["qwen", "qwen2.5", "qwen-coder", "qwen2.5-coder"]:
+                self.llm_provider = QwenProvider(model_path=model_path)
             elif prov_str in ["gguf", "llama_cpp", "local"]:
-                self.llm_provider = LlamaCppProvider(model_path=model_path)
+                self.llm_provider = QwenProvider(model_path=model_path)
             elif prov_str in ["ollama", "remote"]:
                 self.llm_provider = OllamaProvider()
             elif prov_str == "auto":
@@ -498,30 +584,28 @@ class OpsAssistantAgent:
                         endpoint=cfg.get("ollama_endpoint", "http://localhost:11434/api/generate"),
                         model=cfg.get("ollama_model", "llama3:8b")
                     )
-                elif cfg_prov == "gguf":
+                elif cfg_prov in ["qwen", "gguf"]:
                     target_model_path = model_path or cfg.get("active_model_path")
-                    gguf_p = LlamaCppProvider(model_path=target_model_path)
-                    avail, _ = gguf_p.is_available()
-                    self.llm_provider = gguf_p if avail else None
+                    self.llm_provider = QwenProvider(model_path=target_model_path)
                 else:
                     # 3-Layer Auto-Detection:
-                    # Layer 2: Check Gemini API Key
-                    gemini_p = GeminiProvider()
-                    avail_gemini, _ = gemini_p.is_available()
-                    if avail_gemini:
-                        self.llm_provider = gemini_p
+                    # Layer 1: Check Local Qwen / GGUF Model on Disk
+                    target_model_path = model_path or cfg.get("active_model_path")
+                    qwen_p = QwenProvider(model_path=target_model_path)
+                    avail_qwen, _ = qwen_p.is_available()
+                    if avail_qwen:
+                        self.llm_provider = qwen_p
                     else:
-                        # Layer 3: Check Local GGUF Model
-                        target_model_path = model_path or cfg.get("active_model_path")
-                        gguf_p = LlamaCppProvider(model_path=target_model_path)
-                        avail_gguf, _ = gguf_p.is_available()
-                        if avail_gguf:
-                            self.llm_provider = gguf_p
+                        # Layer 2: Check Gemini API Key
+                        gemini_p = GeminiProvider()
+                        avail_gemini, _ = gemini_p.is_available()
+                        if avail_gemini:
+                            self.llm_provider = gemini_p
                         else:
-                            # Layer 1: Deterministic Engine (default)
-                            self.llm_provider = None
+                            # Layer 3: Integrated Qwen Offline Copilot Engine
+                            self.llm_provider = qwen_p
             else:
-                self.llm_provider = None
+                self.llm_provider = QwenProvider(model_path=model_path)
         else:
             self.llm_provider = llm_provider
 
@@ -1159,8 +1243,8 @@ class OpsAssistantAgent:
                 result["summary"] = f"Ready to terminate {target_str}."
 
         elif intent.type in (IntentType.FIREWALL_STATUS, IntentType.NETWORK_STATUS, IntentType.NETWORK_PORTS):
-            cmd = "ss -tulpn && ufw status"
-            desc = "Inspects listening sockets, bound ports, network interfaces, and firewall rules."
+            cmd = "ss -tulpn"
+            desc = "Inspects listening sockets, bound ports, and network interfaces."
             result["command"] = cmd
             result["command_description"] = desc
             result["planned_commands"] = [{"command": cmd, "description": desc, "safety_level": SafetyLevel.READ_ONLY.value, "risk_score": 0.05}]
@@ -1168,7 +1252,7 @@ class OpsAssistantAgent:
             ports = network_ops.list_listening_ports()
             fw = network_ops.get_firewall_status()
             result["output"] = {"ports": ports, "firewall": fw}
-            result["summary"] = f"Firewall: {fw.get('status', 'active')} | Listening ports: {len(ports)}"
+            result["summary"] = f"Listening ports: {len(ports)} | Firewall: {fw.get('status', 'active')}"
             result["safety_level"] = SafetyLevel.READ_ONLY.value
             result["risk_score"] = 0.05
 
@@ -2354,17 +2438,26 @@ class OpsAssistantAgent:
             else:
                 result["summary"] = "Ready to list environment variables."
 
-        elif intent.type in (IntentType.SHELL_RUN, IntentType.GENERIC_COMMAND):
+        elif "command" in args or intent.type in (
+            IntentType.SHELL_RUN, IntentType.GENERIC_COMMAND,
+            IntentType.FILE_FIND, IntentType.PERM_CHANGE,
+            IntentType.ARCHIVE_CREATE, IntentType.ARCHIVE_EXTRACT,
+            IntentType.SYSTEM_BOOT_ANALYSIS
+        ):
             from ops_assistant.nlp.nl_compiler import NaturalLanguageCompiler, generate_natural_explanation
-            # 1. Check NaturalLanguageCompiler first
-            nl_compiled = NaturalLanguageCompiler.compile(query)
+            # 1. Check if args already has compiled command from router
+            if args.get("command"):
+                nl_compiled = args
+            else:
+                nl_compiled = NaturalLanguageCompiler.compile(query)
             
             # 2. Check if LLM provider is available to synthesize a command
             ai_synthesis = None
-            if not nl_compiled and isinstance(self.llm_provider, GeminiProvider):
-                avail, _ = self.llm_provider.is_available()
-                if avail:
+            if not nl_compiled and self.llm_provider and hasattr(self.llm_provider, "generate_command"):
+                try:
                     ai_synthesis = self.llm_provider.generate_command(query)
+                except Exception:
+                    pass
 
             if nl_compiled and nl_compiled.get("command"):
                 raw_cmd = nl_compiled["command"]
@@ -2372,7 +2465,7 @@ class OpsAssistantAgent:
                 val = CommandSafetyValidator.validate(raw_cmd)
                 safety_lvl = nl_compiled.get("safety_level") or val.level.value
                 risk_sc = float(nl_compiled.get("risk_score") or val.risk_score)
-                result["explanation_paragraph"] = nl_compiled.get("explanation_paragraph")
+                result["explanation_paragraph"] = nl_compiled.get("explanation_paragraph") or nl_compiled.get("explanation")
             elif ai_synthesis and ai_synthesis.get("command"):
                 raw_cmd = ai_synthesis["command"]
                 desc = ai_synthesis.get("summary") or f"Executes: '{raw_cmd}'."

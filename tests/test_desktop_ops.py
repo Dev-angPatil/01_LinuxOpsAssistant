@@ -24,8 +24,10 @@ class TestDesktopOps(unittest.TestCase):
         res = desktop_ops.open_folder(self.test_dir)
         self.assertTrue(res["success"])
         self.assertIn("Opened directory", res["message"])
+
     def test_open_folder_nonexistent(self):
-        res = desktop_ops.open_folder("/non/existent/path/9999")
+        nonexistent = os.path.join(self.test_dir, "nonexistent_subpath_99999")
+        res = desktop_ops.open_folder(nonexistent)
         self.assertFalse(res["success"])
         self.assertIn("error", res)
 

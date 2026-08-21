@@ -363,6 +363,8 @@ def _extract_file_delete(m: re.Match) -> Dict[str, Any]:
 def _extract_dir_path(m: re.Match) -> Dict[str, Any]:
     try:
         path = (m.group("path") or "").strip().strip("\"'")
+        if path.lower() in ("my", "the", "current", "this", "here", "current folder", "current dir", "folder", "directory", ""):
+            path = "."
         return {"path": path} if path else {"path": "."}
     except Exception:
         return {"path": "."}
@@ -943,7 +945,7 @@ _RULES: List[Tuple[IntentType, List[Tuple[str, Optional]]]] = [
     # -----------------------------------------------------------------------
     (IntentType.USER_WHO, [
         (r"\bwho(\'s| is) (logged|connected|online|on|in)\b", None),
-        (r"\b(who|w|last) -?\w*\b", None),
+        (r"^(who|w|last)(\s+-[a-zA-Z]+)?$", None),
         (r"\bcurrently logged in\b", None),
     ]),
 
@@ -1192,16 +1194,11 @@ class IntentRouter:
                     confidence=1.0,
                 )
 
-        # Stage 1: deterministic regex pass
-        intent = self._regex_classify(clean_text)
-        if intent.type != IntentType.UNKNOWN and intent.confidence >= 0.7:
-            return intent
-
-        # Stage 1.5: Natural Language Compiler semantic pass
+        # Stage 1: Natural Language Compiler semantic pass (high-precision NLP rules)
         try:
             from ops_assistant.nlp.nl_compiler import NaturalLanguageCompiler
             nl_compiled = NaturalLanguageCompiler.compile(clean_text)
-            if nl_compiled:
+            if nl_compiled and nl_compiled.get("command"):
                 target_intent_type = IntentType(nl_compiled.get("intent", "generic_command"))
                 return Intent(
                     target_intent_type,
@@ -1211,6 +1208,11 @@ class IntentRouter:
                 )
         except Exception:
             pass
+
+        # Stage 2: deterministic regex pass
+        intent = self._regex_classify(clean_text)
+        if intent.type != IntentType.UNKNOWN and intent.confidence >= 0.7:
+            return intent
 
         # Stage 2: Diagnostic query heuristic pass
         if self._looks_diagnostic(clean_text):
